@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --deep:    #0a1628;
+      --navy:    #0d2545;
+      --ocean:   #0e4d7b;
+      --sea:     #1a7abf;
+      --wave:    #2aaee0;
+      --foam:    #5ecbf0;
+      --coral:   #f4845f;
+      --sand:    #f0e6d3;
+      --gold:    #e8b84b;
+      --white:   #f7fafc;
+      --text:    #d4eaf7;
+      --muted:   #7bacc8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background-color: var(--deep);
+      color: var(--white);
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* ── ANIMATED OCEAN BACKGROUND ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 20% 80%, rgba(14,77,123,0.35) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 20%, rgba(42,174,224,0.15) 0%, transparent 55%),
+        radial-gradient(ellipse 100% 70% at 50% 100%, rgba(13,37,69,0.8) 0%, transparent 70%);
+      pointer-events: none; z-index: 0;
+    }
+
+    /* Floating bubbles */
+    .bubble {
+      position: fixed;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, rgba(94,203,240,0.18), rgba(42,174,224,0.04));
+      border: 1px solid rgba(94,203,240,0.12);
+      animation: floatUp linear infinite;
+      pointer-events: none; z-index: 0;
+    }
+    @keyframes floatUp {
+      0%   { transform: translateY(110vh) scale(0.8); opacity: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: 0.6; }
+      100% { transform: translateY(-10vh) scale(1.1); opacity: 0; }
+    }
+
+    /* ── SVG WAVE DIVIDER ── */
+    .wave-divider {
+      width: 100%; height: 60px; overflow: hidden; line-height: 0;
+    }
+    .wave-divider svg { display: block; }
+
+    /* ── GLOBAL LAYOUT ── */
+    .page-wrap { position: relative; z-index: 1; }
+    .container  { max-width: 900px; margin: 0 auto; padding: 0 20px 40px; }
+
+    /* ── HEADER ── */
+    .site-header {
+      background: linear-gradient(135deg, var(--navy) 0%, var(--ocean) 100%);
+      border-bottom: 2px solid rgba(42,174,224,0.3);
+      padding: 0 20px;
+      position: sticky; top: 0; z-index: 100;
+      box-shadow: 0 4px 30px rgba(0,0,0,0.4);
+      display: flex; align-items: center; gap: 12px; height: 62px;
+    }
+    .site-header .logo-icon { font-size: 26px; }
+    .site-header .logo-text {
+      font-family: 'Playfair Display', serif;
+      font-size: 20px; font-weight: 700;
+      background: linear-gradient(90deg, var(--foam), var(--gold));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      letter-spacing: 0.5px;
+    }
+    .site-header .logo-sub {
+      font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase;
+    }
+    .site-header .header-right { margin-left: auto; }
+
+    /* ── CARDS ── */
+    .card {
+      background: linear-gradient(145deg, rgba(13,37,69,0.9), rgba(14,77,123,0.5));
+      border: 1px solid rgba(42,174,224,0.2);
+      border-radius: 16px;
+      padding: 22px;
+      backdrop-filter: blur(10px);
+      transition: transform .2s, box-shadow .2s, border-color .2s;
+    }
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 40px rgba(42,174,224,0.15);
+      border-color: rgba(42,174,224,0.45);
+    }
+    .card h3, .card h4 { color: var(--foam); margin-bottom: 8px; }
+    .card h3 { font-family: 'Playfair Display', serif; font-size: 17px; }
+    .card h4 { font-size: 15px; font-weight: 600; }
+
+    .grid { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; }
+    .grid .card { width: calc(50% - 8px); }
+    @media (max-width: 600px) { .grid .card { width: 100%; } }
+
+    /* ── SECTION TITLES ── */
+    .section-title {
+      width: 100%; margin: 32px 0 4px;
+      font-family: 'Playfair Display', serif;
+      font-size: 18px; color: var(--foam);
+      display: flex; align-items: center; gap: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(42,174,224,0.25);
+    }
+
+    /* ── BUTTONS ── */
+    button {
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 600; font-size: 14px;
+      padding: 10px 18px;
+      border: none; border-radius: 10px;
+      cursor: pointer; transition: all .2s;
+      letter-spacing: 0.3px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--sea), var(--wave));
+      color: #fff; width: 100%;
+      box-shadow: 0 4px 15px rgba(42,174,224,0.3);
+    }
+    .btn-primary:hover { background: linear-gradient(135deg, var(--wave), var(--foam)); transform: translateY(-1px); }
+
+    .btn-action {
+      background: linear-gradient(135deg, #0d6eaa, var(--sea));
+      color: #fff; width: 100%;
+    }
+    .btn-action:hover { background: linear-gradient(135deg, var(--sea), var(--wave)); transform: translateY(-1px); }
+
+    .btn-success {
+      background: linear-gradient(135deg, #1e8c5a, #27ae72);
+      color: #fff; width: 100%;
+    }
+
+    .btn-warning {
+      background: linear-gradient(135deg, #c97a1a, var(--gold));
+      color: #fff; width: 100%;
+    }
+    .btn-warning:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #b5341f, var(--coral));
+      color: #fff;
+      padding: 7px 14px; font-size: 13px;
+    }
+    .btn-danger-full {
+      background: linear-gradient(135deg, #b5341f, var(--coral));
+      color: #fff; width: 100%; margin-top: 8px;
+    }
+    .btn-danger:hover, .btn-danger-full:hover { filter: brightness(1.1); }
+
+    .btn-purple {
+      background: linear-gradient(135deg, #1a3a6b, var(--ocean));
+      color: #fff; width: 100%; margin-top: 8px;
+      border: 1px solid rgba(42,174,224,0.4);
+    }
+    .btn-purple:hover { background: linear-gradient(135deg, var(--ocean), var(--sea)); }
+
+    .btn-secondary {
+      background: rgba(42,174,224,0.15);
+      color: var(--foam);
+      border: 1px solid rgba(42,174,224,0.35);
+      padding: 8px 16px; margin-bottom: 16px;
+    }
+    .btn-secondary:hover { background: rgba(42,174,224,0.25); }
+
+    .btn-login-full {
+      background: linear-gradient(135deg, var(--sea), var(--wave));
+      color: #fff; width: 100%; padding: 12px;
+      font-size: 15px; border-radius: 10px;
+      box-shadow: 0 6px 20px rgba(42,174,224,0.4);
+    }
+    .btn-login-full:hover { background: linear-gradient(135deg, var(--wave), var(--foam)); transform: translateY(-2px); }
+
+    /* ── FORM ELEMENTS ── */
+    input, select, textarea {
+      font-family: 'DM Sans', sans-serif;
+      background: rgba(10,22,40,0.7);
+      border: 1px solid rgba(42,174,224,0.25);
+      color: var(--white); border-radius: 10px;
+      padding: 10px 14px; font-size: 14px;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--wave);
+      box-shadow: 0 0 0 3px rgba(42,174,224,0.15);
+    }
+    input::placeholder, textarea::placeholder { color: var(--muted); }
+    input:disabled, textarea:disabled {
+      opacity: 0.5; cursor: not-allowed;
+    }
+
+    .form-group { display: flex; gap: 10px; margin-bottom: 14px; }
+    .form-group input, .form-group select { width: 100%; }
+
+    textarea { width: 100%; resize: vertical; margin-bottom: 10px; }
+
+    /* ── LOGIN VIEW ── */
+    .login-container {
+      display: flex; justify-content: center; align-items: center;
+      min-height: 100vh; padding: 20px;
+    }
+    .login-box {
+      background: linear-gradient(160deg, rgba(13,37,69,0.95), rgba(14,77,123,0.6));
+      border: 1px solid rgba(42,174,224,0.3);
+      border-radius: 24px; padding: 40px 36px;
+      width: 360px; text-align: center;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(94,203,240,0.08);
+    }
+    .login-fish { font-size: 52px; margin-bottom: 8px; animation: sway 3s ease-in-out infinite; }
+    @keyframes sway { 0%,100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+    .login-title {
+      font-family: 'Playfair Display', serif; font-size: 26px;
+      background: linear-gradient(90deg, var(--foam), var(--gold));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      margin-bottom: 4px;
+    }
+    .login-subtitle { font-size: 12px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 28px; }
+    .login-box input { width: 100%; margin-bottom: 12px; }
+    #message { color: var(--coral); font-size: 13px; margin-top: 10px; min-height: 18px; }
+
+    /* ── DASHBOARD HERO ── */
+    .dash-hero {
+      background: linear-gradient(135deg, var(--navy), var(--ocean));
+      border: 1px solid rgba(42,174,224,0.2);
+      border-radius: 20px; padding: 28px 28px 20px;
+      margin-top: 28px; margin-bottom: 8px;
+      position: relative; overflow: hidden;
+    }
+    .dash-hero::before {
+      content: '🐠🐟🐡';
+      position: absolute; right: 20px; bottom: 10px;
+      font-size: 36px; opacity: 0.15; letter-spacing: 6px;
+    }
+    .dash-hero h2 { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--foam); }
+    .dash-hero p  { color: var(--muted); font-size: 14px; margin-top: 4px; }
+
+    /* ── PROGRESS ── */
+    .progress-bg {
+      background: rgba(42,174,224,0.12);
+      border-radius: 6px; height: 8px;
+      margin: 14px 0 4px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--sea), var(--foam));
+      border-radius: 6px;
+      transition: width .6s ease;
+      box-shadow: 0 0 8px rgba(94,203,240,0.5);
+    }
+    .progress-text { font-size: 12px; color: var(--foam); font-weight: 600; text-align: right; }
+
+    /* ── TABLE ── */
+    .table-wrapper {
+      max-height: 260px; overflow-y: auto;
+      border: 1px solid rgba(42,174,224,0.2);
+      border-radius: 12px; margin-top: 16px;
+      background: rgba(10,22,40,0.5);
+    }
+    .table-wrapper::-webkit-scrollbar { width: 5px; }
+    .table-wrapper::-webkit-scrollbar-track { background: transparent; }
+    .table-wrapper::-webkit-scrollbar-thumb { background: rgba(42,174,224,0.3); border-radius: 4px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 11px 14px; text-align: left; border-bottom: 1px solid rgba(42,174,224,0.1); font-size: 14px; }
+    th {
+      background: rgba(14,77,123,0.9);
+      color: var(--foam); font-weight: 600;
+      position: sticky; top: 0; z-index: 10;
+      letter-spacing: 0.5px; font-size: 13px;
+    }
+    tr:hover td { background: rgba(42,174,224,0.07); }
+    .rank-1 td { background: rgba(232,184,75,0.18) !important; color: var(--gold); font-weight: 700; }
+    .rank-2 td { background: rgba(190,190,210,0.12) !important; color: #c8d0e0; font-weight: 700; }
+    .rank-3 td { background: rgba(188,107,50,0.15) !important; color: #d4956a; font-weight: 700; }
+
+    /* ── ALERT ── */
+    .alert-box {
+      background: linear-gradient(135deg, rgba(180,52,31,0.2), rgba(244,132,95,0.1));
+      border: 1px solid rgba(244,132,95,0.35);
+      border-left: 4px solid var(--coral);
+      border-radius: 14px; padding: 18px 20px; margin-top: 24px;
+    }
+    .alert-box h3 { color: var(--coral); margin-bottom: 6px; font-size: 15px; }
+    .alert-box ul { padding-left: 18px; color: var(--text); font-size: 14px; }
+    .alert-box li { margin-bottom: 4px; }
+
+    /* ── NEW FORM CARD ── */
+    .add-card {
+      background: rgba(14,77,123,0.2);
+      border: 2px dashed rgba(42,174,224,0.3);
+      border-radius: 16px; padding: 22px;
+      width: 100%; margin-bottom: 20px;
+    }
+    .add-card h3 { color: var(--foam); margin-bottom: 14px; font-size: 16px; }
+
+    /* ── CHECKBOX LIST ── */
+    .checkbox-list {
+      max-height: 160px; overflow-y: auto;
+      background: rgba(10,22,40,0.6);
+      border: 1px solid rgba(42,174,224,0.2);
+      border-radius: 10px; padding: 10px;
+    }
+    .checkbox-item { display: block; margin-bottom: 8px; font-size: 14px; cursor: pointer; color: var(--text); }
+    .checkbox-item input { margin-right: 8px; accent-color: var(--wave); cursor: pointer; }
+    .checkbox-item b { color: var(--foam); }
+
+    /* ── BADGE ── */
+    .badge {
+      display: inline-block;
+      padding: 2px 10px; border-radius: 20px;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+    }
+    .badge-course { background: rgba(42,174,224,0.15); color: var(--foam); border: 1px solid rgba(42,174,224,0.3); }
+
+    /* ── FOOTER / CREDIT ── */
+    .site-footer {
+      position: relative; z-index: 1;
+      border-top: 1px solid rgba(42,174,224,0.15);
+      padding: 20px;
+      text-align: center;
+      font-size: 13px; color: var(--muted);
+    }
+    .site-footer strong { color: var(--foam); }
+    .site-footer .footer-wave { font-size: 18px; letter-spacing: 4px; display: block; margin-bottom: 6px; }
+
+    /* ── UTILITIES ── */
+    a { color: var(--wave); text-decoration: none; }
+    a:hover { color: var(--foam); text-decoration: underline; }
+    #loadingCourses, #loadingMaterials, #loadingQuizzes, #loadingLessons,
+    #loadingDosenCourses, #loadingRanking, #loadingInactive { color: var(--muted); font-size: 14px; padding: 10px 0; }
+
+    /* Fade-in animation for views */
+    .fade-in { animation: fadeIn .35s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+
+<!-- Floating bubbles -->
+<script>
+  (function(){
+    var sizes=[60,90,45,120,30,80,55,100,35,70];
+    var lefts=[5,12,20,30,40,52,63,74,85,93];
+    var delays=[0,3,6,9,12,15,18,21,24,27];
+    var durations=[18,24,20,30,22,28,16,26,21,25];
+    for(var i=0;i<10;i++){
+      var d=document.createElement('div');
+      d.className='bubble';
+      d.style.cssText='width:'+sizes[i]+'px;height:'+sizes[i]+'px;left:'+lefts[i]+'%;animation-duration:'+durations[i]+'s;animation-delay:'+(-delays[i])+'s;';
+      document.body.appendChild(d);
+    }
+  })();
+</script>
+
+<div class="page-wrap">
+
+  <!-- ══════════ LOGIN ══════════ -->
+  <div id="loginView" class="login-container">
+    <div class="login-box fade-in">
+      <div class="login-fish">🐟</div>
+      <div class="login-title">AquaLearn LMS</div>
+      <div class="login-subtitle">Fakultas Kelautan dan Perikanan Universitas Udayana</div>
+      <input type="text"     id="username" placeholder="Username / NIM">
+      <input type="password" id="password" placeholder="Password">
+      <button class="btn-login-full" onclick="attemptLogin()">🌊 Masuk ke Sistem</button>
+      <div id="message"></div>
+    </div>
+  </div>
+
+
+  <!-- ══════════ MAHASISWA DASHBOARD ══════════ -->
+  <div id="dashboardView" style="display:none;">
+    <div class="site-header">
+      <span class="logo-icon">🐠</span>
+      <div>
+        <div class="logo-text">AquaLearn LMS</div>
+        <div class="logo-sub">Fakultas Kelautan dan Perikanan Universitas Udayana</div>
+      </div>
+      <div class="header-right">
+        <button class="btn-danger" onclick="logout()">Keluar</button>
+      </div>
+    </div>
+    <div class="container fade-in">
+      <div class="dash-hero">
+        <h2 id="welcomeTextMahasiswa">Dashboard Mahasiswa</h2>
+        <p>Pilih mata kuliah untuk mulai belajar 🌊</p>
+      </div>
+      <div class="section-title">📚 Mata Kuliah Anda</div>
+      <div id="loadingCourses">Memuat data kelas…</div>
+      <div class="grid" id="courseList"></div>
+    </div>
+  </div>
+
+
+  <!-- ══════════ RUANG KELAS (MAHASISWA) ══════════ -->
+  <div id="courseRoomView" style="display:none;">
+    <div class="site-header">
+      <span class="logo-icon">🐠</span>
+      <div>
+        <div class="logo-text">AquaLearn LMS</div>
+        <div class="logo-sub">Fakultas Kelautan dan Perikanan Universitas Udayana</div>
+      </div>
+      <div class="header-right">
+        <button class="btn-secondary" onclick="kembaliKeDashboard()">← Dashboard</button>
+      </div>
+    </div>
+    <div class="container fade-in">
+      <div class="dash-hero" style="margin-top:28px;">
+        <h2 id="courseTitle" style="font-size:20px;">Nama Mata Kuliah</h2>
+        <p>Ruang Belajar Digital</p>
+      </div>
+
+      <div class="section-title">📘 Materi Pembelajaran</div>
+      <div id="loadingMaterials">Memuat materi…</div>
+      <div class="grid" id="materialList"></div>
+
+      <div class="section-title">📝 Evaluasi / Kuis</div>
+      <div id="loadingQuizzes">Memuat kuis…</div>
+      <div class="grid" id="quizList"></div>
+
+      <div class="section-title">💡 Lesson Learn (Presensi Reflektif)</div>
+      <div id="loadingLessons">Memuat tugas refleksi…</div>
+      <div class="grid" id="lessonList"></div>
+    </div>
+  </div>
+
+
+  <!-- ══════════ DOSEN DASHBOARD ══════════ -->
+  <div id="lecturerDashboardView" style="display:none;">
+    <div class="site-header">
+      <span class="logo-icon">🎓</span>
+      <div>
+        <div class="logo-text">AquaLearn LMS</div>
+        <div class="logo-sub">Panel Dosen</div>
+      </div>
+      <div class="header-right">
+        <button class="btn-danger" onclick="logout()">Keluar</button>
+      </div>
+    </div>
+    <div class="container fade-in">
+      <div class="dash-hero">
+        <h2 id="welcomeTextDosen">Dashboard Dosen</h2>
+        <p>Kelola kelas dan pantau perkembangan mahasiswa Anda.</p>
+      </div>
+
+      <div class="section-title">⚙️ Buat Kelas Baru</div>
+      <div class="add-card">
+        <div class="form-group">
+          <input type="text" id="newCourseId"   placeholder="Kode Kelas (Contoh: C-003)">
+          <input type="text" id="newCourseName" placeholder="Nama Mata Kuliah">
+        </div>
+        <button class="btn-primary" id="btnTambahKelas" onclick="tambahKelas()">+ Buat Kelas</button>
+      </div>
+
+      <div class="section-title">🐟 Mata Kuliah Anda</div>
+      <div id="loadingDosenCourses">Memuat kelas…</div>
+      <div class="grid" id="dosenCourseList"></div>
+    </div>
+  </div>
+
+
+  <!-- ══════════ PANEL KELAS (DOSEN) ══════════ -->
+  <div id="lecturerAnalyticsView" style="display:none;">
+    <div class="site-header">
+      <span class="logo-icon">🎓</span>
+      <div>
+        <div class="logo-text">AquaLearn LMS</div>
+        <div class="logo-sub">Panel Kelas</div>
+      </div>
+      <div class="header-right">
+        <button class="btn-secondary" onclick="kembaliKeDashboardDosen()">← Daftar Kelas</button>
+      </div>
+    </div>
+    <div class="container fade-in">
+      <div class="dash-hero" style="margin-top:28px;">
+        <h2 id="analyticsCourseTitle">Analitik Kelas</h2>
+        <p>Kelola konten dan pantau aktivitas mahasiswa</p>
+      </div>
+
+      <!-- MATERI -->
+      <div class="section-title">📘 Manajemen Materi</div>
+      <div class="add-card">
+        <div class="form-group">
+          <input type="text" id="newMatTitle" placeholder="Judul Materi (Contoh: Modul 1 HTML)">
+          <input type="text" id="newMatUrl"   placeholder="Link Google Drive / URL">
+        </div>
+        <button class="btn-primary" id="btnTambahMateri" onclick="tambahMateriKelas()">+ Tambah Materi</button>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Judul Materi</th><th>Link Akses</th><th>Aksi</th></tr></thead>
+            <tbody id="materiDosenBody"><tr><td colspan="3" style="text-align:center;color:var(--muted)">Memuat data…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- KUIS -->
+      <div class="section-title">📝 Manajemen Kuis</div>
+      <div class="add-card">
+        <div class="form-group">
+          <input type="text" id="newQuizTitle" placeholder="Judul Kuis (Contoh: Kuis Pertemuan 1)">
+          <input type="text" id="newQuizUrl"   placeholder="Link Google Forms">
+        </div>
+        <button class="btn-warning" id="btnTambahKuis" onclick="tambahKuisKelas()">+ Tambah Kuis</button>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Judul Kuis</th><th>Link Kuis</th><th>Aksi</th></tr></thead>
+            <tbody id="kuisDosenBody"><tr><td colspan="3" style="text-align:center;color:var(--muted)">Memuat data…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- LESSON LEARN -->
+      <div class="section-title">💡 Manajemen Lesson Learn</div>
+      <div class="add-card">
+        <div class="form-group">
+          <input type="text" id="newLessonTopic" placeholder="Pertanyaan / Topik Refleksi">
+          <input type="date"  id="newLessonDate"  title="Pilih Tanggal Deadline" style="width:250px;">
+        </div>
+        <button class="btn-action" id="btnTambahLesson" onclick="tambahLessonKelas()">+ Tambah Lesson Learn</button>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Topik Presensi</th><th>Deadline (Auto Lock)</th><th>Aksi</th></tr></thead>
+            <tbody id="lessonDosenBody"><tr><td colspan="3" style="text-align:center;color:var(--muted)">Memuat data…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- MAHASISWA -->
+      <div class="section-title">👥 Manajemen Mahasiswa</div>
+      <div class="add-card">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Centang mahasiswa yang ingin ditambahkan ke kelas ini:</p>
+        <div class="form-group" style="flex-direction:column;gap:10px;">
+          <div id="studentCheckboxList" class="checkbox-list">
+            <p style="margin:0;color:var(--muted);padding:6px;">Memuat data…</p>
+          </div>
+          <button class="btn-primary" id="btnTambahMhs" onclick="masukkanMahasiswaBatch()">+ Masukkan Mahasiswa Terpilih</button>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>NIM / ID</th><th>Nama Mahasiswa</th><th>Aksi</th></tr></thead>
+            <tbody id="enrolledBody"><tr><td colspan="3" style="text-align:center;color:var(--muted)">Memuat data…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- RANKING -->
+      <div class="section-title">🏆 Ranking Aktivitas Mahasiswa</div>
+      <div id="loadingRanking">Memuat data analitik…</div>
+      <div class="table-wrapper" id="rankingContainer" style="display:none;">
+        <table>
+          <thead><tr><th>🥇 Ranking</th><th>Nama Mahasiswa</th><th>Total Skor</th></tr></thead>
+          <tbody id="rankingBody"></tbody>
+        </table>
+      </div>
+
+      <!-- ALERT INACTIVE -->
+      <div class="alert-box">
+        <h3>⚠️ Mahasiswa Tidak Aktif</h3>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:8px;">Mahasiswa terdaftar yang belum melakukan aktivitas (Skor = 0):</p>
+        <div id="loadingInactive" style="color:var(--muted);font-size:13px;">Mendeteksi…</div>
+        <ul id="inactiveList"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ FOOTER ══════════ -->
+  <footer class="site-footer">
+    <span class="footer-wave">🌊 🐟 🌊</span>
+    <strong>AquaLearn LMS</strong> — Sistem Manajemen Pembelajaran Kelautan & Perikanan<br>
+    <span style="margin-top:4px;display:inline-block;">Dibuat oleh: <strong>Andy Rasyadi, S.Pi., M.Si.</strong></span>
+  </footer>
+
+</div><!-- /page-wrap -->
+
+
+<script>
+  var currentUserInfo = null;
+  var activeCourseId   = null;
+  var activeCourseName = null;
+
+  // ── LOGIN ──
+  function attemptLogin() {
+    var user = document.getElementById("username").value;
+    var pass = document.getElementById("password").value;
+    document.getElementById("message").innerText = "Memproses…";
+    google.script.run.withSuccessHandler(handleLoginResponse).checkLogin(user, pass);
+  }
+
+  function handleLoginResponse(response) {
+    if (response.success) {
+      currentUserInfo = response;
+      document.getElementById("loginView").style.display = "none";
+      if (response.role === "Mahasiswa") {
+        showView("dashboardView");
+        document.getElementById("welcomeTextMahasiswa").innerText = "Halo, " + response.name + " 👋";
+        memuatDashboard();
+      } else if (response.role === "Dosen") {
+        showView("lecturerDashboardView");
+        document.getElementById("welcomeTextDosen").innerText = "Selamat datang, " + response.name;
+        memuatDashboardDosen();
+      }
+    } else {
+      document.getElementById("message").innerText = response.message;
+    }
+  }
+
+  function showView(id) {
+    ["dashboardView","courseRoomView","lecturerDashboardView","lecturerAnalyticsView"].forEach(function(v){
+      var el = document.getElementById(v);
+      el.style.display = "none";
+      el.classList.remove("fade-in");
+    });
+    var target = document.getElementById(id);
+    target.style.display = "block";
+    void target.offsetWidth;
+    target.classList.add("fade-in");
+  }
+
+  // ── DOSEN: CRUD KELAS ──
+  function tambahKelas() {
+    var courseId   = document.getElementById("newCourseId").value;
+    var courseName = document.getElementById("newCourseName").value;
+    if (!courseId.trim() || !courseName.trim()) { alert("Kode & Nama Kelas harus diisi!"); return; }
+    var btn = document.getElementById("btnTambahKelas");
+    btn.innerText = "Menyimpan…"; btn.disabled = true;
+    google.script.run.withSuccessHandler(function(response) {
+      btn.innerText = "+ Buat Kelas"; btn.disabled = false;
+      if (response.success) { document.getElementById("newCourseId").value = ""; document.getElementById("newCourseName").value = ""; memuatDashboardDosen(); }
+      else { alert("❌ " + response.message); }
+    }).tambahMataKuliah(courseId, courseName, currentUserInfo.userId);
+  }
+
+  function konfirmasiHapusKelas(courseId, courseName) {
+    if (confirm("PERINGATAN!\nHapus kelas '" + courseName + "'?\nData yang dihapus tidak dapat dikembalikan.")) {
+      google.script.run.withSuccessHandler(function(response) {
+        if (response.success) memuatDashboardDosen(); else alert("❌ " + response.message);
+      }).hapusMataKuliah(courseId, currentUserInfo.userId);
+    }
+  }
+
+  // ── DOSEN: MATERI ──
+  function tambahMateriKelas() {
+    var title = document.getElementById("newMatTitle").value;
+    var url   = document.getElementById("newMatUrl").value;
+    if (!title.trim() || !url.trim()) { alert("Judul Materi dan Link Akses wajib diisi!"); return; }
+    var btn = document.getElementById("btnTambahMateri");
+    btn.innerText = "Menyimpan…"; btn.disabled = true;
+    google.script.run.withSuccessHandler(function(response) {
+      btn.innerText = "+ Tambah Materi"; btn.disabled = false;
+      if (response.success) { document.getElementById("newMatTitle").value = ""; document.getElementById("newMatUrl").value = ""; google.script.run.withSuccessHandler(renderManajemenMateri).getCourseMaterials(activeCourseId); }
+      else { alert("❌ " + response.message); }
+    }).tambahMateri(activeCourseId, title, url);
+  }
+
+  function konfirmasiHapusMateri(materialId, title) {
+    if (confirm("Hapus materi '" + title + "' beserta riwayat baca mahasiswa?")) {
+      google.script.run.withSuccessHandler(function(response) {
+        if (response.success) { google.script.run.withSuccessHandler(renderManajemenMateri).getCourseMaterials(activeCourseId); google.script.run.withSuccessHandler(renderRankings).getStudentRankings(activeCourseId); }
+        else { alert("❌ " + response.message); }
+      }).hapusMateri(materialId);
+    }
+  }
+
+  function renderManajemenMateri(materials) {
+    var tbody = document.getElementById("materiDosenBody"); tbody.innerHTML = "";
+    if (!materials || materials.length === 0) { tbody.innerHTML = "<tr><td colspan='3' style='text-align:center;color:var(--muted)'>Belum ada materi</td></tr>"; return; }
+    for (var i = 0; i < materials.length; i++) {
+      tbody.innerHTML += "<tr><td>" + materials[i].title + "</td><td><a href='" + materials[i].url_drive + "' target='_blank'>🔗 Buka</a></td><td><button class='btn-danger' onclick=\"konfirmasiHapusMateri('" + materials[i].material_id + "','" + materials[i].title + "')\">Hapus</button></td></tr>";
+    }
+  }
+
+  // ── DOSEN: KUIS ──
+  function tambahKuisKelas() {
+    var title = document.getElementById("newQuizTitle").value;
+    var url   = document.getElementById("newQuizUrl").value;
+    if (!title.trim() || !url.trim()) { alert("Judul Kuis dan Link wajib diisi!"); return; }
+    var btn = document.getElementById("btnTambahKuis");
+    btn.innerText = "Menyimpan…"; btn.disabled = true;
+    google.script.run.withSuccessHandler(function(response) {
+      btn.innerText = "+ Tambah Kuis"; btn.disabled = false;
+      if (response.success) { document.getElementById("newQuizTitle").value = ""; document.getElementById("newQuizUrl").value = ""; google.script.run.withSuccessHandler(renderManajemenKuis).getCourseQuizzes(activeCourseId); }
+      else { alert("❌ " + response.message); }
+    }).tambahKuis(activeCourseId, title, url);
+  }
+
+  function konfirmasiHapusKuis(quizId, title) {
+    if (confirm("Hapus kuis '" + title + "' beserta riwayat mahasiswa?")) {
+      google.script.run.withSuccessHandler(function(response) {
+        if (response.success) { google.script.run.withSuccessHandler(renderManajemenKuis).getCourseQuizzes(activeCourseId); google.script.run.withSuccessHandler(renderRankings).getStudentRankings(activeCourseId); }
+        else { alert("❌ " + response.message); }
+      }).hapusKuis(quizId);
+    }
+  }
+
+  function renderManajemenKuis(quizzes) {
+    var tbody = document.getElementById("kuisDosenBody"); tbody.innerHTML = "";
+    if (!quizzes || quizzes.length === 0) { tbody.innerHTML = "<tr><td colspan='3' style='text-align:center;color:var(--muted)'>Belum ada kuis</td></tr>"; return; }
+    for (var i = 0; i < quizzes.length; i++) {
+      tbody.innerHTML += "<tr><td>" + quizzes[i].title + "</td><td><a href='" + quizzes[i].url_form + "' target='_blank' style='color:var(--gold)'>🔗 Buka</a></td><td><button class='btn-danger' onclick=\"konfirmasiHapusKuis('" + quizzes[i].quiz_id + "','" + quizzes[i].title + "')\">Hapus</button></td></tr>";
+    }
+  }
+
+  // ── DOSEN: LESSON ──
+  function tambahLessonKelas() {
+    var topic   = document.getElementById("newLessonTopic").value;
+    var rawDate = document.getElementById("newLessonDate").value;
+    if (!topic.trim() || !rawDate.trim()) { alert("Topik dan Tanggal Deadline wajib diisi!"); return; }
+    var parts = rawDate.split("-"); var formattedDate = parts[2] + "-" + parts[1] + "-" + parts[0];
+    var btn = document.getElementById("btnTambahLesson");
+    btn.innerText = "Menyimpan…"; btn.disabled = true;
+    google.script.run.withSuccessHandler(function(response) {
+      btn.innerText = "+ Tambah Lesson Learn"; btn.disabled = false;
+      if (response.success) { document.getElementById("newLessonTopic").value = ""; document.getElementById("newLessonDate").value = ""; google.script.run.withSuccessHandler(renderManajemenLesson).getCourseLessons(activeCourseId); }
+      else { alert("❌ " + response.message); }
+    }).tambahLesson(activeCourseId, topic, formattedDate);
+  }
+
+  function konfirmasiHapusLesson(assignId, topic) {
+    if (confirm("Hapus Presensi '" + topic + "' beserta jawaban seluruh mahasiswa?")) {
+      google.script.run.withSuccessHandler(function(response) {
+        if (response.success) { google.script.run.withSuccessHandler(renderManajemenLesson).getCourseLessons(activeCourseId); google.script.run.withSuccessHandler(renderRankings).getStudentRankings(activeCourseId); }
+        else { alert("❌ " + response.message); }
+      }).hapusLesson(assignId);
+    }
+  }
+
+  function renderManajemenLesson(lessons) {
+    var tbody = document.getElementById("lessonDosenBody"); tbody.innerHTML = "";
+    if (!lessons || lessons.length === 0) { tbody.innerHTML = "<tr><td colspan='3' style='text-align:center;color:var(--muted)'>Belum ada tugas presensi</td></tr>"; return; }
+    for (var i = 0; i < lessons.length; i++) {
+      tbody.innerHTML += "<tr><td>" + lessons[i].topic + "</td><td><b style='color:var(--foam)'>" + lessons[i].deadline + "</b></td><td><button class='btn-danger' onclick=\"konfirmasiHapusLesson('" + lessons[i].assign_id + "','" + lessons[i].topic + "')\">Hapus</button></td></tr>";
+    }
+  }
+
+  // ── DOSEN: MAHASISWA BATCH ──
+  function masukkanMahasiswaBatch() {
+    var checkboxes  = document.querySelectorAll('.mhs-checkbox:checked');
+    var selectedIds = [];
+    for (var i = 0; i < checkboxes.length; i++) { selectedIds.push(checkboxes[i].value); }
+    if (selectedIds.length === 0) { alert("Harap centang minimal satu mahasiswa!"); return; }
+    var btn = document.getElementById("btnTambahMhs");
+    btn.innerText = "Menyimpan…"; btn.disabled = true;
+    google.script.run.withSuccessHandler(function(response) {
+      btn.innerText = "+ Masukkan Mahasiswa Terpilih"; btn.disabled = false;
+      if (response.success) { bukaAnalitikKelas(activeCourseId, activeCourseName); }
+      else { alert("❌ " + response.message); }
+    }).enrollStudentsBatch(activeCourseId, selectedIds);
+  }
+
+  function keluarkanMahasiswa(userId, nama) {
+    if (confirm("Keluarkan '" + nama + "' dari kelas ini?")) {
+      google.script.run.withSuccessHandler(function(response) {
+        if (response.success) bukaAnalitikKelas(activeCourseId, activeCourseName); else alert("❌ " + response.message);
+      }).unenrollStudent(activeCourseId, userId);
+    }
+  }
+
+  function renderManajemenMahasiswa(data) {
+    var enrolled = data.enrolled; var all = data.all;
+    var tbody = document.getElementById("enrolledBody"); tbody.innerHTML = "";
+    if (enrolled.length === 0) { tbody.innerHTML = "<tr><td colspan='3' style='text-align:center;color:var(--muted)'>Belum ada mahasiswa.</td></tr>"; }
+    else {
+      for (var i = 0; i < enrolled.length; i++) {
+        tbody.innerHTML += "<tr><td><span class='badge badge-course'>" + enrolled[i].user_id + "</span></td><td>" + enrolled[i].nama + "</td><td><button class='btn-danger' onclick=\"keluarkanMahasiswa('" + enrolled[i].user_id + "','" + enrolled[i].nama + "')\">Keluarkan</button></td></tr>";
+      }
+    }
+    var checkboxContainer = document.getElementById("studentCheckboxList");
+    checkboxContainer.innerHTML = ""; var adaMahasiswaSisa = false;
+    for (var j = 0; j < all.length; j++) {
+      if (!enrolled.some(function(e){ return e.user_id === all[j].user_id; })) {
+        adaMahasiswaSisa = true;
+        checkboxContainer.innerHTML += "<label class='checkbox-item'><input type='checkbox' class='mhs-checkbox' value='" + all[j].user_id + "'><b>" + all[j].user_id + "</b> — " + all[j].nama_lengkap + "</label>";
+      }
+    }
+    if (!adaMahasiswaSisa) { checkboxContainer.innerHTML = "<p style='color:#27ae72;margin:0;padding:8px;'>✅ Semua mahasiswa telah terdaftar.</p>"; }
+  }
+
+  // ── DOSEN: BUKA PANEL KELAS ──
+  function memuatDashboardDosen() {
+    document.getElementById("loadingDosenCourses").style.display = "block";
+    document.getElementById("dosenCourseList").innerHTML = "";
+    google.script.run.withSuccessHandler(renderDosenCourses).getLecturerCourses(currentUserInfo.userId);
+  }
+
+  function renderDosenCourses(courses) {
+    var list = document.getElementById("dosenCourseList");
+    document.getElementById("loadingDosenCourses").style.display = "none";
+    if (!courses || courses.length === 0) { list.innerHTML = "<p style='color:var(--muted)'>Anda belum mengajar mata kuliah apapun.</p>"; return; }
+    var html = "";
+    for (var i = 0; i < courses.length; i++) {
+      html += "<div class='card'><h3>" + courses[i].course_name + "</h3><p style='font-size:12px;color:var(--muted);margin-bottom:12px;'><span class='badge badge-course'>" + courses[i].course_id + "</span></p><button class='btn-purple' onclick=\"bukaAnalitikKelas('" + courses[i].course_id + "','" + courses[i].course_name + "')\">📊 Buka Panel Kelas</button><button class='btn-danger-full' onclick=\"konfirmasiHapusKelas('" + courses[i].course_id + "','" + courses[i].course_name + "')\">🗑️ Hapus Kelas</button></div>";
+    }
+    list.innerHTML = html;
+  }
+
+  function bukaAnalitikKelas(courseId, courseName) {
+    activeCourseId = courseId; activeCourseName = courseName;
+    showView("lecturerAnalyticsView");
+    document.getElementById("analyticsCourseTitle").innerText = courseName;
+    document.getElementById("materiDosenBody").innerHTML   = "<tr><td colspan='3' style='text-align:center;color:var(--muted)'>Memuat…</td></tr>";
+    document.getElementById("kuisDosenBody").innerHTML     = "<tr><td colspan='3' style='text-align:center;color:var(--muted)'>Memuat…</td></tr>";
+    document.getElementById("lessonDosenBody").innerHTML   = "<tr><td colspan='3' style='text-align:center;color:var(--muted)'>Memuat…</td></tr>";
+    document.getElementById("enrolledBody").innerHTML      = "<tr><td colspan='3' style='text-align:center;color:var(--muted)'>Memuat…</td></tr>";
+    document.getElementById("loadingRanking").style.display = "block";
+    document.getElementById("rankingContainer").style.display = "none";
+    document.getElementById("loadingInactive").style.display = "block";
+    document.getElementById("inactiveList").innerHTML = "";
+    google.script.run.withSuccessHandler(renderManajemenMateri).getCourseMaterials(courseId);
+    google.script.run.withSuccessHandler(renderManajemenKuis).getCourseQuizzes(courseId);
+    google.script.run.withSuccessHandler(renderManajemenLesson).getCourseLessons(courseId);
+    google.script.run.withSuccessHandler(renderManajemenMahasiswa).getStudentManagementData(courseId);
+    google.script.run.withSuccessHandler(renderRankings).getStudentRankings(courseId);
+    google.script.run.withSuccessHandler(renderInactive).getInactiveStudents(courseId);
+  }
+
+  function renderRankings(rankings) {
+    var tbody = document.getElementById("rankingBody");
+    document.getElementById("loadingRanking").style.display = "none";
+    document.getElementById("rankingContainer").style.display = "block";
+    tbody.innerHTML = "";
+    if (!rankings || rankings.length === 0) { tbody.innerHTML = "<tr><td colspan='3' style='text-align:center;color:var(--muted)'>Belum ada data aktivitas</td></tr>"; return; }
+    var medals = ["🥇","🥈","🥉"];
+    for (var i = 0; i < rankings.length; i++) {
+      var rank = i + 1;
+      var cls  = rank === 1 ? "rank-1" : rank === 2 ? "rank-2" : rank === 3 ? "rank-3" : "";
+      var icon = rank <= 3 ? medals[rank-1] : rank;
+      tbody.innerHTML += "<tr class='" + cls + "'><td style='text-align:center;font-size:16px;'><b>" + icon + "</b></td><td>" + rankings[i].nama + "</td><td><b>" + rankings[i].skor + " Pts</b></td></tr>";
+    }
+  }
+
+  function renderInactive(inactiveStudents) {
+    var list = document.getElementById("inactiveList");
+    document.getElementById("loadingInactive").style.display = "none";
+    if (!inactiveStudents || inactiveStudents.length === 0) { list.innerHTML = "<li style='color:#27ae72;'>Semua mahasiswa aktif! 🎉</li>"; return; }
+    var html = "";
+    for (var i = 0; i < inactiveStudents.length; i++) { html += "<li>" + inactiveStudents[i] + "</li>"; }
+    list.innerHTML = html;
+  }
+
+  function kembaliKeDashboardDosen() {
+    activeCourseId = null; activeCourseName = null;
+    showView("lecturerDashboardView");
+  }
+
+  // ── MAHASISWA ──
+  function memuatDashboard() {
+    document.getElementById("loadingCourses").style.display = "block";
+    document.getElementById("courseList").innerHTML = "";
+    google.script.run.withSuccessHandler(renderCourses).getStudentCourses(currentUserInfo.userId);
+  }
+
+  function renderCourses(courses) {
+    var courseListDiv = document.getElementById("courseList");
+    document.getElementById("loadingCourses").style.display = "none";
+    if (!courses || courses.length === 0) { courseListDiv.innerHTML = "<p style='color:var(--muted)'>Anda belum terdaftar di mata kuliah apapun.</p>"; return; }
+    var html = "";
+    for (var i = 0; i < courses.length; i++) {
+      html += "<div class='card'><h3>" + courses[i].course_name + "</h3><p style='font-size:12px;color:var(--muted);margin-bottom:6px;'><span class='badge badge-course'>" + courses[i].course_id + "</span></p><div class='progress-bg'><div class='progress-fill' style='width:" + courses[i].progress + "%;'></div></div><div class='progress-text'>" + courses[i].progress + "% Selesai</div><button class='btn-action' onclick=\"masukKelas('" + courses[i].course_id + "','" + courses[i].course_name + "')\">🌊 Masuk Kelas</button></div>";
+    }
+    courseListDiv.innerHTML = html;
+  }
+
+  function masukKelas(courseId, courseName) {
+    showView("courseRoomView");
+    document.getElementById("courseTitle").innerText = courseName;
+    document.getElementById("materialList").innerHTML = "";
+    document.getElementById("quizList").innerHTML     = "";
+    document.getElementById("lessonList").innerHTML   = "";
+    google.script.run.withSuccessHandler(renderMaterials).getCourseMaterials(courseId);
+    google.script.run.withSuccessHandler(renderQuizzes).getCourseQuizzes(courseId, currentUserInfo.userId);
+    google.script.run.withSuccessHandler(renderLessons).getCourseLessons(courseId);
+  }
+
+  function renderMaterials(materials) {
+    var list = document.getElementById("materialList");
+    document.getElementById("loadingMaterials").style.display = "none";
+    if (!materials || materials.length === 0) { list.innerHTML = "<p style='color:var(--muted)'>Belum ada materi untuk kelas ini.</p>"; return; }
+    var html = "";
+    for (var i = 0; i < materials.length; i++) {
+      html += "<div class='card'><h4>" + materials[i].title + "</h4><button class='btn-action' onclick=\"bukaMateri('" + materials[i].material_id + "','" + materials[i].url_drive + "')\">📖 Buka Materi</button></div>";
+    }
+    list.innerHTML = html;
+  }
+
+  function bukaMateri(materialId, urlDrive) {
+    google.script.run.logMaterialAccess(currentUserInfo.userId, materialId);
+    window.open(urlDrive, '_blank');
+  }
+
+  function renderQuizzes(quizzes) {
+    var list = document.getElementById("quizList");
+    document.getElementById("loadingQuizzes").style.display = "none";
+    if (!quizzes || quizzes.length === 0) { list.innerHTML = "<p style='color:var(--muted)'>Belum ada kuis untuk kelas ini.</p>"; return; }
+    var html = "";
+    for (var i = 0; i < quizzes.length; i++) {
+      var btnId   = "btn_quiz_" + quizzes[i].quiz_id;
+      var isDone  = quizzes[i].dikerjakan;
+      var btnCls  = isDone ? "btn-success" : "btn-warning";
+      var btnTxt  = isDone ? "✅ Sudah Dikerjakan (Buka Lagi)" : "📝 Kerjakan Kuis";
+      html += "<div class='card'><h4>" + quizzes[i].title + "</h4><button id='" + btnId + "' class='" + btnCls + "' onclick=\"bukaKuis('" + quizzes[i].quiz_id + "','" + quizzes[i].url_form + "','" + btnId + "')\">" + btnTxt + "</button></div>";
+    }
+    list.innerHTML = html;
+  }
+
+  function bukaKuis(quizId, urlForm, btnId) {
+    google.script.run.logQuizAccess(currentUserInfo.userId, quizId);
+    var btn = document.getElementById(btnId);
+    if (btn) { btn.className = "btn-success"; btn.innerText = "✅ Sudah Dikerjakan (Buka Lagi)"; }
+    window.open(urlForm, '_blank');
+  }
+
+  function renderLessons(lessons) {
+    var list = document.getElementById("lessonList");
+    document.getElementById("loadingLessons").style.display = "none";
+    if (!lessons || lessons.length === 0) { list.innerHTML = "<p style='color:var(--muted)'>Belum ada tugas refleksi untuk kelas ini.</p>"; return; }
+    var html = ""; var now = new Date().getTime();
+    for (var i = 0; i < lessons.length; i++) {
+      var assignId   = lessons[i].assign_id || "L-UNKNOWN";
+      var isLocked   = (lessons[i].deadline_ms && now > lessons[i].deadline_ms);
+      var disabledAttr = isLocked ? "disabled" : "";
+      var btnText    = isLocked ? "🔒 Waktu Habis" : "✉️ Kirim Refleksi & Presensi";
+      var btnStyle   = isLocked ? "background:rgba(100,100,120,0.4);cursor:not-allowed;border:1px solid rgba(255,255,255,0.1);" : "";
+      var labelColor = isLocked ? "var(--coral)" : "var(--muted)";
+      var labelText  = isLocked ? "🔒 Terkunci — Melewati batas " + lessons[i].deadline : "📅 Deadline: " + lessons[i].deadline;
+      html += "<div class='card' style='width:100%;'><h4>" + (lessons[i].topic || "Tuliskan refleksi Anda.") + "</h4><p style='font-size:12px;color:" + labelColor + ";font-weight:600;margin-bottom:10px;'>" + labelText + "</p><textarea id='insight_" + assignId + "' rows='4' placeholder='Tuliskan insight Anda di sini untuk presensi…' " + disabledAttr + "></textarea><button class='btn-action' id='btn_" + assignId + "' style='" + btnStyle + "' onclick=\"kirimLesson('" + assignId + "')\" " + disabledAttr + ">" + btnText + "</button><div id='msg_" + assignId + "' style='color:#27ae72;margin-top:10px;font-weight:600;'></div></div>";
+    }
+    list.innerHTML = html;
+  }
+
+  function kirimLesson(assignId) {
+    var insightText = document.getElementById("insight_" + assignId).value;
+    if (!insightText.trim()) { alert("Harap tuliskan insight Anda terlebih dahulu!"); return; }
+    var btn = document.getElementById("btn_" + assignId);
+    btn.innerText = "Mengirim…"; btn.disabled = true;
+    google.script.run.withSuccessHandler(function() {
+      document.getElementById("msg_" + assignId).innerText = "✅ Berhasil dikirim! Anda tercatat Hadir.";
+      btn.style.display = "none";
+      document.getElementById("insight_" + assignId).disabled = true;
+    }).submitLesson(assignId, currentUserInfo.userId, insightText);
+  }
+
+  function kembaliKeDashboard() {
+    showView("dashboardView");
+    memuatDashboard();
+  }
+
+  function logout() {
+    currentUserInfo = null; activeCourseId = null; activeCourseName = null;
+    ["dashboardView","courseRoomView","lecturerDashboardView","lecturerAnalyticsView"].forEach(function(v){ document.getElementById(v).style.display = "none"; });
+    document.getElementById("loginView").style.display = "flex";
+    document.getElementById("username").value = "";
+    document.getElementById("password").value = "";
+    document.getElementById("message").innerText = "";
+  }
+</script>
+</body>
+</html>
