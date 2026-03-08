@@ -434,13 +434,13 @@
       <!-- ACCORDION: Kuis -->
       <div class="accordion-item">
         <button class="accordion-header open" onclick="toggleAccordion(this)">
-          <span>📝 Manajemen Kuis</span>
+          <span>📝 Manajemen Kuis / Tugas</span>
           <span class="arrow">▼</span>
         </button>
         <div class="accordion-body open">
           <div class="grid gap-3 two-col mb-4" style="grid-template-columns:1fr 1fr;">
             <div>
-              <label class="form-label">Judul Kuis</label>
+              <label class="form-label">Judul Kuis / Tugas</label>
               <input type="text" id="newQuizTitle" class="form-input" placeholder="Contoh: Kuis Pertemuan 1">
             </div>
             <div>
@@ -448,10 +448,10 @@
               <input type="text" id="newQuizUrl" class="form-input" placeholder="https://forms.google.com/...">
             </div>
           </div>
-          <button class="btn btn-amber btn-sm" id="btnTambahKuis" onclick="tambahKuisKelas()">+ Tambah Kuis</button>
+          <button class="btn btn-amber btn-sm" id="btnTambahKuis" onclick="tambahKuisKelas()">+ Tambah Kuis / Tugas</button>
           <div class="tbl-wrap mt-4">
             <table>
-              <thead><tr><th>Judul Kuis</th><th>Link</th><th>Aksi</th></tr></thead>
+              <thead><tr><th>Judul Kuis / Tugas</th><th>Link</th><th>Aksi</th></tr></thead>
               <tbody id="kuisDosenBody"><tr><td colspan="3" style="text-align:center;color:#3a6a85;">Memuat data…</td></tr></tbody>
             </table>
           </div>
@@ -499,6 +499,10 @@
         </button>
         <div class="accordion-body open">
           <p style="font-size:13px;color:#5a8fa8;margin-bottom:12px;">Centang mahasiswa yang ingin didaftarkan ke kelas ini:</p>
+          <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+            <input type="text" id="searchStudent" class="form-input" placeholder="🔍 Cari NIM / Nama (Contoh: 25)..." onkeyup="filterStudents()">
+            <button class="btn btn-ghost" style="white-space: nowrap;" onclick="selectAllFiltered()">☑️ Pilih Semua</button>
+          </div>
           <div id="studentCheckboxList" class="check-list glass rounded-xl p-2 mb-3" style="border:1px solid var(--border);">
             <p style="color:#3a6a85;font-size:13px;padding:8px;">Memuat data…</p>
           </div>
@@ -721,7 +725,7 @@
   function renderQuizzes(quizzes) {
     document.getElementById('loadingQuizzes').style.display='none';
     var list=document.getElementById('quizList');
-    if (!quizzes||!quizzes.length){list.innerHTML='<p style="color:#3a6a85;">Belum ada kuis.</p>';return;}
+    if (!quizzes||!quizzes.length){list.innerHTML='<p style="color:#3a6a85;">Belum ada kuis/tugas.</p>';return;}
     list.innerHTML=quizzes.map(function(q){
       var btnId='btn_quiz_'+q.quiz_id;
       var isDone=q.dikerjakan;
@@ -896,7 +900,7 @@
     var btn=document.getElementById('btnTambahKuis');
     btn.innerText='Menyimpan…';btn.disabled=true;
     google.script.run.withSuccessHandler(function(r){
-      btn.innerText='+ Tambah Kuis';btn.disabled=false;
+      btn.innerText='+ Tambah Kuis/Tugas';btn.disabled=false;
       if(r.success){document.getElementById('newQuizTitle').value='';document.getElementById('newQuizUrl').value='';google.script.run.withSuccessHandler(renderManajemenKuis).getCourseQuizzes(activeCourseId);}
       else{alert('❌ '+r.message);}
     }).tambahKuis(activeCourseId,title,url);
@@ -913,7 +917,7 @@
 
   function renderManajemenKuis(quizzes){
     var tbody=document.getElementById('kuisDosenBody');tbody.innerHTML='';
-    if(!quizzes||!quizzes.length){tbody.innerHTML='<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Belum ada kuis</td></tr>';return;}
+    if(!quizzes||!quizzes.length){tbody.innerHTML='<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Belum ada kuis/tugas</td></tr>';return;}
     quizzes.forEach(function(q){
       tbody.innerHTML+='<tr>'
         +'<td style="font-weight:500;color:#c0dbe8;">'+q.title+'</td>'
@@ -960,6 +964,30 @@
   }
 
   // ── MAHASISWA MANAGEMENT ──
+
+  // ── FITUR SEARCH & SELECT ALL MAHASISWA ──
+  function filterStudents() {
+    var input = document.getElementById("searchStudent").value.toLowerCase();
+    var items = document.getElementsByClassName("check-item");
+    for (var i = 0; i < items.length; i++) {
+      var text = items[i].innerText.toLowerCase();
+      items[i].style.display = text.includes(input) ? "flex" : "none";
+    }
+  }
+
+  function selectAllFiltered() {
+    var items = document.getElementsByClassName("check-item");
+    var visibleCheckboxes = [];
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].style.display !== "none") {
+        var cb = items[i].querySelector('.mhs-checkbox');
+        if (cb) visibleCheckboxes.push(cb);
+      }
+    }
+    var allChecked = visibleCheckboxes.length > 0 && visibleCheckboxes.every(function(cb){ return cb.checked; });
+    visibleCheckboxes.forEach(function(cb){ cb.checked = !allChecked; });
+  }
+
   function masukkanMahasiswaBatch(){
     var checked=document.querySelectorAll('.mhs-checkbox:checked');
     var ids=[];
@@ -969,7 +997,7 @@
     btn.innerText='Menyimpan…';btn.disabled=true;
     google.script.run.withSuccessHandler(function(r){
       btn.innerText='+ Masukkan Mahasiswa Terpilih';btn.disabled=false;
-      if(r.success){bukaAnalitikKelas(activeCourseId,activeCourseName);}
+      if(r.success){document.getElementById('searchStudent').value='';filterStudents();bukaAnalitikKelas(activeCourseId,activeCourseName);}
       else{alert('❌ '+r.message);}
     }).enrollStudentsBatch(activeCourseId,ids);
   }
