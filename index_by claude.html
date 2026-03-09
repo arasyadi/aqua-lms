@@ -124,8 +124,8 @@
     .tbl-wrap::-webkit-scrollbar { width: 4px; }
     .tbl-wrap::-webkit-scrollbar-thumb { background: rgba(92,200,240,0.25); border-radius: 4px; }
     table { width: 100%; border-collapse: collapse; }
-    thead th { position: sticky; top: 0; z-index: 5; background: rgba(13,61,107,0.95); color: var(--foam); padding: 11px 14px; font-size: 12px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
-    tbody td { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid rgba(92,200,240,0.08); color: #c0dbe8; }
+    thead th { position: sticky; top: 0; z-index: 5; background: rgba(13,61,107,0.95); color: var(--foam); padding: 11px 14px; font-size: 12px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tbody td { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid rgba(92,200,240,0.08); color: #c0dbe8; vertical-align: middle; }
     tbody tr:last-child td { border-bottom: none; }
     tbody tr:hover td { background: rgba(33,150,211,0.07); }
     .rank-gold   td { background: rgba(232,168,58,0.12)  !important; color: var(--amber); }
@@ -424,7 +424,7 @@
           <button class="btn btn-ocean btn-sm" id="btnTambahMateri" onclick="tambahMateriKelas()">+ Tambah Materi</button>
           <div class="tbl-wrap mt-4">
             <table>
-              <thead><tr><th>Judul Materi</th><th>Link</th><th>Aksi</th></tr></thead>
+              <thead><tr><th>Judul Materi</th><th style="width:80px;text-align:center;">Link</th><th style="width:90px;text-align:center;">Aksi</th></tr></thead>
               <tbody id="materiDosenBody"><tr><td colspan="3" style="text-align:center;color:#3a6a85;">Memuat data…</td></tr></tbody>
             </table>
           </div>
@@ -451,7 +451,7 @@
           <button class="btn btn-amber btn-sm" id="btnTambahKuis" onclick="tambahKuisKelas()">+ Tambah Kuis / Tugas</button>
           <div class="tbl-wrap mt-4">
             <table>
-              <thead><tr><th>Judul Kuis / Tugas</th><th>Link</th><th>Aksi</th></tr></thead>
+              <thead><tr><th>Judul Kuis / Tugas</th><th style="width:80px;text-align:center;">Link</th><th style="width:90px;text-align:center;">Aksi</th></tr></thead>
               <tbody id="kuisDosenBody"><tr><td colspan="3" style="text-align:center;color:#3a6a85;">Memuat data…</td></tr></tbody>
             </table>
           </div>
@@ -509,7 +509,7 @@
           <button class="btn btn-ocean btn-sm mb-4" id="btnTambahMhs" onclick="masukkanMahasiswaBatch()">+ Masukkan Mahasiswa Terpilih</button>
           <div class="tbl-wrap">
             <table>
-              <thead><tr><th>NIM / ID</th><th>Nama Mahasiswa</th><th>Aksi</th></tr></thead>
+              <thead><tr><th style="width:130px;text-align:center;">NIM / ID</th><th>Nama Mahasiswa</th><th style="width:100px;text-align:center;">Aksi</th></tr></thead>
               <tbody id="enrolledBody"><tr><td colspan="3" style="text-align:center;color:#3a6a85;">Memuat data…</td></tr></tbody>
             </table>
           </div>
@@ -526,7 +526,7 @@
           <div id="loadingRanking" style="color:#3a6a85;font-size:13px;padding:6px 0;">Memuat data analitik…</div>
           <div class="tbl-wrap" id="rankingContainer" style="display:none;">
             <table>
-              <thead><tr><th style="width:80px;text-align:center;">Rank</th><th>Nama Mahasiswa</th><th>Total Skor</th></tr></thead>
+              <thead><tr><th style="width:80px;text-align:center;">Rank</th><th>Nama Mahasiswa</th><th style="width:110px;text-align:center;">Total Skor</th></tr></thead>
               <tbody id="rankingBody"></tbody>
             </table>
           </div>
@@ -725,12 +725,12 @@
   function renderQuizzes(quizzes) {
     document.getElementById('loadingQuizzes').style.display='none';
     var list=document.getElementById('quizList');
-    if (!quizzes||!quizzes.length){list.innerHTML='<p style="color:#3a6a85;">Belum ada kuis/tugas.</p>';return;}
+    if (!quizzes||!quizzes.length){list.innerHTML='<p style="color:#3a6a85;">Belum ada kuis / tugas.</p>';return;}
     list.innerHTML=quizzes.map(function(q){
       var btnId='btn_quiz_'+q.quiz_id;
       var isDone=q.dikerjakan;
       var btnCls=isDone?'btn-teal':'btn-amber';
-      var btnTxt=isDone?'✅ Sudah Dikerjakan (Buka Lagi)':'📝 Kerjakan Kuis';
+      var btnTxt=isDone?'✅ Sudah Dikerjakan (Buka Lagi)':'📝 Kerjakan Kuis / Tugas';
       return '<div class="glass rounded-2xl p-5" style="border:1px solid var(--border);">'
         +'<h4 style="font-size:14px;font-weight:600;color:var(--foam);margin-bottom:14px;">'+q.title+'</h4>'
         +'<button id="'+btnId+'" class="btn '+btnCls+' btn-full btn-sm" onclick="bukaKuis(\''+q.quiz_id+'\',\''+q.url_form+'\',\''+btnId+'\')">'+btnTxt+'</button>'
@@ -886,8 +886,8 @@
     materials.forEach(function(m){
       tbody.innerHTML+='<tr>'
         +'<td style="font-weight:500;color:#c0dbe8;">'+m.title+'</td>'
-        +'<td><a href="'+m.url_drive+'" target="_blank" style="color:var(--foam);text-decoration:none;font-size:12px;">🔗 Buka</a></td>'
-        +'<td><button class="btn btn-coral btn-sm" onclick="konfirmasiHapusMateri(\''+m.material_id+'\',\''+m.title+'\')">Hapus</button></td>'
+        +'<td style="text-align:center;"><a href="'+m.url_drive+'" target="_blank" style="color:var(--foam);text-decoration:none;font-size:12px;">🔗 Buka</a></td>'
+        +'<td style="text-align:center;"><button class="btn btn-coral btn-sm" onclick="konfirmasiHapusMateri(\''+m.material_id+'\',\''+m.title+'\')">Hapus</button></td>'
         +'</tr>';
     });
   }
@@ -896,11 +896,11 @@
   function tambahKuisKelas(){
     var title=document.getElementById('newQuizTitle').value.trim();
     var url=document.getElementById('newQuizUrl').value.trim();
-    if(!title||!url){alert('Judul Kuis dan Link wajib diisi!');return;}
+    if(!title||!url){alert('Judul Kuis / Tugas dan Link wajib diisi!');return;}
     var btn=document.getElementById('btnTambahKuis');
     btn.innerText='Menyimpan…';btn.disabled=true;
     google.script.run.withSuccessHandler(function(r){
-      btn.innerText='+ Tambah Kuis/Tugas';btn.disabled=false;
+      btn.innerText='+ Tambah Kuis / Tugas';btn.disabled=false;
       if(r.success){document.getElementById('newQuizTitle').value='';document.getElementById('newQuizUrl').value='';google.script.run.withSuccessHandler(renderManajemenKuis).getCourseQuizzes(activeCourseId);}
       else{alert('❌ '+r.message);}
     }).tambahKuis(activeCourseId,title,url);
@@ -917,12 +917,12 @@
 
   function renderManajemenKuis(quizzes){
     var tbody=document.getElementById('kuisDosenBody');tbody.innerHTML='';
-    if(!quizzes||!quizzes.length){tbody.innerHTML='<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Belum ada kuis/tugas</td></tr>';return;}
+    if(!quizzes||!quizzes.length){tbody.innerHTML='<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Belum ada kuis / tugas</td></tr>';return;}
     quizzes.forEach(function(q){
       tbody.innerHTML+='<tr>'
         +'<td style="font-weight:500;color:#c0dbe8;">'+q.title+'</td>'
-        +'<td><a href="'+q.url_form+'" target="_blank" style="color:var(--amber);text-decoration:none;font-size:12px;">🔗 Buka</a></td>'
-        +'<td><button class="btn btn-coral btn-sm" onclick="konfirmasiHapusKuis(\''+q.quiz_id+'\',\''+q.title+'\')">Hapus</button></td>'
+        +'<td style="text-align:center;"><a href="'+q.url_form+'" target="_blank" style="color:var(--amber);text-decoration:none;font-size:12px;">🔗 Buka</a></td>'
+        +'<td style="text-align:center;"><button class="btn btn-coral btn-sm" onclick="konfirmasiHapusKuis(\''+q.quiz_id+'\',\''+q.title+'\')">Hapus</button></td>'
         +'</tr>';
     });
   }
@@ -1018,9 +1018,9 @@
     } else {
       enrolled.forEach(function(s){
         tbody.innerHTML+='<tr>'
-          +'<td><span class="badge badge-blue">'+s.user_id+'</span></td>'
+          +'<td style="text-align:center;"><span class="badge badge-blue">'+s.user_id+'</span></td>'
           +'<td style="color:#c0dbe8;font-weight:500;">'+s.nama+'</td>'
-          +'<td><button class="btn btn-coral btn-sm" onclick="keluarkanMahasiswa(\''+s.user_id+'\',\''+s.nama+'\')">Keluarkan</button></td>'
+          +'<td style="text-align:center;"><button class="btn btn-coral btn-sm" onclick="keluarkanMahasiswa(\''+s.user_id+'\',\''+s.nama+'\')">Keluarkan</button></td>'
           +'</tr>';
       });
     }
@@ -1048,7 +1048,7 @@
       tbody.innerHTML+='<tr class="'+cls+'">'
         +'<td style="text-align:center;font-size:17px;"><b>'+icon+'</b></td>'
         +'<td>'+r.nama+'</td>'
-        +'<td><b>'+r.skor+' Pts</b></td>'
+        +'<td style="text-align:center;"><b>'+r.skor+' Pts</b></td>'
         +'</tr>';
     });
   }
