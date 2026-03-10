@@ -475,10 +475,13 @@ function hapusMataKuliah(courseId, dosenId) {
   if (quizzes.length > 0) hapusBarisTerkait("QUIZ_TRACK", 2, quizzes);         // Kolom C (Index 2)
 
   // Tahap B: Hapus data relasi dan materi utama berdasarkan ID Kelas (courseId)
-  hapusBarisTerkait("ENROLLMENTS", 1, [courseId]);   // Kolom B (Index 1)
+  hapusBarisTerkait("ENROLLMENTS", 1, [courseId]); // Kolom B (Index 1)
   hapusBarisTerkait("MATERIALS", 1, [courseId]);     // Kolom B (Index 1)
-  hapusBarisTerkait("QUIZ", 1, [courseId]);          // Kolom B (Index 1)
+  hapusBarisTerkait("QUIZ", 1, [courseId]); // Kolom B (Index 1)
   hapusBarisTerkait("LESSON_ASSIGN", 1, [courseId]); // Kolom B (Index 1)
+  
+  // SINKRONISASI FITUR BARU: Hapus seluruh nilai mahasiswa di kelas ini
+  hapusBarisTerkait("NILAI", 0, [courseId]); // Kolom A (Index 0)
 
   // Tahap C: Terakhir, hapus Kelas Utama di tabel COURSES
   courseSheet.deleteRow(courseRowIndex);
@@ -659,4 +662,94 @@ function enrollStudentsBatch(courseId, userIds) {
     success: true, 
     message: userIds.length + " Mahasiswa berhasil ditambahkan ke kelas!" 
   };
+}
+
+// ==========================================
+// FITUR BARU: REKAPITULASI NILAI MAHASISWA
+// ==========================================
+
+// Fungsi untuk menarik data nilai berdasarkan Mata Kuliah dan ID Mahasiswa
+function getRekapNilaiMahasiswa(courseId, userId) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("NILAI");
+  
+  // Jika sheet NILAI belum dibuat, kembalikan array kosong
+  if (!sheet) return []; 
+  
+  var data = sheet.getDataRange().getValues();
+  var nilaiList = [];
+  
+  // Looping untuk mencari data yang cocok dengan courseId dan userId
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === String(courseId).trim() && 
+        String(data[i][1]).trim() === String(userId).trim()) {
+      
+      // Masukkan ke dalam daftar nilai jika cocok
+      nilaiList.push({
+        jenis_nilai: String(data[i][2]),
+        nilai: data[i][3]
+      });
+    }
+  }
+  
+  return nilaiList;
+}
+
+// ==========================================
+// FITUR BARU DOSEN: MANAJEMEN NILAI
+// ==========================================
+
+// 1. Menyimpan nilai baru ke dalam Sheet "NILAI"
+function tambahNilaiMahasiswa(courseId, userId, jenisNilai, nilai) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("NILAI");
+  
+  // Jika sheet NILAI belum ada, buat otomatis
+  if (!sheet) {
+    sheet = ss.insertSheet("NILAI");
+    sheet.appendRow(["course_id", "user_id", "jenis_nilai", "nilai"]); // Buat header
+  }
+  
+  sheet.appendRow([courseId, userId, jenisNilai, nilai]);
+  return { success: true, message: "Nilai berhasil disimpan!" };
+}
+
+// 2. Mengambil semua data nilai di suatu kelas untuk ditampilkan di tabel Dosen
+function getSemuaNilaiKelas(courseId) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("NILAI");
+  if (!sheet) return [];
+  
+  var data = sheet.getDataRange().getValues();
+  var users = getSheetData("USERS"); // Ambil data user untuk mencocokkan nama
+  var listNilai = [];
+  
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === String(courseId).trim()) {
+      var uid = String(data[i][1]).trim();
+      var namaLengkap = "Mahasiswa Tidak Ditemukan";
+      
+      // Cari nama mahasiswa berdasarkan user_id
+      var userMatch = users.find(function(u) { return String(u.user_id).trim() === uid; });
+      if (userMatch) { namaLengkap = userMatch.nama_lengkap; }
+      
+      listNilai.push({
+        row_index: i + 1, // Menyimpan nomor baris untuk fitur Hapus
+        user_id: uid,
+        nama: namaLengkap,
+        jenis_nilai: data[i][2],
+        nilai: data[i][3]
+      });
+    }
+  }
+  
+  return listNilai;
+}
+
+// 3. Menghapus data nilai (berdasarkan nomor baris di spreadsheet)
+function hapusNilaiMahasiswa(rowIndex) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("NILAI");
+  if (sheet) {
+    sheet.deleteRow(rowIndex);
+    return { success: true, message: "Data nilai berhasil dihapus!" };
+  }
+  return { success: false, message: "Gagal menghapus nilai." };
 }
