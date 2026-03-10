@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AquaLearn LMS</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Lora:wght@600;700&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -176,6 +177,22 @@
     .stat-icon { font-size: 28px; width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; border-radius: 12px; flex-shrink: 0; }
     footer { border-top: 1px solid var(--border); padding: 20px; text-align: center; font-size: 12px; color: #3a6a85; margin-top: 40px; }
     footer strong { color: #5a8fa8; }
+
+    /* ── EXPORT MODAL ── */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(6,15,30,0.85); backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-card {
+      width: 100%; max-width: 460px; border-radius: 20px; padding: 32px 28px;
+      background: rgba(11,31,58,0.97); border: 1px solid var(--border);
+      animation: fadeUp .25s ease;
+    }
+    .modal-title {
+      font-family: 'Lora', serif; font-size: 18px; color: var(--foam);
+      margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--border);
+    }
   </style>
 </head>
 <body>
@@ -367,7 +384,7 @@
               <label class="form-label">Mode Perkuliahan</label>
               <select id="inputMode" class="form-input" style="padding: 9px 14px;" onchange="ubahPlaceholderLokasi()">
                 <option value="Luring">Luring (Tatap Muka)</option>
-                <option value="Daring">Daring (Online Zoom/Meet)</option>
+                <option value="Daring">Daring (Zoom Meeting)</option>
               </select>
             </div>
             <div>
@@ -434,7 +451,7 @@
               <input type="text" id="newQuizTitle" class="form-input" placeholder="Contoh: Kuis Pertemuan 1">
             </div>
             <div>
-              <label class="form-label">Link Google Forms</label>
+              <label class="form-label">Link GForms / Wayground</label>
               <input type="text" id="newQuizUrl" class="form-input" placeholder="https://forms.google.com/...">
             </div>
           </div>
@@ -500,7 +517,10 @@
               <input type="number" id="inputAngkaNilai" class="form-input" placeholder="Contoh: 85">
             </div>
           </div>
-          <button class="btn btn-teal btn-sm" id="btnSimpanNilai" onclick="simpanNilaiKelas()">+ Simpan Nilai</button>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <button class="btn btn-teal btn-sm" id="btnSimpanNilai" onclick="simpanNilaiKelas()">+ Simpan Nilai</button>
+            <button class="btn btn-amber btn-sm" onclick="bukaModalExport()">📥 Export ke Excel</button>
+          </div>
           <div class="tbl-wrap mt-4">
             <table style="table-layout:fixed;width:100%;">
               <colgroup>
@@ -710,36 +730,42 @@
   }
 
   function masukKelas(courseId, courseName) {
-    // Menampilkan halaman ruang kelas
+    // 1. Tampilkan halaman ruang kelas
     document.getElementById("dashboardView").style.display = "none"; 
     document.getElementById("courseRoomView").style.display = "block"; 
     
-    // Set judul (Mendukung ID dari kedua versi HTML)
+    // 2. Set judul kelas
     if(document.getElementById("courseTitle")) document.getElementById("courseTitle").innerText = courseName;
     if(document.getElementById("courseTitle-nav")) document.getElementById("courseTitle-nav").innerText = courseName;
     
-    // Reset isi kontainer
-    if(document.getElementById("materialList")) document.getElementById("materialList").innerHTML = ""; 
-    if(document.getElementById("quizList")) document.getElementById("quizList").innerHTML = ""; 
-    if(document.getElementById("lessonList")) document.getElementById("lessonList").innerHTML = "";
-    if(document.getElementById("nilaiList")) document.getElementById("nilaiList").innerHTML = "";
-    if(document.getElementById("jadwalList")) document.getElementById("jadwalList").innerHTML = "";
-    
-    // Tampilkan loading
+    // 3. Tampilkan tulisan Loading untuk semuanya
     if(document.getElementById("loadingMaterials")) document.getElementById("loadingMaterials").style.display = "block";
     if(document.getElementById("loadingQuizzes")) document.getElementById("loadingQuizzes").style.display = "block";
     if(document.getElementById("loadingLessons")) document.getElementById("loadingLessons").style.display = "block";
     if(document.getElementById("loadingNilai")) document.getElementById("loadingNilai").style.display = "block";
     if(document.getElementById("loadingJadwal")) document.getElementById("loadingJadwal").style.display = "block";
     
-    // Tarik data dari database Google Sheets
-    google.script.run.withSuccessHandler(renderMaterials).getCourseMaterials(courseId);
-    google.script.run.withSuccessHandler(renderQuizzes).getCourseQuizzes(courseId, currentUserInfo.userId);
-    google.script.run.withSuccessHandler(renderLessons).getCourseLessons(courseId);
+    // Bersihkan isi sebelumnya agar bersih saat loading
+    if(document.getElementById("materialList")) document.getElementById("materialList").innerHTML = ""; 
+    if(document.getElementById("quizList")) document.getElementById("quizList").innerHTML = ""; 
+    if(document.getElementById("lessonList")) document.getElementById("lessonList").innerHTML = "";
+    if(document.getElementById("nilaiList")) document.getElementById("nilaiList").innerHTML = "";
+    if(document.getElementById("jadwalList")) document.getElementById("jadwalList").innerHTML = "";
     
-    // Tarik data fitur baru (Nilai & Jadwal)
-    google.script.run.withSuccessHandler(renderNilai).getRekapNilaiMahasiswa(courseId, currentUserInfo.userId);
-    google.script.run.withSuccessHandler(renderJadwalMahasiswa).getJadwalKelas(courseId);
+    // 4. SATU KALI PANGGILAN SAJA (SUPER OPTIMAL)
+    google.script.run
+      .withSuccessHandler(function(paket) {
+        // Begitu paket datang, langsung distribusikan ke masing-masing perender
+        renderMaterials(paket.materials);
+        renderQuizzes(paket.quizzes);
+        renderLessons(paket.lessons);
+        renderNilai(paket.nilai);
+        renderJadwalMahasiswa(paket.jadwal);
+      })
+      .withFailureHandler(function(err) {
+        alert("Gagal memuat ruang kelas. Coba refresh halaman.");
+      })
+      .getPaketDataRuangKelas(courseId, currentUserInfo.userId);
   }
 
   function renderMaterials(materials) {
@@ -882,41 +908,29 @@
   }
 
   function bukaAnalitikKelas(courseId, courseName) {
-    activeCourseId = courseId; 
-    activeCourseName = courseName;
-    
-    // Ganti tampilan
-    document.getElementById("lecturerDashboardView").style.display = "none"; 
-    document.getElementById("lecturerAnalyticsView").style.display = "block";
-    
-    // Set judul (Mendukung ID dari kedua versi HTML)
-    if(document.getElementById("analyticsCourseTitle")) document.getElementById("analyticsCourseTitle").innerText = "Panel Kelas: " + courseName;
-    if(document.getElementById("analyticsCourseTitle-nav")) document.getElementById("analyticsCourseTitle-nav").innerText = courseName;
-    
-    // Reset tabel-tabel dosen
-    if(document.getElementById("materiDosenBody")) document.getElementById("materiDosenBody").innerHTML = "<tr><td colspan='3' style='text-align:center;'>Memuat data...</td></tr>";
-    if(document.getElementById("kuisDosenBody")) document.getElementById("kuisDosenBody").innerHTML = "<tr><td colspan='3' style='text-align:center;'>Memuat data...</td></tr>";
-    if(document.getElementById("lessonDosenBody")) document.getElementById("lessonDosenBody").innerHTML = "<tr><td colspan='3' style='text-align:center;'>Memuat data...</td></tr>";
-    if(document.getElementById("enrolledBody")) document.getElementById("enrolledBody").innerHTML = "<tr><td colspan='3' style='text-align:center;'>Memuat data...</td></tr>";
-    if(document.getElementById("nilaiDosenBody")) document.getElementById("nilaiDosenBody").innerHTML = "<tr><td colspan='5' style='text-align:center;'>Memuat data...</td></tr>";
-    if(document.getElementById("jadwalDosenBody")) document.getElementById("jadwalDosenBody").innerHTML = "<tr><td colspan='5' style='text-align:center;'>Memuat data...</td></tr>";
-    
-    // Tampilkan loading ranking & inactive
-    if(document.getElementById("loadingRanking")) document.getElementById("loadingRanking").style.display = "block"; 
-    if(document.getElementById("rankingContainer")) document.getElementById("rankingContainer").style.display = "none";
-    if(document.getElementById("loadingInactive")) document.getElementById("loadingInactive").style.display = "block"; 
-    if(document.getElementById("inactiveList")) document.getElementById("inactiveList").innerHTML = "";
-    
-    // Eksekusi pengambilan data dari database
-    google.script.run.withSuccessHandler(renderManajemenMateri).getCourseMaterials(courseId); 
-    google.script.run.withSuccessHandler(renderManajemenKuis).getCourseQuizzes(courseId); 
-    google.script.run.withSuccessHandler(renderManajemenLesson).getCourseLessons(courseId); 
+    activeCourseId=courseId; activeCourseName=courseName;
+    showView('lecturerAnalyticsView');
+    switchTab('tabPembelajaran', document.getElementById('tabBtnPembelajaran'));
+    document.getElementById('analyticsCourseTitle').innerText=courseName;
+    document.getElementById('analyticsCourseTitle-nav').innerText=courseName;
+    ['materiDosenBody','kuisDosenBody','lessonDosenBody','enrolledBody'].forEach(function(id){
+      document.getElementById(id).innerHTML='<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Memuat…</td></tr>';
+    });
+    document.getElementById('nilaiDosenBody').innerHTML='<tr><td colspan="5" style="text-align:center;color:#3a6a85;">Memuat…</td></tr>';
+    document.getElementById('rankingContainer').style.display='none';
+    document.getElementById('loadingRanking').style.display='block';
+    document.getElementById('loadingInactive').style.display='block';
+    document.getElementById('inactiveList').innerHTML='';
+    document.getElementById('studentCheckboxList').innerHTML='<p style="color:#3a6a85;font-size:13px;padding:8px;">Memuat…</p>';
+    google.script.run.withSuccessHandler(renderManajemenMateri).getCourseMaterials(courseId);
+    google.script.run.withSuccessHandler(renderManajemenKuis).getCourseQuizzes(courseId);
+    google.script.run.withSuccessHandler(renderManajemenLesson).getCourseLessons(courseId);
     google.script.run.withSuccessHandler(renderManajemenMahasiswa).getStudentManagementData(courseId);
     google.script.run.withSuccessHandler(renderRankings).getStudentRankings(courseId);
     google.script.run.withSuccessHandler(renderInactive).getInactiveStudents(courseId);
-    
-    // Eksekusi data fitur baru (Nilai & Jadwal)
+    // Memuat data nilai saat kelas dibuka
     google.script.run.withSuccessHandler(renderTabelNilaiDosen).getSemuaNilaiKelas(courseId);
+    // Memuat jadwal saat kelas dibuka
     google.script.run.withSuccessHandler(renderTabelJadwalDosen).getJadwalKelas(courseId);
   }
 
@@ -1288,7 +1302,186 @@
     }).join('');
   }
 
+  // ══════════════════════════════════════════
+  // FITUR EXPORT NILAI KE EXCEL
+  // ══════════════════════════════════════════
+
+  // Konversi angka ke Nilai Huruf (skala Universitas Udayana)
+  function angkaKeHuruf(nilai) {
+    var n = parseFloat(nilai);
+    if (isNaN(n)) return '-';
+    if (n >= 80) return 'A';
+    if (n >= 71) return 'B+';
+    if (n >= 65) return 'B';
+    if (n >= 60) return 'C+';
+    if (n >= 55) return 'C';
+    if (n >= 50) return 'D+';
+    if (n >= 40) return 'D';
+    return 'E';
+  }
+
+  function bukaModalExport() {
+    // Isi default tahun & semester otomatis
+    var now = new Date();
+    var tahun = now.getFullYear();
+    var bulan = now.getMonth() + 1; // 1-12
+    var semester = (bulan >= 2 && bulan <= 7) ? 'Genap' : 'Ganjil';
+    document.getElementById('exportTahunAjaran').value = tahun;
+    document.getElementById('exportSemester').value = semester;
+    document.getElementById('exportPengampu').value = currentUserInfo ? currentUserInfo.name : '';
+    document.getElementById('exportModalOverlay').style.display = 'flex';
+  }
+
+  function tutupModalExport() {
+    document.getElementById('exportModalOverlay').style.display = 'none';
+  }
+
+  function prosesExportNilai() {
+    var tahunAjaran = document.getElementById('exportTahunAjaran').value.trim();
+    var semester    = document.getElementById('exportSemester').value.trim();
+    var pengampu    = document.getElementById('exportPengampu').value.trim();
+    if (!tahunAjaran || !semester || !pengampu) {
+      alert('Mohon lengkapi semua data sebelum export!'); return;
+    }
+    var btnExport = document.getElementById('btnProsesExport');
+    btnExport.innerText = 'Memproses...'; btnExport.disabled = true;
+
+    // Ambil data nilai terbaru dari backend
+    google.script.run.withSuccessHandler(function(dataNilai) {
+      btnExport.innerText = '📥 Download Excel'; btnExport.disabled = false;
+      tutupModalExport();
+      generateExcelNilai(dataNilai, tahunAjaran, semester, pengampu);
+    }).getSemuaNilaiKelas(activeCourseId);
+  }
+
+  function generateExcelNilai(dataNilai, tahunAjaran, semester, pengampu) {
+    if (!dataNilai || dataNilai.length === 0) {
+      alert('Belum ada data nilai untuk diekspor!'); return;
+    }
+
+    // ── 1. Kelompokkan nilai per mahasiswa ──
+    var mahasiswaMap = {};
+    var jenisNilaiSet = []; // urutan jenis nilai yang muncul
+
+    dataNilai.forEach(function(item) {
+      var uid = item.user_id;
+      if (!mahasiswaMap[uid]) {
+        mahasiswaMap[uid] = { user_id: uid, nama: item.nama, nilai: {} };
+      }
+      mahasiswaMap[uid].nilai[item.jenis_nilai] = parseFloat(item.nilai);
+      if (jenisNilaiSet.indexOf(item.jenis_nilai) === -1) {
+        jenisNilaiSet.push(item.jenis_nilai);
+      }
+    });
+
+    var mahasiswaList = Object.values(mahasiswaMap);
+
+    // ── 2. Hitung rata-rata & nilai huruf per mahasiswa ──
+    mahasiswaList.forEach(function(mhs) {
+      var totalNilai = 0, jumlahJenis = 0;
+      jenisNilaiSet.forEach(function(jenis) {
+        if (mhs.nilai[jenis] !== undefined) {
+          totalNilai += mhs.nilai[jenis];
+          jumlahJenis++;
+        }
+      });
+      mhs.rata_rata = jumlahJenis > 0 ? Math.round((totalNilai / jumlahJenis) * 100) / 100 : 0;
+      mhs.nilai_huruf = angkaKeHuruf(mhs.rata_rata);
+    });
+
+    // Urutkan berdasarkan NIM
+    mahasiswaList.sort(function(a, b) {
+      return String(a.user_id).localeCompare(String(b.user_id));
+    });
+
+    // ── 3. Bangun data array untuk SheetJS ──
+    var wsData = [];
+
+    // Baris header info kelas (6 baris)
+    wsData.push(['Daftar Nilai Matakuliah']);
+    wsData.push(['Matakuliah :', activeCourseId + ' - ' + activeCourseName]);
+    wsData.push(['Tahun Ajaran :', tahunAjaran]);
+    wsData.push(['Semester :', semester]);
+    wsData.push(['Kelas :', activeCourseId]);
+    wsData.push(['Ketua Pengampu :', pengampu]);
+    wsData.push([]); // baris kosong
+
+    // Baris header kolom
+    var headerRow = ['No', 'NIM', 'Nama'];
+    jenisNilaiSet.forEach(function(j) { headerRow.push(j); });
+    headerRow.push('Nilai Akhir', 'Nilai Huruf');
+    wsData.push(headerRow);
+
+    // Baris data mahasiswa
+    mahasiswaList.forEach(function(mhs, idx) {
+      var row = [idx + 1, mhs.user_id, mhs.nama];
+      jenisNilaiSet.forEach(function(jenis) {
+        row.push(mhs.nilai[jenis] !== undefined ? mhs.nilai[jenis] : '-');
+      });
+      row.push(mhs.rata_rata, mhs.nilai_huruf);
+      wsData.push(row);
+    });
+
+    // ── 4. Buat workbook & styling via SheetJS ──
+    var wb = XLSX.utils.book_new();
+    var ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Set lebar kolom
+    var colWidths = [{ wch: 5 }, { wch: 16 }, { wch: 38 }];
+    jenisNilaiSet.forEach(function() { colWidths.push({ wch: 16 }); });
+    colWidths.push({ wch: 13 }, { wch: 13 });
+    ws['!cols'] = colWidths;
+
+    // Set tinggi baris header info
+    ws['!rows'] = [{ hpt: 18 }, { hpt: 16 }, { hpt: 16 }, { hpt: 16 }, { hpt: 16 }, { hpt: 16 }];
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Nilai Mahasiswa');
+
+    // ── 5. Download file ──
+    var safeCourseName = activeCourseName.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_');
+    var fileName = 'NilaiMahasiswa_' + safeCourseName + '_' + tahunAjaran + '.xlsx';
+    XLSX.writeFile(wb, fileName);
+  }
+
 </script>
+
+<!-- ── MODAL EXPORT NILAI ── -->
+<div id="exportModalOverlay" class="modal-overlay" style="display:none;" onclick="if(event.target===this)tutupModalExport()">
+  <div class="modal-card">
+    <h3 class="modal-title">📥 Export Nilai ke Excel</h3>
+    <p style="font-size:13px;color:#5a8fa8;margin-bottom:18px;">
+      Sistem akan menghitung <b style="color:var(--foam);">rata-rata</b> semua nilai yang telah diinput,
+      lalu mengkonversinya ke <b style="color:var(--mint);">Nilai Huruf</b> secara otomatis.
+    </p>
+
+    <!-- Info skala nilai -->
+    <div style="background:rgba(33,150,211,0.08);border:1px solid rgba(33,150,211,0.2);border-radius:10px;padding:12px 14px;margin-bottom:18px;font-size:12px;color:#8ab8cc;">
+      <b style="color:var(--foam);">Skala Nilai Huruf:</b>
+      A (≥80) &nbsp;·&nbsp; B+ (71–79) &nbsp;·&nbsp; B (65–70) &nbsp;·&nbsp;
+      C+ (60–64) &nbsp;·&nbsp; C (55–59) &nbsp;·&nbsp; D+ (50–54) &nbsp;·&nbsp; D (40–49) &nbsp;·&nbsp; E (&lt;40)
+    </div>
+
+    <div class="grid gap-3" style="grid-template-columns:1fr 1fr;margin-bottom:14px;">
+      <div>
+        <label class="form-label">Tahun Ajaran</label>
+        <input type="text" id="exportTahunAjaran" class="form-input" placeholder="Contoh: 2025">
+      </div>
+      <div>
+        <label class="form-label">Semester</label>
+        <input type="text" id="exportSemester" class="form-input" placeholder="Ganjil / Genap">
+      </div>
+    </div>
+    <div style="margin-bottom:20px;">
+      <label class="form-label">Ketua Pengampu</label>
+      <input type="text" id="exportPengampu" class="form-input" placeholder="Nama lengkap dosen">
+    </div>
+
+    <div style="display:flex;gap:10px;">
+      <button id="btnProsesExport" class="btn btn-amber" style="flex:1;" onclick="prosesExportNilai()">📥 Download Excel</button>
+      <button class="btn btn-dark" onclick="tutupModalExport()">Batal</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
