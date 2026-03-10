@@ -134,19 +134,30 @@ function getCourseMaterials(courseId) {
   return courseMaterials;
 }
 
-// Fungsi Tracker: Mencatat saat mahasiswa membuka materi
+// Fungsi Tracker: Mencatat saat mahasiswa membuka materi (DIPERBAIKI DENGAN LOCKSERVICE)
 function logMaterialAccess(userId, materialId) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName("MATERIAL_TRACK");
-  
-  // Membuat ID Tracking acak dan mengambil waktu saat ini
-  var trackId = "T-" + new Date().getTime();
-  var timestamp = new Date(); // Format waktu default
-  
-  // Menyisipkan data baru ke baris paling bawah di sheet MATERIAL_TRACK
-  sheet.appendRow([trackId, userId, materialId, timestamp]);
-  
-  return true;
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(5000); // Tunggu antrean maksimal 5 detik
+  } catch (e) {
+    return false; // Jika gagal antre, abaikan saja (tracker background tidak perlu pesan error ke user)
+  }
+
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName("MATERIAL_TRACK");
+    
+    var trackId = "T-" + new Date().getTime();
+    var timestamp = new Date();
+    
+    sheet.appendRow([trackId, userId, materialId, timestamp]);
+    SpreadsheetApp.flush();
+    return true;
+  } catch (err) {
+    return false;
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 // Mengambil daftar Lesson Learn (Dengan fitur Auto-Lock Deadline 1x24 Jam)
@@ -193,19 +204,36 @@ function getCourseLessons(courseId) {
   return courseLessons;
 }
 
-// Menyimpan jawaban Lesson Learn mahasiswa
+// Menyimpan jawaban Lesson Learn mahasiswa (DIPERBAIKI DENGAN LOCKSERVICE)
 function submitLesson(assignId, userId, insight) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName("LESSON_SUBMIT");
-  
-  var submitId = "SUB-" + new Date().getTime();
-  var status = "Hadir"; // Otomatis tercatat hadir jika mengisi
-  var timestamp = new Date();
-  
-  // Memasukkan data ke database
-  sheet.appendRow([submitId, assignId, userId, insight, status, timestamp]);
-  
-  return true;
+  // Mengaktifkan sistem antrean, tunggu maksimal 10 detik jika sedang sibuk
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000); 
+  } catch (e) {
+    return { success: false, message: "Sistem sedang sibuk. Silakan coba klik tombol kirim lagi dalam beberapa detik." };
+  }
+
+  // Jika giliran sudah tiba, jalankan penulisan data
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName("LESSON_SUBMIT");
+    
+    var submitId = "SUB-" + new Date().getTime();
+    var status = "Hadir";
+    var timestamp = new Date();
+    
+    sheet.appendRow([submitId, assignId, userId, insight, status, timestamp]);
+    
+    // Pastikan data benar-benar selesai ditulis ke Google Sheets sebelum kunci dilepas
+    SpreadsheetApp.flush(); 
+    return true;
+  } catch (err) {
+    return { success: false, message: "Terjadi kesalahan saat menyimpan data." };
+  } finally {
+    // Lepaskan antrean untuk mahasiswa berikutnya
+    lock.releaseLock(); 
+  }
 }
 
 // Fungsi untuk memastikan data Lesson Learn terisi dengan format yang 100% benar
@@ -289,20 +317,34 @@ function getCourseQuizzes(courseId, userId) {
   return courseQuizzes;
 }
 
-// Mencatat saat mahasiswa mengklik Kuis
+// Mencatat saat mahasiswa mengklik Kuis (DIPERBAIKI DENGAN LOCKSERVICE)
 function logQuizAccess(userId, quizId) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName("QUIZ_TRACK");
-  
-  // Jika sheet QUIZ_TRACK belum ada, script ini akan otomatis membuatnya!
-  if (!sheet) {
-    sheet = ss.insertSheet("QUIZ_TRACK");
-    sheet.appendRow(["track_id", "user_id", "quiz_id", "timestamp"]);
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(5000); // Tunggu antrean maksimal 5 detik
+  } catch (e) {
+    return false;
   }
-  
-  var trackId = "QT-" + new Date().getTime();
-  sheet.appendRow([trackId, userId, quizId, new Date()]);
-  return true;
+
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName("QUIZ_TRACK");
+    
+    if (!sheet) {
+      sheet = ss.insertSheet("QUIZ_TRACK");
+      sheet.appendRow(["track_id", "user_id", "quiz_id", "timestamp"]);
+    }
+    
+    var trackId = "QT-" + new Date().getTime();
+    sheet.appendRow([trackId, userId, quizId, new Date()]);
+    
+    SpreadsheetApp.flush();
+    return true;
+  } catch (err) {
+    return false;
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 // UPDATE: Menghitung progress belajar (Materi 40%, Lesson 40%, Kuis 20%)
@@ -480,8 +522,9 @@ function hapusMataKuliah(courseId, dosenId) {
   hapusBarisTerkait("QUIZ", 1, [courseId]); // Kolom B (Index 1)
   hapusBarisTerkait("LESSON_ASSIGN", 1, [courseId]); // Kolom B (Index 1)
   
-  // SINKRONISASI FITUR BARU: Hapus seluruh nilai mahasiswa di kelas ini
+  // SINKRONISASI FITUR BARU: Hapus seluruh nilai dan jadwal mahasiswa di kelas ini
   hapusBarisTerkait("NILAI", 0, [courseId]); // Kolom A (Index 0)
+  hapusBarisTerkait("JADWAL", 0, [courseId]); // Kolom A (Index 0)
 
   // Tahap C: Terakhir, hapus Kelas Utama di tabel COURSES
   courseSheet.deleteRow(courseRowIndex);
@@ -752,4 +795,119 @@ function hapusNilaiMahasiswa(rowIndex) {
     return { success: true, message: "Data nilai berhasil dihapus!" };
   }
   return { success: false, message: "Gagal menghapus nilai." };
+}
+
+// ==========================================
+// FITUR BARU: KALENDER PERTEMUAN (JADWAL)
+// ==========================================
+
+// 1. Tambah Jadwal Baru
+function tambahJadwal(courseId, pertemuan, tanggal, waktu, mode, lokasiLink) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("JADWAL");
+  
+  if (!sheet) {
+    sheet = ss.insertSheet("JADWAL");
+    sheet.appendRow(["course_id", "pertemuan", "tanggal", "waktu", "mode", "lokasi_link"]);
+  }
+  
+  sheet.appendRow([courseId, pertemuan, tanggal, waktu, mode, lokasiLink]);
+  return { success: true, message: "Jadwal berhasil ditambahkan!" };
+}
+
+// 2. Ambil Data Jadwal (DIPERBAIKI DENGAN FITUR AUTO-HIDE 1x24 JAM)
+function getJadwalKelas(courseId) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("JADWAL");
+  if (!sheet) return [];
+  
+  var data = sheet.getDataRange().getDisplayValues(); 
+  var jadwalList = [];
+  
+  // Ambil waktu saat ini dalam milidetik
+  var waktuSekarangMs = new Date().getTime(); 
+  
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === String(courseId).trim()) {
+      var tanggalStr = String(data[i][2]).trim(); // Format: DD-MM-YYYY
+      var waktuStr = String(data[i][3]).trim();   // Format: HH:MM
+      
+      // Memecah string tanggal dan waktu
+      var tParts = tanggalStr.split("-");
+      var wParts = waktuStr.split(":");
+      
+      // Pastikan format tanggal dan waktu valid sebelum diproses
+      if (tParts.length === 3 && wParts.length >= 2) {
+        var hari = parseInt(tParts[0], 10);
+        var bulan = parseInt(tParts[1], 10) - 1; // Di Javascript, bulan dimulai dari 0 (0 = Januari)
+        var tahun = parseInt(tParts[2], 10);
+        if (tahun < 100) tahun += 2000;
+        
+        var jam = parseInt(wParts[0], 10);
+        var menit = parseInt(wParts[1], 10);
+        
+        // Buat objek waktu spesifik kapan kelas tersebut dimulai
+        var waktuKelasMs = new Date(tahun, bulan, hari, jam, menit, 0).getTime();
+        
+        // Tambahkan batas kedaluwarsa 24 jam (24 jam * 60 mnt * 60 dtk * 1000 ms)
+        var batasKedaluwarsaMs = waktuKelasMs + (24 * 60 * 60 * 1000);
+        
+        // FILTER: Hanya masukkan ke list jika waktu sekarang MASIH KURANG dari batas kedaluwarsa
+        if (waktuSekarangMs <= batasKedaluwarsaMs) {
+          jadwalList.push({
+            row_index: i + 1,
+            pertemuan: data[i][1],
+            tanggal: tanggalStr,
+            waktu: waktuStr,
+            mode: data[i][4],
+            lokasi_link: data[i][5]
+          });
+        }
+        // Jika sudah lewat 24 jam, data akan dilewati (diabaikan dari dashboard)
+      } 
+      else {
+        // Jika format input tanggal/waktu dari dosen tidak standar/error, tetap tampilkan agar tidak hilang
+        jadwalList.push({
+          row_index: i + 1,
+          pertemuan: data[i][1],
+          tanggal: tanggalStr,
+          waktu: waktuStr,
+          mode: data[i][4],
+          lokasi_link: data[i][5]
+        });
+      }
+    }
+  }
+  
+  return jadwalList;
+}
+
+// 3. Hapus Jadwal
+function hapusJadwal(rowIndex) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("JADWAL");
+  if (sheet) {
+    sheet.deleteRow(rowIndex);
+    return { success: true, message: "Jadwal berhasil dihapus!" };
+  }
+  return { success: false, message: "Gagal menghapus jadwal." };
+}
+
+// OPTIMASI: FUNGSI BATCH UNTUK MAHASISWA
+function getPaketDataRuangKelas(courseId, userId) {
+  var paketData = {
+    materials: [],
+    quizzes: [],
+    lessons: [],
+    nilai: [],
+    jadwal: []
+  };
+  
+  // Menggunakan blok try-catch agar jika satu data error, 
+  // data yang lain tetap aman dan tidak gagal load total (Anti All-or-Nothing)
+  try { paketData.materials = getCourseMaterials(courseId); } catch(e) {}
+  try { paketData.quizzes = getCourseQuizzes(courseId, userId); } catch(e) {}
+  try { paketData.lessons = getCourseLessons(courseId); } catch(e) {}
+  try { paketData.nilai = getRekapNilaiMahasiswa(courseId, userId); } catch(e) {}
+  try { paketData.jadwal = getJadwalKelas(courseId); } catch(e) {}
+  
+  return paketData;
 }
