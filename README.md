@@ -1,98 +1,108 @@
-# 🎓 Blueprint LMS - Learning Engagement System
+# 🌊 AquaLearn LMS - Serverless Learning Engagement System
 
-![LMS Banner](https://via.placeholder.com/800x200.png?text=Blueprint+LMS+-+Serverless+Learning+Management+System)
+![LMS Banner](https://via.placeholder.com/800x200.png?text=AquaLearn+LMS+-+Serverless+Learning+Management+System)
 
-Blueprint LMS adalah sebuah Sistem Manajemen Pembelajaran (LMS) ringan dan tanpa server (*serverless*) yang dibangun sepenuhnya di atas ekosistem Google Workspace. 
+**AquaLearn LMS** adalah sebuah Sistem Manajemen Pembelajaran (LMS) inovatif yang dirancang khusus untuk ekosistem pendidikan tinggi. Dibangun sepenuhnya menggunakan teknologi **Google Apps Script (GAS)** dan **Google Sheets** sebagai *database*, sistem ini bersifat 100% *serverless*—bebas biaya *hosting*, pemeliharaan server, maupun instalasi basis data yang rumit.
 
-Berbeda dengan LMS tradisional, sistem ini berfokus pada **Learning Engagement & Analytics**, dilengkapi dengan fitur pelacakan aktivitas (*tracker*), presensi reflektif (*Lesson Learn*), papan peringkat (*Ranking*), hingga pendeteksi mahasiswa tidak aktif. Semuanya disimpan dengan aman di dalam Google Sheets Anda.
-
----
-
-## ✨ Fitur Utama
-
-Sistem ini memiliki dua peran (*role*) utama dengan antarmuka dan hak akses yang berbeda:
-
-### 👨‍🎓 Panel Mahasiswa
-* **Dashboard Interaktif**: Menampilkan daftar mata kuliah yang diambil.
-* **Progress Bar Belajar (Real-time)**: Kalkulasi otomatis dari aktivitas membaca materi (40%), presensi *lesson learn* (40%), dan kuis (20%).
-* **Presensi Reflektif (Lesson Learn)**: Mengisi *insight* pembelajaran harian. Dilengkapi sistem **Auto-Lock Deadline 1x24 Jam** (tombol terkunci otomatis setelah tenggat waktu habis).
-* **Smart UI/UX**: Tombol materi dan kuis akan berubah menjadi hijau (✅ Sudah Dikerjakan) secara *real-time* setelah diklik.
-
-### 👨‍🏫 Panel Dosen (Super Admin)
-* **Manajemen Kelas (CRUD)**: Membuat dan menghapus mata kuliah.
-* **Manajemen Mahasiswa (Batch Select)**: Memasukkan banyak mahasiswa sekaligus menggunakan sistem *checkbox* atau mengeluarkan mereka dari kelas.
-* **Manajemen Konten Pembelajaran**: Tambah/Hapus Materi (G-Drive), Kuis (G-Forms), dan tugas *Lesson Learn*.
-* **Learning Analytics**: 
-  * 🏆 **Tabel Ranking Aktivitas**: Mengurutkan mahasiswa berdasarkan poin (Materi = 5 Pts, Lesson/Kuis = 10 Pts).
-  * ⚠️ **Deteksi Mahasiswa Tidak Aktif**: Otomatis mendata mahasiswa yang skor aktivitasnya masih 0.
-* **Cascade Delete System**: Jika Kelas/Materi/Kuis dihapus, seluruh riwayat (*log*) pengerjaan mahasiswa akan ikut terhapus bersih agar *database* tidak menumpuk.
+Mengusung antarmuka modern dengan gaya visual **Ocean Glassmorphism**, LMS ini tidak hanya berfokus pada penyampaian materi, tetapi juga pada analitik keterlibatan mahasiswa (*Learning Engagement*) secara *real-time*.
 
 ---
 
-## 🛠️ Tech Stack (Teknologi yang Digunakan)
-* **Backend**: [Google Apps Script (GAS)](https://developers.google.com/apps-script)
-* **Database**: Google Sheets
-* **Frontend**: HTML5, CSS3, Vanilla JavaScript (Berjalan di dalam `HtmlService` GAS)
+## ✨ Fitur Utama & Logika Sistem
+
+### 👨‍🎓 Panel Mahasiswa (Student Portal)
+Fokus pada antarmuka yang intuitif dan *gamification* untuk meningkatkan motivasi belajar.
+* **Smart Dashboard & Progress Bar**: Menampilkan persentase penyelesaian kelas secara otomatis dengan bobot dinamis:
+  * Membaca Materi (40%)
+  * Presensi & Refleksi *Lesson Learn* (40%)
+  * Pengerjaan Kuis/Tugas (20%)
+* **Kalender Pertemuan Cerdas (Smart Schedule) [BARU]**:
+  * Menampilkan jadwal perkuliahan lengkap dengan mode pelaksanaan (Daring/Luring).
+  * Dilengkapi tombol akses instan ke *link* Zoom/Google Meet untuk kelas daring.
+* **Sistem Presensi Reflektif (Auto-Lock)**: Mahasiswa diwajibkan menulis *insight* pembelajaran sebagai bukti kehadiran. Sistem menggunakan logika **Auto-Lock 1x24 jam** di mana tombol *submit* akan terkunci secara otomatis tepat di penghujung hari batas tenggat (*deadline*).
+* **Real-time UX Feedback**: Tombol kuis dan materi akan langsung berubah warna dan status (✅ *Sudah Dikerjakan*) seketika setelah diklik, memberikan respons instan tanpa perlu memuat ulang halaman.
+* **Transparansi Nilai [BARU]**: Menampilkan rekapitulasi nilai akhir dari dosen secara transparan langsung di ruang kelas mahasiswa.
+
+### 👨‍🏫 Panel Dosen (Lecturer Super-Admin)
+Dilengkapi dengan fitur *Centralized Command* untuk mengelola kelas dari satu panel.
+* **Manajemen Kelas Terpusat (CRUD)**: Pembuatan mata kuliah, penambahan materi via Google Drive, serta penugasan berbasis Google Forms.
+* **Sistem *Cascade Delete* Otomatis**: Jika sebuah mata kuliah, materi, atau kuis dihapus oleh dosen, algoritma backend akan melakukan *reverse-looping* untuk menyapu bersih seluruh riwayat (*log*) aktivitas dan pelacakan mahasiswa yang terkait, sehingga *database* Google Sheets tidak menumpuk/bocor.
+* **Batch Student Enrollment**: Memasukkan daftar mahasiswa ke dalam kelas dalam satu kali proses (*batching*) menggunakan sistem *checkbox* cerdas yang otomatis menyembunyikan mahasiswa yang sudah terdaftar.
+* **Manajemen Kalender dengan Auto-Hide [BARU]**: Dosen dapat mengatur jadwal pertemuan. Sistem akan menyembunyikan jadwal dari *dashboard* mahasiswa secara otomatis jika waktu telah terlewat 1x24 jam (mencegah penumpukan jadwal kadaluarsa).
+* **Learning Analytics & Early Warning System**:
+  * 🏆 **Leaderboard**: Meranking mahasiswa secara otomatis berdasarkan poin aktivitas (Materi = 5 Poin, Kuis & Lesson = 10 Poin).
+  * ⚠️ **Deteksi Mahasiswa Tidak Aktif**: Mengidentifikasi mahasiswa dengan skor "0" sebagai *Early Warning System* bagi dosen untuk melakukan intervensi akademik.
+* **Manajemen Nilai & Export Auto-Grading [BARU]**: 
+  * Dosen dapat melakukan input nilai secara spesifik (UTS, UAS, Tugas, dll).
+  * Fitur **📥 Download Excel** terintegrasi menggunakan *SheetJS* di sisi *client*.
+  * **Auto-Grading Rule**: Sistem otomatis menghitung rata-rata nilai per mahasiswa dan mengonversinya menjadi **Nilai Huruf** sesuai standar akademik.
 
 ---
 
-## 🚀 Panduan Instalasi & Deploy (Setup Guide)
+## ⚡ Arsitektur Optimasi Performa (Diperbarui)
 
-Karena aplikasi ini berbasis Google Apps Script, Anda tidak perlu melakukan `npm install` atau menyewa *hosting*. Ikuti langkah berikut:
-
-### 1. Persiapan Database (Google Sheets)
-1. Buat file **Google Sheets** baru di Google Drive Anda.
-2. Klik menu **Extensions (Ekstensi)** > **Apps Script**.
-
-### 2. Memasukkan Kode
-1. Di editor Apps Script, buat tiga file berikut:
-   * `Code.gs` (Fungsi routing utama)
-   * `database.gs` (Logika backend, CRUD, dan Analytics)
-   * `Index.html` (Antarmuka frontend)
-2. *Copy-paste* kode dari *repository* ini ke masing-masing file tersebut.
-3. Simpan proyek (`Ctrl + S`).
-
-### 3. Setup Tabel Database Otomatis
-1. Buka file `database.gs` di editor.
-2. Pada *dropdown* fungsi di bagian atas (sebelah tombol *Run/Jalankan*), pilih fungsi **`setupDatabase`**.
-3. Klik **Run (Jalankan)**.
-4. Berikan izin akses (*Authorization*) ke akun Google Anda.
-5. Cek Google Sheets Anda, seluruh tabel (USERS, COURSES, MATERIALS, dll) beserta data *dummy* awal sudah terbuat secara otomatis!
-
-### 4. Deploy Aplikasi ke Web
-1. Di pojok kanan atas editor Apps Script, klik tombol biru **Deploy** > **New deployment**.
-2. Pilih tipe: **Web app**.
-3. Konfigurasi:
-   * Execute as: **Me** (Akun Anda)
-   * Who has access: **Anyone** (Siapa saja)
-4. Klik **Deploy**.
-5. Salin **Web app URL** yang diberikan. Aplikasi Anda sudah *live* dan siap dibagikan ke mahasiswa!
+Sistem ini telah dikalibrasi untuk meminimalisir masalah *limitasi kuota* pada Google Apps Script:
+1. **Concurrency Handling (LockService)**: Mencegah tabrakan data (*data collision*) ketika puluhan mahasiswa melakukan klik absen atau buka materi di detik yang sama. Sistem menggunakan `LockService.getScriptLock().waitLock()` untuk mengatur antrean *request* hingga 10 detik.
+2. **Single Batch Data Fetching**: Memuat seluruh data (Materi, Kuis, Lesson, Jadwal, dan Nilai) dalam **satu kali panggilan server** `getPaketDataRuangKelas`.
+3. **Anti All-or-Nothing Paradigm**: Pemanggilan paket kelas dibungkus dengan metode *Try-Catch* parsial. Jika tabel *Jadwal* mengalami *error*, modul materi dan kuis akan tetap berhasil dimuat tanpa menyebabkan *crash* pada keseluruhan ruang kelas.
 
 ---
 
-## 🔐 Akun Default untuk Testing
-
-Setelah melakukan *deploy*, gunakan akun berikut untuk masuk ke dalam sistem:
-
-| Role | Username (NIM/ID) | Password | Keterangan |
-| :--- | :--- | :--- | :--- |
-| **Mahasiswa** | `101` | `101` | Akun Andi |
-| **Mahasiswa** | `102` | `102` | Akun Budi |
-| **Dosen** | `D01` | `123` | Akun Pak Dosen |
-
-*(Anda bisa menambah, menghapus, atau mengubah data akun ini langsung melalui sheet `USERS` di Google Sheets).*
+## 🛠️ Tech Stack & Infrastruktur
+* **Backend Platform**: Google Apps Script (GAS) dengan V8 Engine.
+* **Database Relasional**: Google Sheets (Didesain meniru tabel SQL).
+* **Frontend UI/UX**:
+  * HTML5 & Vanilla JavaScript.
+  * [Tailwind CSS](https://tailwindcss.com/) (Diinjeksi via CDN untuk *styling* cepat).
+  * *Ocean Glassmorphism UI* (Custom CSS *backdrop-filter* dan animasi).
+* **Library Eksternal**: [SheetJS (xlsx)](https://sheetjs.com/) untuk pemrosesan dan ekspor data ke Excel murni di sisi browser.
 
 ---
 
-## 📂 Struktur Database (Google Sheets)
-Aplikasi ini menggunakan simulasi *Relational Database* melaui *spreadsheet* dengan tabel berikut:
-* `USERS`: Data mahasiswa dan dosen.
-* `COURSES`: Master data mata kuliah.
-* `ENROLLMENTS`: Tabel relasi (Bridge) antara Mahasiswa dan Mata Kuliah.
-* `MATERIALS`, `QUIZ`, `LESSON_ASSIGN`: Master data konten pembelajaran.
-* `MATERIAL_TRACK`, `QUIZ_TRACK`, `LESSON_SUBMIT`: Log/Riwayat aktivitas (*tracker*) untuk menghitung analitik.
+## 📂 Struktur Skema Database (Google Sheets)
+Saat sistem dijalankan pertama kali, fungsi `setupDatabase()` akan secara otomatis membuat 11 (*sebelas*) tabel yang saling berelasi:
+
+| Nama Sheet / Tabel | Deskripsi & Fungsi |
+| :--- | :--- |
+| **`USERS`** | Master data pengguna (NIM/ID, Password, Nama, Role: Mahasiswa/Dosen). |
+| **`COURSES`** | Master data mata kuliah (ID, Nama Kelas, ID Dosen Pengampu). |
+| **`ENROLLMENTS`** | Tabel *Bridge* / Relasi Many-to-Many antara Mahasiswa dan Kelas. |
+| **`MATERIALS`** | Daftar referensi materi pelajaran & *link* penyimpanan Drive. |
+| **`MATERIAL_TRACK`** | Log pelacakan waktu nyata (*timestamp*) saat mahasiswa klik materi. |
+| **`QUIZ`** | Daftar tugas atau kuis yang diarahkan ke eksternal (Google Forms, dll). |
+| **`QUIZ_TRACK`** | Log pelacakan saat mahasiswa mulai mengerjakan kuis. |
+| **`LESSON_ASSIGN`** | Data tugas presensi reflektif beserta pengaturan tanggal tenggat (*deadline*). |
+| **`LESSON_SUBMIT`** | Penyimpanan *insight*/jawaban mahasiswa sebagai bukti rekap presensi. |
+| **`JADWAL`** | **[BARU]** Data pertemuan luring/daring, jam pelaksanaan, dan lokasi/link. |
+| **`NILAI`** | **[BARU]** Rekapitulasi jenis penilaian spesifik beserta angka perolehan mahasiswa. |
 
 ---
 
-## 📝 Lisensi
-Proyek ini bersifat *Open-Source* dan dirancang untuk tujuan edukasi serta mempermudah ekosistem pendidikan jarak jauh. Silakan modifikasi sesuai kebutuhan institusi Anda!
+## 🚀 Panduan Setup & Instalasi (Zero-Cost Deployment)
+
+1. **Persiapan Workspace**:
+   * Buat file **Google Sheets** kosong di akun Google Drive Anda.
+   * Pilih menu **Extensions (Ekstensi)** > **Apps Script**.
+2. **Injeksi Kode**:
+   * Buat file **`Kode.gs`** (Tempel fungsi `doGet` dan logika *Login*).
+   * Buat file **`database.gs`** (Tempel seluruh logika *backend*, CRUD, kalkulasi *analytics*, dan integrasi jadwal/nilai).
+   * Buat file **`Index.html`** (Tempel seluruh kode UI/UX, Tailwind, dan Script *client-side*).
+3. **Build Database Otomatis**:
+   * Di file `database.gs`, pilih fungsi `setupDatabase` pada *dropdown* atas.
+   * Klik tombol **Run / Jalankan** dan berikan izin (*Authorization*). Google Sheets Anda kini sudah terformat dengan relasi tabel yang benar.
+4. **Deploy Aplikasi (Go Live)**:
+   * Klik **Deploy** di sudut kanan atas > **New deployment**.
+   * Pilih tipe **Web app**.
+   * Setting eksekusi: **Me** (Email Anda).
+   * Hak Akses: **Anyone** (Siapa saja).
+   * Klik **Deploy** dan aplikasi siap digunakan melalui URL yang dibagikan!
+
+*(Gunakan akun mahasiswa NIM: `101`, pass: `101` atau dosen ID: `D01`, pass: `123` untuk melakukan pengujian awal).*
+
+---
+
+## ⚖️ Lisensi & Hak Cipta
+Hak cipta © 2026 Andy Rasyadi, S.Pi., M.Si.
+Dosen Fakultas Kelautan dan Perikanan, Universitas Udayana.
+
+*Proyek ini dirancang secara khusus untuk mendukung ekosistem pendidikan tinggi jarak jauh dan model pembelajaran campuran (Blended Learning). Silakan pelajari, kembangkan, dan modifikasi kode ini untuk kebutuhan institusi Anda.*
