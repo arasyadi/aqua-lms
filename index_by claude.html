@@ -29,7 +29,6 @@
       min-height: 100vh;
       overflow-x: hidden;
     }
-    /* ── OCEAN BACKGROUND ── */
     #ocean-bg {
       position: fixed; inset: 0; z-index: 0; pointer-events: none;
       background:
@@ -38,7 +37,6 @@
         radial-gradient(ellipse 80% 60% at 50% 100%, rgba(11,31,58,0.9) 0%, transparent 75%),
         linear-gradient(180deg, #060f1e 0%, #0b1f3a 100%);
     }
-    /* bubbles */
     .bubble {
       position: fixed; border-radius: 50%; pointer-events: none; z-index: 0;
       background: radial-gradient(circle at 30% 30%, rgba(92,200,240,0.15), rgba(33,150,211,0.03));
@@ -51,11 +49,7 @@
       92%  { opacity: 0.4; }
       100% { transform: translateY(-8vh) scale(1.08); opacity: 0; }
     }
-
-    /* ── MAIN CONTENT WRAP ── */
     .page { position: relative; z-index: 1; }
-
-    /* ── GLASSMORPHISM CARD ── */
     .glass {
       background: var(--glass);
       border: 1px solid var(--border);
@@ -67,8 +61,6 @@
       border: 1px solid var(--border);
       backdrop-filter: blur(20px);
     }
-
-    /* ── TOPBAR ── */
     .topbar {
       position: sticky; top: 0; z-index: 50;
       height: 60px;
@@ -83,8 +75,6 @@
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
     .topbar-sub { font-size: 11px; color: #5a8fa8; letter-spacing: 1.5px; text-transform: uppercase; }
-
-    /* ── BUTTONS ── */
     .btn {
       display: inline-flex; align-items: center; justify-content: center; gap: 6px;
       font-family: 'Sora', sans-serif; font-weight: 600; font-size: 13px;
@@ -106,8 +96,6 @@
     .btn-dark:hover:not(:disabled)   { background: rgba(13,61,107,0.5); color: var(--foam); }
     .btn-sm     { padding: 6px 12px; font-size: 12px; border-radius: 8px; }
     .btn-full   { width: 100%; }
-
-    /* ── FORM ── */
     .form-input {
       font-family: 'Sora', sans-serif; font-size: 13px;
       background: rgba(6,15,30,0.6); color: #d6edf8;
@@ -118,8 +106,6 @@
     .form-input::placeholder { color: #3a6a85; }
     .form-input:disabled { opacity: 0.45; cursor: not-allowed; }
     .form-label { font-size: 12px; font-weight: 600; color: #5a9bb8; letter-spacing: 0.5px; margin-bottom: 5px; display: block; text-transform: uppercase; }
-
-    /* ── TABLES ── */
     .tbl-wrap { overflow-y: auto; max-height: 280px; border-radius: 12px; border: 1px solid var(--border); }
     .tbl-wrap::-webkit-scrollbar { width: 4px; }
     .tbl-wrap::-webkit-scrollbar-thumb { background: rgba(92,200,240,0.25); border-radius: 4px; }
@@ -131,18 +117,12 @@
     .rank-gold   td { background: rgba(232,168,58,0.12)  !important; color: var(--amber); }
     .rank-silver td { background: rgba(180,195,210,0.10) !important; color: #b8cdd8; }
     .rank-bronze td { background: rgba(180,100,50,0.12)  !important; color: #c48050; }
-
-    /* ── BADGE ── */
     .badge { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 0.4px; }
     .badge-blue { background: rgba(33,150,211,0.18); color: var(--foam); border: 1px solid rgba(33,150,211,0.3); }
     .badge-mint { background: rgba(52,201,138,0.18); color: var(--mint); border: 1px solid rgba(52,201,138,0.3); }
     .badge-amber{ background: rgba(232,168,58,0.18); color: var(--amber);border: 1px solid rgba(232,168,58,0.3); }
-
-    /* ── PROGRESS ── */
     .prog-track { background: rgba(33,150,211,0.12); border-radius: 99px; height: 7px; overflow: hidden; margin: 10px 0 4px; }
     .prog-fill  { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--sea), var(--foam)); box-shadow: 0 0 8px rgba(92,200,240,0.4); transition: width .6s ease; }
-
-    /* ── PANEL TABS (Dosen analytics) ── */
     .panel-tabs { display: flex; gap: 4px; background: rgba(6,15,30,0.6); border: 1px solid var(--border); border-radius: 14px; padding: 5px; }
     .tab-btn {
       flex: 1; padding: 10px 16px; border-radius: 10px; border: none; cursor: pointer;
@@ -153,8 +133,6 @@
     .tab-btn:hover:not(.active) { background: rgba(33,150,211,0.12); color: var(--foam); }
     .tab-panel { display: none; }
     .tab-panel.active { display: block; animation: fadeUp .28s ease; }
-
-    /* ── SUB-ACCORDION (for Materi / Kuis / Lesson inside tab) ── */
     .accordion-item { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 12px; }
     .accordion-header {
       width: 100%; display: flex; align-items: center; justify-content: space-between;
@@ -167,69 +145,44 @@
     .accordion-header.open .arrow { transform: rotate(180deg); }
     .accordion-body { display: none; padding: 20px; background: rgba(6,15,30,0.3); border-top: 1px solid var(--border); }
     .accordion-body.open { display: block; animation: fadeUp .22s ease; }
-
-    /* ── SECTION HEADING ── */
     .section-head { font-family: 'Lora', serif; font-size: 16px; color: var(--foam); display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
-
-    /* ── ALERT ── */
     .alert-danger { background: rgba(180,52,31,0.15); border: 1px solid rgba(242,109,81,0.3); border-left: 4px solid var(--coral); border-radius: 12px; padding: 16px 18px; }
     .alert-success{ background: rgba(52,201,138,0.1); border: 1px solid rgba(52,201,138,0.25); border-left: 4px solid var(--mint); border-radius: 12px; padding: 16px 18px; }
-
-    /* ── LOGIN ── */
     .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
     .login-card { width: 100%; max-width: 380px; border-radius: 24px; padding: 40px 36px; }
     .fish-anim { display: inline-block; animation: sway 2.8s ease-in-out infinite; }
     @keyframes sway { 0%,100% { transform: rotate(-6deg) scale(1); } 50% { transform: rotate(6deg) scale(1.08); } }
-
-    /* ── COURSE CARD ── */
     .course-card { border-radius: 16px; padding: 22px; transition: transform .2s, box-shadow .2s, border-color .2s; }
     .course-card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(33,150,211,0.15); border-color: rgba(92,200,240,0.4) !important; }
-
-    /* ── DASHBOARD HERO ── */
     .hero-card { border-radius: 20px; padding: 28px; position: relative; overflow: hidden; }
     .hero-card::after { content: '🐋 🐠 🐟 🦈'; position: absolute; right: 20px; bottom: 8px; font-size: 32px; opacity: 0.1; letter-spacing: 6px; pointer-events: none; }
-
-    /* ── ANIMATIONS ── */
     @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .fade-in { animation: fadeUp .32s ease; }
-
-    /* ── RESPONSIVE ── */
     @media (max-width: 640px) {
       .topbar { padding: 0 14px; }
       .two-col { grid-template-columns: 1fr !important; }
       .panel-tabs { flex-direction: column; }
     }
-
-    /* ── CHECKBOX ── */
     .check-list { max-height: 170px; overflow-y: auto; }
     .check-list::-webkit-scrollbar { width: 3px; }
     .check-list::-webkit-scrollbar-thumb { background: rgba(92,200,240,0.2); border-radius: 4px; }
     .check-item { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; cursor: pointer; transition: background .15s; font-size: 13px; color: #c0dbe8; }
     .check-item:hover { background: rgba(33,150,211,0.1); }
     .check-item input[type=checkbox] { accent-color: var(--wave); width: 15px; height: 15px; cursor: pointer; }
-
-    /* scrollbar global */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: rgba(6,15,30,0.3); }
     ::-webkit-scrollbar-thumb { background: rgba(92,200,240,0.2); border-radius: 4px; }
-
-    /* ── STAT CARD ── */
     .stat-card { border-radius: 14px; padding: 18px; display: flex; align-items: center; gap: 14px; }
     .stat-icon { font-size: 28px; width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; border-radius: 12px; flex-shrink: 0; }
-
-    /* ── FOOTER ── */
     footer { border-top: 1px solid var(--border); padding: 20px; text-align: center; font-size: 12px; color: #3a6a85; margin-top: 40px; }
     footer strong { color: #5a8fa8; }
   </style>
 </head>
 <body>
 
-<!-- Ocean background -->
 <div id="ocean-bg"></div>
 
-<!-- ════════════════════════════════════
-     VIEW: LOGIN
-════════════════════════════════════ -->
+<!-- VIEW: LOGIN -->
 <div id="loginView" class="page login-wrap">
   <div class="login-card glass-solid fade-in">
     <div class="text-center mb-6">
@@ -253,10 +206,7 @@
   </div>
 </div>
 
-
-<!-- ════════════════════════════════════
-     VIEW: MAHASISWA — DASHBOARD
-════════════════════════════════════ -->
+<!-- VIEW: MAHASISWA — DASHBOARD -->
 <div id="dashboardView" class="page" style="display:none;">
   <nav class="topbar">
     <span class="text-2xl">🐠</span>
@@ -281,10 +231,7 @@
   <footer><span class="footer-wave">🌊 🐟 🌊</span><br>Dibuat oleh: <strong>Andy Rasyadi, S.Pi., M.Si.</strong></footer>
 </div>
 
-
-<!-- ════════════════════════════════════
-     VIEW: MAHASISWA — RUANG KELAS
-════════════════════════════════════ -->
+<!-- VIEW: MAHASISWA — RUANG KELAS -->
 <div id="courseRoomView" class="page" style="display:none;">
   <nav class="topbar">
     <span class="text-2xl">📘</span>
@@ -302,29 +249,28 @@
       <h2 id="courseTitle" style="font-family:'Lora',serif;font-size:20px;color:var(--foam);">Mata Kuliah</h2>
       <p style="color:#5a8fa8;font-size:13px;margin-top:4px;">Ruang Belajar Digital</p>
     </div>
-
-    <!-- Materi -->
     <h3 class="section-head">📘 Materi Pembelajaran</h3>
     <div id="loadingMaterials" style="color:#3a6a85;font-size:14px;">Memuat materi…</div>
     <div id="materialList" class="grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));margin-bottom:32px;"></div>
-
-    <!-- Kuis -->
     <h3 class="section-head">📝 Evaluasi / Kuis</h3>
     <div id="loadingQuizzes" style="color:#3a6a85;font-size:14px;">Memuat kuis…</div>
     <div id="quizList" class="grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));margin-bottom:32px;"></div>
-
-    <!-- Lesson Learn -->
     <h3 class="section-head">💡 Lesson Learn (Presensi Reflektif)</h3>
     <div id="loadingLessons" style="color:#3a6a85;font-size:14px;">Memuat tugas refleksi…</div>
     <div id="lessonList" class="flex flex-col gap-4"></div>
+    <h3 class="section-head mt-8">📊 Rekapitulasi Nilai</h3>
+    <div id="loadingNilai" style="color:#3a6a85;font-size:14px;">Memuat nilai...</div>
+    <div class="tbl-wrap mb-8">
+      <table>
+        <thead><tr><th>Jenis Penilaian</th><th>Nilai</th></tr></thead>
+        <tbody id="nilaiList"><tr><td colspan="2" style="text-align:center;color:#3a6a85;">Memuat...</td></tr></tbody>
+      </table>
+    </div>
   </main>
   <footer>Dibuat oleh: <strong>Andy Rasyadi, S.Pi., M.Si.</strong></footer>
 </div>
 
-
-<!-- ════════════════════════════════════
-     VIEW: DOSEN — DASHBOARD (list kelas)
-════════════════════════════════════ -->
+<!-- VIEW: DOSEN — DASHBOARD -->
 <div id="lecturerDashboardView" class="page" style="display:none;">
   <nav class="topbar">
     <span class="text-2xl">🎓</span>
@@ -338,19 +284,16 @@
     </div>
   </nav>
   <main class="page" style="max-width:960px;margin:0 auto;padding:28px 20px 60px;">
-
     <div class="hero-card glass fade-in" style="margin-bottom:28px;">
       <h2 id="welcomeTextDosen" style="font-family:'Lora',serif;font-size:22px;color:var(--foam);">Selamat Datang</h2>
       <p style="color:#5a8fa8;font-size:14px;margin-top:4px;">Kelola kelas dan pantau perkembangan mahasiswa Anda.</p>
     </div>
-
-    <!-- Tambah Kelas -->
     <div class="glass rounded-2xl p-5 mb-6" style="border:2px dashed rgba(92,200,240,0.25);">
       <h3 class="section-head" style="margin-bottom:14px;">⚙️ Buat Kelas Baru</h3>
       <div class="grid gap-3 two-col" style="grid-template-columns:1fr 1fr;">
         <div>
           <label class="form-label">Kode Kelas</label>
-          <input type="text" id="newCourseId"   class="form-input" placeholder="Contoh: C-003">
+          <input type="text" id="newCourseId" class="form-input" placeholder="Contoh: C-003">
         </div>
         <div>
           <label class="form-label">Nama Mata Kuliah</label>
@@ -359,7 +302,6 @@
       </div>
       <button class="btn btn-ocean mt-3" id="btnTambahKelas" onclick="tambahKelas()">+ Buat Kelas</button>
     </div>
-
     <h3 class="section-head">🐟 Kelas yang Anda Ampu</h3>
     <div id="loadingDosenCourses" style="color:#3a6a85;font-size:14px;">Memuat kelas…</div>
     <div id="dosenCourseList" class="grid gap-4" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr));"></div>
@@ -367,10 +309,7 @@
   <footer>Dibuat oleh: <strong>Andy Rasyadi, S.Pi., M.Si.</strong></footer>
 </div>
 
-
-<!-- ════════════════════════════════════
-     VIEW: DOSEN — PANEL KELAS (TABS)
-════════════════════════════════════ -->
+<!-- VIEW: DOSEN — PANEL KELAS (TABS) -->
 <div id="lecturerAnalyticsView" class="page" style="display:none;">
   <nav class="topbar">
     <span class="text-2xl">🎓</span>
@@ -384,14 +323,10 @@
     </div>
   </nav>
   <main class="page" style="max-width:960px;margin:0 auto;padding:28px 20px 60px;">
-
-    <!-- Hero -->
     <div class="hero-card glass fade-in" style="margin-bottom:28px;">
       <h2 id="analyticsCourseTitle" style="font-family:'Lora',serif;font-size:20px;color:var(--foam);">Panel Kelas</h2>
       <p style="color:#5a8fa8;font-size:13px;margin-top:4px;">Kelola konten & pantau aktivitas mahasiswa</p>
     </div>
-
-    <!-- ── MAIN TABS ── -->
     <div class="panel-tabs mb-6">
       <button class="tab-btn active" onclick="switchTab('tabPembelajaran', this)" id="tabBtnPembelajaran">
         📚 Manajemen Pembelajaran
@@ -401,14 +336,11 @@
       </button>
     </div>
 
-    <!-- ══ TAB 1: MANAJEMEN PEMBELAJARAN ══ -->
+    <!-- TAB 1: MANAJEMEN PEMBELAJARAN -->
     <div id="tabPembelajaran" class="tab-panel active">
-
-      <!-- ACCORDION: Materi -->
       <div class="accordion-item">
         <button class="accordion-header open" onclick="toggleAccordion(this)">
-          <span>📘 Manajemen Materi</span>
-          <span class="arrow">▼</span>
+          <span>📘 Manajemen Materi</span><span class="arrow">▼</span>
         </button>
         <div class="accordion-body open">
           <div class="grid gap-3 two-col mb-4" style="grid-template-columns:1fr 1fr;">
@@ -431,11 +363,9 @@
         </div>
       </div>
 
-      <!-- ACCORDION: Kuis -->
       <div class="accordion-item">
         <button class="accordion-header open" onclick="toggleAccordion(this)">
-          <span>📝 Manajemen Kuis / Tugas</span>
-          <span class="arrow">▼</span>
+          <span>📝 Manajemen Kuis / Tugas</span><span class="arrow">▼</span>
         </button>
         <div class="accordion-body open">
           <div class="grid gap-3 two-col mb-4" style="grid-template-columns:1fr 1fr;">
@@ -458,11 +388,9 @@
         </div>
       </div>
 
-      <!-- ACCORDION: Lesson Learn -->
       <div class="accordion-item">
         <button class="accordion-header open" onclick="toggleAccordion(this)">
-          <span>💡 Manajemen Lesson Learn</span>
-          <span class="arrow">▼</span>
+          <span>💡 Manajemen Lesson Learn</span><span class="arrow">▼</span>
         </button>
         <div class="accordion-body open">
           <div class="grid gap-3 two-col mb-4" style="grid-template-columns:1fr auto;">
@@ -484,18 +412,61 @@
           </div>
         </div>
       </div>
-
     </div><!-- /tabPembelajaran -->
 
-
-    <!-- ══ TAB 2: MANAJEMEN MAHASISWA ══ -->
+    <!-- TAB 2: MANAJEMEN MAHASISWA -->
     <div id="tabMahasiswa" class="tab-panel">
 
-      <!-- SECTION: Daftar & Enrollment Mahasiswa -->
+      <!-- ACCORDION: Manajemen Nilai (BARU) -->
       <div class="accordion-item mb-4">
         <button class="accordion-header open" onclick="toggleAccordion(this)">
-          <span>🎓 Daftar Mahasiswa Kelas</span>
+          <span>📊 Manajemen Nilai Mahasiswa</span>
           <span class="arrow">▼</span>
+        </button>
+        <div class="accordion-body open">
+          <div class="grid gap-3 two-col mb-4" style="grid-template-columns: 1fr 1fr 1fr;">
+            <div>
+              <label class="form-label">Pilih Mahasiswa</label>
+              <select id="inputNilaiUser" class="form-input" style="padding: 9px 14px;">
+                <option value="">-- Pilih Mahasiswa --</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label">Jenis Penilaian</label>
+              <input type="text" id="inputJenisNilai" class="form-input" placeholder="Contoh: Tugas 1, UTS">
+            </div>
+            <div>
+              <label class="form-label">Skor / Nilai</label>
+              <input type="number" id="inputAngkaNilai" class="form-input" placeholder="Contoh: 85">
+            </div>
+          </div>
+          <button class="btn btn-teal btn-sm" id="btnSimpanNilai" onclick="simpanNilaiKelas()">+ Simpan Nilai</button>
+          <div class="tbl-wrap mt-4">
+            <table style="table-layout:fixed;width:100%;">
+              <colgroup>
+                <col style="width:115px;">
+                <col style="width:auto;">
+                <col style="width:165px;">
+                <col style="width:75px;">
+                <col style="width:85px;">
+              </colgroup>
+              <thead><tr>
+                <th style="text-align:center;">NIM</th>
+                <th>Nama Mahasiswa</th>
+                <th>Jenis Penilaian</th>
+                <th style="text-align:center;">Nilai</th>
+                <th style="text-align:center;">Aksi</th>
+              </tr></thead>
+              <tbody id="nilaiDosenBody"><tr><td colspan="5" style="text-align:center;color:#3a6a85;">Memuat data nilai…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACCORDION: Daftar Mahasiswa -->
+      <div class="accordion-item mb-4">
+        <button class="accordion-header open" onclick="toggleAccordion(this)">
+          <span>🎓 Daftar Mahasiswa Kelas</span><span class="arrow">▼</span>
         </button>
         <div class="accordion-body open">
           <p style="font-size:13px;color:#5a8fa8;margin-bottom:12px;">Centang mahasiswa yang ingin didaftarkan ke kelas ini:</p>
@@ -516,11 +487,10 @@
         </div>
       </div>
 
-      <!-- SECTION: Ranking -->
+      <!-- ACCORDION: Ranking -->
       <div class="accordion-item mb-4">
         <button class="accordion-header open" onclick="toggleAccordion(this)">
-          <span>🏆 Ranking Aktivitas Mahasiswa</span>
-          <span class="arrow">▼</span>
+          <span>🏆 Ranking Aktivitas Mahasiswa</span><span class="arrow">▼</span>
         </button>
         <div class="accordion-body open">
           <div id="loadingRanking" style="color:#3a6a85;font-size:13px;padding:6px 0;">Memuat data analitik…</div>
@@ -533,11 +503,10 @@
         </div>
       </div>
 
-      <!-- SECTION: Tidak Aktif -->
+      <!-- ACCORDION: Tidak Aktif -->
       <div class="accordion-item">
         <button class="accordion-header open" onclick="toggleAccordion(this)">
-          <span>⚠️ Mahasiswa Tidak Aktif</span>
-          <span class="arrow">▼</span>
+          <span>⚠️ Mahasiswa Tidak Aktif</span><span class="arrow">▼</span>
         </button>
         <div class="accordion-body open">
           <div class="alert-danger">
@@ -554,8 +523,7 @@
   <footer>Dibuat oleh: <strong>Andy Rasyadi, S.Pi., M.Si.</strong></footer>
 </div>
 
-
-<!-- ════════════ BUBBLES SCRIPT ════════════ -->
+<!-- BUBBLES -->
 <script>
 (function(){
   var cfg=[
@@ -571,13 +539,12 @@
 })();
 </script>
 
-<!-- ════════════ APP LOGIC ════════════ -->
+<!-- APP LOGIC -->
 <script>
   var currentUserInfo = null;
   var activeCourseId   = null;
   var activeCourseName = null;
 
-  // ── VIEWS ──
   var ALL_VIEWS = ['loginView','dashboardView','courseRoomView','lecturerDashboardView','lecturerAnalyticsView'];
   function showView(id) {
     ALL_VIEWS.forEach(function(v){ document.getElementById(v).style.display='none'; });
@@ -588,7 +555,6 @@
     el.classList.add('fade-in');
   }
 
-  // ── TABS (Panel Kelas) ──
   function switchTab(panelId, btnEl) {
     document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
     document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
@@ -596,7 +562,6 @@
     btnEl.classList.add('active');
   }
 
-  // ── ACCORDION ──
   function toggleAccordion(headerEl) {
     headerEl.classList.toggle('open');
     var body = headerEl.nextElementSibling;
@@ -607,7 +572,6 @@
     }
   }
 
-  // ── LOGIN ──
   function attemptLogin() {
     var user = document.getElementById('username').value.trim();
     var pass = document.getElementById('password').value;
@@ -619,7 +583,6 @@
   function handleLoginResponse(response) {
     if (response.success) {
       currentUserInfo = response;
-      // Simpan sesi ke memori browser agar tetap login saat refresh
       localStorage.setItem('lms_session', JSON.stringify(response));
       applySession(response);
     } else {
@@ -627,7 +590,6 @@
     }
   }
 
-  // Terapkan sesi (dipakai saat login baru maupun auto-login dari localStorage)
   function applySession(info) {
     if (info.role === 'Mahasiswa') {
       document.getElementById('welcomeTextMahasiswa').innerText = 'Halo, ' + info.name + ' 👋';
@@ -642,7 +604,6 @@
     }
   }
 
-  // Auto-login: cek localStorage setiap kali halaman dibuka / di-refresh
   function checkSession() {
     var saved = localStorage.getItem('lms_session');
     if (saved) {
@@ -656,9 +617,7 @@
   }
   window.onload = checkSession;
 
-  // ── LOGOUT ──
   function logout() {
-    // Hapus sesi dari memori browser
     localStorage.removeItem('lms_session');
     currentUserInfo = null; activeCourseId = null; activeCourseName = null;
     ALL_VIEWS.filter(function(v){ return v!=='loginView'; }).forEach(function(v){ document.getElementById(v).style.display='none'; });
@@ -697,12 +656,15 @@
     document.getElementById('materialList').innerHTML='';
     document.getElementById('quizList').innerHTML='';
     document.getElementById('lessonList').innerHTML='';
+    document.getElementById('nilaiList').innerHTML='';
     document.getElementById('loadingMaterials').style.display='block';
     document.getElementById('loadingQuizzes').style.display='block';
     document.getElementById('loadingLessons').style.display='block';
+    document.getElementById('loadingNilai').style.display='block';
     google.script.run.withSuccessHandler(renderMaterials).getCourseMaterials(courseId);
     google.script.run.withSuccessHandler(renderQuizzes).getCourseQuizzes(courseId, currentUserInfo.userId);
     google.script.run.withSuccessHandler(renderLessons).getCourseLessons(courseId);
+    google.script.run.withSuccessHandler(renderNilai).getRekapNilaiMahasiswa(courseId, currentUserInfo.userId);
   }
 
   function renderMaterials(materials) {
@@ -768,6 +730,23 @@
     }).join('');
   }
 
+  function renderNilai(nilaiData) {
+    document.getElementById('loadingNilai').style.display = 'none';
+    var tbody = document.getElementById('nilaiList');
+    if (!nilaiData || nilaiData.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#3a6a85;">Belum ada nilai yang diinputkan oleh dosen.</td></tr>';
+      return;
+    }
+    var html = '';
+    nilaiData.forEach(function(item) {
+      html += '<tr>'
+            + '<td style="color:#c0dbe8;font-weight:500;">' + item.jenis_nilai + '</td>'
+            + '<td><span class="badge badge-mint" style="font-size:13px; font-weight:700;">' + item.nilai + '</span></td>'
+            + '</tr>';
+    });
+    tbody.innerHTML = html;
+  }
+
   function kirimLesson(assignId) {
     var txt=document.getElementById('insight_'+assignId).value;
     if(!txt.trim()){alert('Harap tuliskan insight Anda terlebih dahulu!');return;}
@@ -830,26 +809,26 @@
   function bukaAnalitikKelas(courseId, courseName) {
     activeCourseId=courseId; activeCourseName=courseName;
     showView('lecturerAnalyticsView');
-    // Reset tabs ke tab pertama
     switchTab('tabPembelajaran', document.getElementById('tabBtnPembelajaran'));
     document.getElementById('analyticsCourseTitle').innerText=courseName;
     document.getElementById('analyticsCourseTitle-nav').innerText=courseName;
-    // Reset table bodies
     ['materiDosenBody','kuisDosenBody','lessonDosenBody','enrolledBody'].forEach(function(id){
       document.getElementById(id).innerHTML='<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Memuat…</td></tr>';
     });
+    document.getElementById('nilaiDosenBody').innerHTML='<tr><td colspan="5" style="text-align:center;color:#3a6a85;">Memuat…</td></tr>';
     document.getElementById('rankingContainer').style.display='none';
     document.getElementById('loadingRanking').style.display='block';
     document.getElementById('loadingInactive').style.display='block';
     document.getElementById('inactiveList').innerHTML='';
     document.getElementById('studentCheckboxList').innerHTML='<p style="color:#3a6a85;font-size:13px;padding:8px;">Memuat…</p>';
-    // Load data
     google.script.run.withSuccessHandler(renderManajemenMateri).getCourseMaterials(courseId);
     google.script.run.withSuccessHandler(renderManajemenKuis).getCourseQuizzes(courseId);
     google.script.run.withSuccessHandler(renderManajemenLesson).getCourseLessons(courseId);
     google.script.run.withSuccessHandler(renderManajemenMahasiswa).getStudentManagementData(courseId);
     google.script.run.withSuccessHandler(renderRankings).getStudentRankings(courseId);
     google.script.run.withSuccessHandler(renderInactive).getInactiveStudents(courseId);
+    // Memuat data nilai saat kelas dibuka
+    google.script.run.withSuccessHandler(renderTabelNilaiDosen).getSemuaNilaiKelas(courseId);
   }
 
   function kembaliKeDashboardDosen() {
@@ -964,8 +943,6 @@
   }
 
   // ── MAHASISWA MANAGEMENT ──
-
-  // ── FITUR SEARCH & SELECT ALL MAHASISWA ──
   function filterStudents() {
     var input = document.getElementById("searchStudent").value.toLowerCase();
     var items = document.getElementsByClassName("check-item");
@@ -1034,6 +1011,12 @@
         container.innerHTML+='<label class="check-item"><input type="checkbox" class="mhs-checkbox" value="'+s.user_id+'"><b style="color:var(--foam);">'+s.user_id+'</b> — '+s.nama_lengkap+'</label>';
       });
     }
+    // Isi dropdown nilai dengan mahasiswa yang terdaftar
+    var selectNilai = document.getElementById('inputNilaiUser');
+    selectNilai.innerHTML = '<option value="">-- Pilih Mahasiswa --</option>';
+    enrolled.forEach(function(s) {
+      selectNilai.innerHTML += '<option value="' + s.user_id + '">' + s.user_id + ' - ' + s.nama + '</option>';
+    });
   }
 
   function renderRankings(rankings){
@@ -1059,6 +1042,66 @@
     if(!inactiveStudents||!inactiveStudents.length){list.innerHTML='<li style="color:var(--mint);list-style:none;">✅ Semua mahasiswa aktif!</li>';return;}
     list.innerHTML=inactiveStudents.map(function(s){return '<li>'+s+'</li>';}).join('');
   }
+
+  // ══════════════════════════════════
+  // FITUR BARU: MANAJEMEN NILAI DOSEN
+  // ══════════════════════════════════
+
+  // Menyimpan nilai dari form ke database
+  function simpanNilaiKelas() {
+    var userId = document.getElementById('inputNilaiUser').value;
+    var jenisNilai = document.getElementById('inputJenisNilai').value.trim();
+    var nilai = document.getElementById('inputAngkaNilai').value.trim();
+    if (!userId || !jenisNilai || !nilai) {
+      alert('Semua kolom (Mahasiswa, Jenis Penilaian, dan Nilai) wajib diisi!');
+      return;
+    }
+    var btn = document.getElementById('btnSimpanNilai');
+    btn.innerText = 'Menyimpan...'; btn.disabled = true;
+    google.script.run.withSuccessHandler(function(r) {
+      btn.innerText = '+ Simpan Nilai'; btn.disabled = false;
+      if (r.success) {
+        document.getElementById('inputJenisNilai').value = '';
+        document.getElementById('inputAngkaNilai').value = '';
+        google.script.run.withSuccessHandler(renderTabelNilaiDosen).getSemuaNilaiKelas(activeCourseId);
+      } else {
+        alert('❌ ' + r.message);
+      }
+    }).tambahNilaiMahasiswa(activeCourseId, userId, jenisNilai, nilai);
+  }
+
+  // Menggambar tabel nilai di panel dosen
+  function renderTabelNilaiDosen(dataNilai) {
+    var tbody = document.getElementById('nilaiDosenBody');
+    tbody.innerHTML = '';
+    if (!dataNilai || dataNilai.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#3a6a85;">Belum ada nilai yang diinput di kelas ini.</td></tr>';
+      return;
+    }
+    dataNilai.forEach(function(n) {
+      tbody.innerHTML += '<tr>'
+        + '<td style="text-align:center;"><span class="badge badge-blue">' + n.user_id + '</span></td>'
+        + '<td style="color:#c0dbe8;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0;">' + n.nama + '</td>'
+        + '<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0;">' + n.jenis_nilai + '</td>'
+        + '<td style="text-align:center;"><span class="badge badge-mint" style="font-size:13px;font-weight:700;">' + n.nilai + '</span></td>'
+        + '<td style="text-align:center;"><button class="btn btn-coral btn-sm" onclick="konfirmasiHapusNilai(' + n.row_index + ', \'' + n.nama + '\')">Hapus</button></td>'
+        + '</tr>';
+    });
+  }
+
+  // Menghapus nilai
+  function konfirmasiHapusNilai(rowIndex, namaMhs) {
+    if (confirm('Yakin ingin menghapus data nilai milik ' + namaMhs + '?')) {
+      google.script.run.withSuccessHandler(function(r) {
+        if (r.success) {
+          google.script.run.withSuccessHandler(renderTabelNilaiDosen).getSemuaNilaiKelas(activeCourseId);
+        } else {
+          alert('❌ ' + r.message);
+        }
+      }).hapusNilaiMahasiswa(rowIndex);
+    }
+  }
+
 </script>
 
 </body>
