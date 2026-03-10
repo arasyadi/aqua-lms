@@ -249,6 +249,10 @@
       <h2 id="courseTitle" style="font-family:'Lora',serif;font-size:20px;color:var(--foam);">Mata Kuliah</h2>
       <p style="color:#5a8fa8;font-size:13px;margin-top:4px;">Ruang Belajar Digital</p>
     </div>
+    <h3 class="section-head">📅 Kalender Pertemuan</h3>
+    <div id="loadingJadwal" style="color:#3a6a85;font-size:14px;">Memuat jadwal perkuliahan...</div>
+    <div id="jadwalList" class="grid gap-3 mb-6" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr));"></div>
+
     <h3 class="section-head">📘 Materi Pembelajaran</h3>
     <div id="loadingMaterials" style="color:#3a6a85;font-size:14px;">Memuat materi…</div>
     <div id="materialList" class="grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));margin-bottom:32px;"></div>
@@ -338,6 +342,62 @@
 
     <!-- TAB 1: MANAJEMEN PEMBELAJARAN -->
     <div id="tabPembelajaran" class="tab-panel active">
+
+      <!-- ACCORDION: Kalender Pertemuan (BARU) -->
+      <div class="accordion-item">
+        <button class="accordion-header open" onclick="toggleAccordion(this)">
+          <span>📅 Manajemen Kalender Pertemuan</span>
+          <span class="arrow">▼</span>
+        </button>
+        <div class="accordion-body open">
+          <div class="grid gap-3 two-col mb-4" style="grid-template-columns: 1fr 1fr;">
+            <div style="grid-column: span 2;">
+              <label class="form-label">Topik / Nama Pertemuan</label>
+              <input type="text" id="inputPertemuan" class="form-input" placeholder="Contoh: Pertemuan 1 - Kontrak Kuliah">
+            </div>
+            <div>
+              <label class="form-label">Tanggal</label>
+              <input type="date" id="inputTanggal" class="form-input">
+            </div>
+            <div>
+              <label class="form-label">Waktu (Jam)</label>
+              <input type="time" id="inputWaktu" class="form-input">
+            </div>
+            <div>
+              <label class="form-label">Mode Perkuliahan</label>
+              <select id="inputMode" class="form-input" style="padding: 9px 14px;" onchange="ubahPlaceholderLokasi()">
+                <option value="Luring">Luring (Tatap Muka)</option>
+                <option value="Daring">Daring (Online Zoom/Meet)</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label">Lokasi / Link Zoom</label>
+              <input type="text" id="inputLokasi" class="form-input" placeholder="Contoh: Ruang Kelas 101">
+            </div>
+          </div>
+          <button class="btn btn-ocean btn-sm" id="btnSimpanJadwal" onclick="simpanJadwal()">+ Simpan Jadwal</button>
+          <div class="tbl-wrap mt-4">
+            <table style="table-layout:fixed;width:100%;">
+              <colgroup>
+                <col style="width:auto;">
+                <col style="width:130px;">
+                <col style="width:90px;">
+                <col style="width:130px;">
+                <col style="width:80px;">
+              </colgroup>
+              <thead><tr>
+                <th>Pertemuan</th>
+                <th>Waktu</th>
+                <th style="text-align:center;">Mode</th>
+                <th>Lokasi / Link</th>
+                <th style="text-align:center;">Aksi</th>
+              </tr></thead>
+              <tbody id="jadwalDosenBody"><tr><td colspan="5" style="text-align:center;color:#3a6a85;">Memuat jadwal…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <div class="accordion-item">
         <button class="accordion-header open" onclick="toggleAccordion(this)">
           <span>📘 Manajemen Materi</span><span class="arrow">▼</span>
@@ -650,21 +710,36 @@
   }
 
   function masukKelas(courseId, courseName) {
-    showView('courseRoomView');
-    document.getElementById('courseTitle').innerText = courseName;
-    document.getElementById('courseTitle-nav').innerText = courseName;
-    document.getElementById('materialList').innerHTML='';
-    document.getElementById('quizList').innerHTML='';
-    document.getElementById('lessonList').innerHTML='';
-    document.getElementById('nilaiList').innerHTML='';
-    document.getElementById('loadingMaterials').style.display='block';
-    document.getElementById('loadingQuizzes').style.display='block';
-    document.getElementById('loadingLessons').style.display='block';
-    document.getElementById('loadingNilai').style.display='block';
+    // Menampilkan halaman ruang kelas
+    document.getElementById("dashboardView").style.display = "none"; 
+    document.getElementById("courseRoomView").style.display = "block"; 
+    
+    // Set judul (Mendukung ID dari kedua versi HTML)
+    if(document.getElementById("courseTitle")) document.getElementById("courseTitle").innerText = courseName;
+    if(document.getElementById("courseTitle-nav")) document.getElementById("courseTitle-nav").innerText = courseName;
+    
+    // Reset isi kontainer
+    if(document.getElementById("materialList")) document.getElementById("materialList").innerHTML = ""; 
+    if(document.getElementById("quizList")) document.getElementById("quizList").innerHTML = ""; 
+    if(document.getElementById("lessonList")) document.getElementById("lessonList").innerHTML = "";
+    if(document.getElementById("nilaiList")) document.getElementById("nilaiList").innerHTML = "";
+    if(document.getElementById("jadwalList")) document.getElementById("jadwalList").innerHTML = "";
+    
+    // Tampilkan loading
+    if(document.getElementById("loadingMaterials")) document.getElementById("loadingMaterials").style.display = "block";
+    if(document.getElementById("loadingQuizzes")) document.getElementById("loadingQuizzes").style.display = "block";
+    if(document.getElementById("loadingLessons")) document.getElementById("loadingLessons").style.display = "block";
+    if(document.getElementById("loadingNilai")) document.getElementById("loadingNilai").style.display = "block";
+    if(document.getElementById("loadingJadwal")) document.getElementById("loadingJadwal").style.display = "block";
+    
+    // Tarik data dari database Google Sheets
     google.script.run.withSuccessHandler(renderMaterials).getCourseMaterials(courseId);
     google.script.run.withSuccessHandler(renderQuizzes).getCourseQuizzes(courseId, currentUserInfo.userId);
     google.script.run.withSuccessHandler(renderLessons).getCourseLessons(courseId);
+    
+    // Tarik data fitur baru (Nilai & Jadwal)
     google.script.run.withSuccessHandler(renderNilai).getRekapNilaiMahasiswa(courseId, currentUserInfo.userId);
+    google.script.run.withSuccessHandler(renderJadwalMahasiswa).getJadwalKelas(courseId);
   }
 
   function renderMaterials(materials) {
@@ -807,28 +882,42 @@
   }
 
   function bukaAnalitikKelas(courseId, courseName) {
-    activeCourseId=courseId; activeCourseName=courseName;
-    showView('lecturerAnalyticsView');
-    switchTab('tabPembelajaran', document.getElementById('tabBtnPembelajaran'));
-    document.getElementById('analyticsCourseTitle').innerText=courseName;
-    document.getElementById('analyticsCourseTitle-nav').innerText=courseName;
-    ['materiDosenBody','kuisDosenBody','lessonDosenBody','enrolledBody'].forEach(function(id){
-      document.getElementById(id).innerHTML='<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Memuat…</td></tr>';
-    });
-    document.getElementById('nilaiDosenBody').innerHTML='<tr><td colspan="5" style="text-align:center;color:#3a6a85;">Memuat…</td></tr>';
-    document.getElementById('rankingContainer').style.display='none';
-    document.getElementById('loadingRanking').style.display='block';
-    document.getElementById('loadingInactive').style.display='block';
-    document.getElementById('inactiveList').innerHTML='';
-    document.getElementById('studentCheckboxList').innerHTML='<p style="color:#3a6a85;font-size:13px;padding:8px;">Memuat…</p>';
-    google.script.run.withSuccessHandler(renderManajemenMateri).getCourseMaterials(courseId);
-    google.script.run.withSuccessHandler(renderManajemenKuis).getCourseQuizzes(courseId);
-    google.script.run.withSuccessHandler(renderManajemenLesson).getCourseLessons(courseId);
+    activeCourseId = courseId; 
+    activeCourseName = courseName;
+    
+    // Ganti tampilan
+    document.getElementById("lecturerDashboardView").style.display = "none"; 
+    document.getElementById("lecturerAnalyticsView").style.display = "block";
+    
+    // Set judul (Mendukung ID dari kedua versi HTML)
+    if(document.getElementById("analyticsCourseTitle")) document.getElementById("analyticsCourseTitle").innerText = "Panel Kelas: " + courseName;
+    if(document.getElementById("analyticsCourseTitle-nav")) document.getElementById("analyticsCourseTitle-nav").innerText = courseName;
+    
+    // Reset tabel-tabel dosen
+    if(document.getElementById("materiDosenBody")) document.getElementById("materiDosenBody").innerHTML = "<tr><td colspan='3' style='text-align:center;'>Memuat data...</td></tr>";
+    if(document.getElementById("kuisDosenBody")) document.getElementById("kuisDosenBody").innerHTML = "<tr><td colspan='3' style='text-align:center;'>Memuat data...</td></tr>";
+    if(document.getElementById("lessonDosenBody")) document.getElementById("lessonDosenBody").innerHTML = "<tr><td colspan='3' style='text-align:center;'>Memuat data...</td></tr>";
+    if(document.getElementById("enrolledBody")) document.getElementById("enrolledBody").innerHTML = "<tr><td colspan='3' style='text-align:center;'>Memuat data...</td></tr>";
+    if(document.getElementById("nilaiDosenBody")) document.getElementById("nilaiDosenBody").innerHTML = "<tr><td colspan='5' style='text-align:center;'>Memuat data...</td></tr>";
+    if(document.getElementById("jadwalDosenBody")) document.getElementById("jadwalDosenBody").innerHTML = "<tr><td colspan='5' style='text-align:center;'>Memuat data...</td></tr>";
+    
+    // Tampilkan loading ranking & inactive
+    if(document.getElementById("loadingRanking")) document.getElementById("loadingRanking").style.display = "block"; 
+    if(document.getElementById("rankingContainer")) document.getElementById("rankingContainer").style.display = "none";
+    if(document.getElementById("loadingInactive")) document.getElementById("loadingInactive").style.display = "block"; 
+    if(document.getElementById("inactiveList")) document.getElementById("inactiveList").innerHTML = "";
+    
+    // Eksekusi pengambilan data dari database
+    google.script.run.withSuccessHandler(renderManajemenMateri).getCourseMaterials(courseId); 
+    google.script.run.withSuccessHandler(renderManajemenKuis).getCourseQuizzes(courseId); 
+    google.script.run.withSuccessHandler(renderManajemenLesson).getCourseLessons(courseId); 
     google.script.run.withSuccessHandler(renderManajemenMahasiswa).getStudentManagementData(courseId);
     google.script.run.withSuccessHandler(renderRankings).getStudentRankings(courseId);
     google.script.run.withSuccessHandler(renderInactive).getInactiveStudents(courseId);
-    // Memuat data nilai saat kelas dibuka
+    
+    // Eksekusi data fitur baru (Nilai & Jadwal)
     google.script.run.withSuccessHandler(renderTabelNilaiDosen).getSemuaNilaiKelas(courseId);
+    google.script.run.withSuccessHandler(renderTabelJadwalDosen).getJadwalKelas(courseId);
   }
 
   function kembaliKeDashboardDosen() {
@@ -1100,6 +1189,103 @@
         }
       }).hapusNilaiMahasiswa(rowIndex);
     }
+  }
+
+  // ══════════════════════════════════
+  // FITUR BARU: KALENDER PERTEMUAN
+  // ══════════════════════════════════
+
+  function ubahPlaceholderLokasi() {
+    var mode = document.getElementById('inputMode').value;
+    var inputLokasi = document.getElementById('inputLokasi');
+    if (mode === 'Daring') {
+      inputLokasi.placeholder = "Contoh: https://zoom.us/j/123...";
+    } else {
+      inputLokasi.placeholder = "Contoh: Ruang Kelas 101 / Lab Terpadu";
+    }
+  }
+
+  function simpanJadwal() {
+    var pertemuan = document.getElementById('inputPertemuan').value.trim();
+    var tanggal = document.getElementById('inputTanggal').value;
+    var waktu = document.getElementById('inputWaktu').value;
+    var mode = document.getElementById('inputMode').value;
+    var lokasi = document.getElementById('inputLokasi').value.trim();
+    if (!pertemuan || !tanggal || !waktu || !lokasi) {
+      alert('Semua data kalender (Topik, Tanggal, Waktu, Lokasi) wajib diisi!'); return;
+    }
+    var parts = tanggal.split("-");
+    var formattedDate = parts[2] + "-" + parts[1] + "-" + parts[0];
+    var btn = document.getElementById('btnSimpanJadwal');
+    btn.innerText = 'Menyimpan...'; btn.disabled = true;
+    google.script.run.withSuccessHandler(function(r) {
+      btn.innerText = '+ Simpan Jadwal'; btn.disabled = false;
+      if (r.success) {
+        document.getElementById('inputPertemuan').value = '';
+        document.getElementById('inputTanggal').value = '';
+        document.getElementById('inputWaktu').value = '';
+        document.getElementById('inputLokasi').value = '';
+        google.script.run.withSuccessHandler(renderTabelJadwalDosen).getJadwalKelas(activeCourseId);
+      } else { alert('❌ ' + r.message); }
+    }).tambahJadwal(activeCourseId, pertemuan, formattedDate, waktu, mode, lokasi);
+  }
+
+  function renderTabelJadwalDosen(jadwal) {
+    var tbody = document.getElementById('jadwalDosenBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    if (!jadwal || !jadwal.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#3a6a85;">Belum ada jadwal pertemuan.</td></tr>'; return;
+    }
+    jadwal.forEach(function(j) {
+      var badgeMode = j.mode === 'Daring'
+        ? '<span class="badge badge-mint">Daring</span>'
+        : '<span class="badge badge-amber">Luring</span>';
+      var lokasiDisplay = j.mode === 'Daring'
+        ? '<a href="'+j.lokasi_link+'" target="_blank" style="color:var(--foam);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;">🔗 Buka Link</a>'
+        : '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;">'+j.lokasi_link+'</span>';
+      tbody.innerHTML += '<tr>'
+        + '<td style="color:#c0dbe8;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0;">'+j.pertemuan+'</td>'
+        + '<td>'+j.tanggal+'<br><span style="font-size:11px;color:#5a8fa8;">⏰ '+j.waktu+'</span></td>'
+        + '<td style="text-align:center;">'+badgeMode+'</td>'
+        + '<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0;">'+lokasiDisplay+'</td>'
+        + '<td style="text-align:center;"><button class="btn btn-coral btn-sm" onclick="konfirmasiHapusJadwal('+j.row_index+')">Hapus</button></td>'
+        + '</tr>';
+    });
+  }
+
+  function konfirmasiHapusJadwal(rowIndex) {
+    if (confirm('Yakin ingin menghapus jadwal pertemuan ini?')) {
+      google.script.run.withSuccessHandler(function(r){
+        if (r.success) google.script.run.withSuccessHandler(renderTabelJadwalDosen).getJadwalKelas(activeCourseId);
+        else alert('❌ ' + r.message);
+      }).hapusJadwal(rowIndex);
+    }
+  }
+
+  function renderJadwalMahasiswa(jadwal) {
+    document.getElementById('loadingJadwal').style.display = 'none';
+    var list = document.getElementById('jadwalList');
+    if (!jadwal || !jadwal.length) {
+      list.innerHTML = '<p style="color:#3a6a85;">Jadwal belum tersedia.</p>'; return;
+    }
+    list.innerHTML = jadwal.map(function(j) {
+      var isDaring = j.mode === 'Daring';
+      var badgeCls = isDaring ? 'badge-mint' : 'badge-amber';
+      var icon = isDaring ? '💻' : '🏢';
+      var actionArea = isDaring
+        ? '<a href="'+j.lokasi_link+'" target="_blank" class="btn btn-teal btn-full mt-2" style="text-decoration:none;">▶️ Gabung Kelas (Zoom/Meet)</a>'
+        : '<div style="margin-top:10px;padding:10px;background:rgba(232,168,58,0.1);border:1px solid rgba(232,168,58,0.3);border-radius:10px;font-size:13px;color:var(--amber);text-align:center;">📍 Lokasi: <b>'+j.lokasi_link+'</b></div>';
+      return '<div class="glass rounded-2xl p-5" style="border:1px solid var(--border);">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'
+        + '<span class="badge '+badgeCls+'">'+icon+' '+j.mode+'</span>'
+        + '<span style="font-size:12px;color:var(--foam);font-weight:600;">📅 '+j.tanggal+'</span>'
+        + '</div>'
+        + '<h4 style="font-size:16px;font-weight:600;color:#fff;margin-bottom:4px;">'+j.pertemuan+'</h4>'
+        + '<p style="font-size:13px;color:#5a8fa8;margin-bottom:12px;">⏰ Jam: '+j.waktu+' WITA</p>'
+        + actionArea
+        + '</div>';
+    }).join('');
   }
 
 </script>
