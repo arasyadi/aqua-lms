@@ -16,24 +16,26 @@ Fokus pada antarmuka yang intuitif dan *gamification* untuk meningkatkan motivas
   * Membaca Materi (40%)
   * Presensi & Refleksi *Lesson Learn* (40%)
   * Pengerjaan Kuis/Tugas (20%)
-* **Kalender Pertemuan Cerdas (Smart Schedule) [BARU]**:
+* **Kalender Pertemuan Cerdas (Smart Schedule)**:
   * Menampilkan jadwal perkuliahan lengkap dengan mode pelaksanaan (Daring/Luring).
   * Dilengkapi tombol akses instan ke *link* Zoom/Google Meet untuk kelas daring.
 * **Sistem Presensi Reflektif (Auto-Lock)**: Mahasiswa diwajibkan menulis *insight* pembelajaran sebagai bukti kehadiran. Sistem menggunakan logika **Auto-Lock 1x24 jam** di mana tombol *submit* akan terkunci secara otomatis tepat di penghujung hari batas tenggat (*deadline*).
 * **Real-time UX Feedback**: Tombol kuis dan materi akan langsung berubah warna dan status (✅ *Sudah Dikerjakan*) seketika setelah diklik, memberikan respons instan tanpa perlu memuat ulang halaman.
-* **Transparansi Nilai [BARU]**: Menampilkan rekapitulasi nilai akhir dari dosen secara transparan langsung di ruang kelas mahasiswa.
+* **Transparansi Nilai**: Menampilkan rekapitulasi nilai akhir dari dosen secara transparan langsung di ruang kelas mahasiswa.
 
 ### 👨‍🏫 Panel Dosen (Lecturer Super-Admin)
 Dilengkapi dengan fitur *Centralized Command* untuk mengelola kelas dari satu panel.
 * **Manajemen Kelas Terpusat (CRUD)**: Pembuatan mata kuliah, penambahan materi via Google Drive, serta penugasan berbasis Google Forms.
+* **Smart Import Konten Kelas [BARU]**: Memungkinkan dosen untuk menyalin (mengimpor) Materi, Kuis, dan Tugas Presensi dari kelas lain (misal: kelas dari semester sebelumnya). Sistem dilengkapi pendeteksi anti-duplikasi sehingga materi yang sama tidak akan dimasukkan dua kali.
 * **Sistem *Cascade Delete* Otomatis**: Jika sebuah mata kuliah, materi, atau kuis dihapus oleh dosen, algoritma backend akan melakukan *reverse-looping* untuk menyapu bersih seluruh riwayat (*log*) aktivitas dan pelacakan mahasiswa yang terkait, sehingga *database* Google Sheets tidak menumpuk/bocor.
 * **Batch Student Enrollment**: Memasukkan daftar mahasiswa ke dalam kelas dalam satu kali proses (*batching*) menggunakan sistem *checkbox* cerdas yang otomatis menyembunyikan mahasiswa yang sudah terdaftar.
-* **Manajemen Kalender dengan Auto-Hide [BARU]**: Dosen dapat mengatur jadwal pertemuan. Sistem akan menyembunyikan jadwal dari *dashboard* mahasiswa secara otomatis jika waktu telah terlewat 1x24 jam (mencegah penumpukan jadwal kadaluarsa).
+* **Manajemen Kalender dengan Auto-Hide**: Dosen dapat mengatur jadwal pertemuan. Sistem akan menyembunyikan jadwal dari *dashboard* mahasiswa secara otomatis jika waktu telah terlewat 1x24 jam (mencegah penumpukan jadwal kadaluarsa).
 * **Learning Analytics & Early Warning System**:
   * 🏆 **Leaderboard**: Meranking mahasiswa secara otomatis berdasarkan poin aktivitas (Materi = 5 Poin, Kuis & Lesson = 10 Poin).
   * ⚠️ **Deteksi Mahasiswa Tidak Aktif**: Mengidentifikasi mahasiswa dengan skor "0" sebagai *Early Warning System* bagi dosen untuk melakukan intervensi akademik.
-* **Manajemen Nilai & Export Auto-Grading [BARU]**: 
+* **Manajemen Nilai & Export Auto-Grading**: 
   * Dosen dapat melakukan input nilai secara spesifik (UTS, UAS, Tugas, dll).
+  * **Import Nilai Batch [BARU]**: Kemampuan mengimpor nilai banyak mahasiswa sekaligus dari data array.
   * Fitur **📥 Download Excel** terintegrasi menggunakan *SheetJS* di sisi *client*.
   * **Auto-Grading Rule**: Sistem otomatis menghitung rata-rata nilai per mahasiswa dan mengonversinya menjadi **Nilai Huruf** sesuai standar akademik.
 
@@ -42,9 +44,10 @@ Dilengkapi dengan fitur *Centralized Command* untuk mengelola kelas dari satu pa
 ## ⚡ Arsitektur Optimasi Performa (Diperbarui)
 
 Sistem ini telah dikalibrasi untuk meminimalisir masalah *limitasi kuota* pada Google Apps Script:
-1. **Concurrency Handling (LockService)**: Mencegah tabrakan data (*data collision*) ketika puluhan mahasiswa melakukan klik absen atau buka materi di detik yang sama. Sistem menggunakan `LockService.getScriptLock().waitLock()` untuk mengatur antrean *request* hingga 10 detik.
-2. **Single Batch Data Fetching**: Memuat seluruh data (Materi, Kuis, Lesson, Jadwal, dan Nilai) dalam **satu kali panggilan server** `getPaketDataRuangKelas`.
-3. **Anti All-or-Nothing Paradigm**: Pemanggilan paket kelas dibungkus dengan metode *Try-Catch* parsial. Jika tabel *Jadwal* mengalami *error*, modul materi dan kuis akan tetap berhasil dimuat tanpa menyebabkan *crash* pada keseluruhan ruang kelas.
+1. **Advanced Caching System (CacheService) [BARU]**: Menyimpan respons data ke dalam memori sementara (*cache*) hingga 100KB selama 5 menit. Meminimalisir pembacaan berulang ke Google Sheets sehingga *load time* menjadi sangat cepat dan mencegah *error* "Quota Exceeded". Cache akan dihapus otomatis (di- *invalidate*) jika ada perubahan data seperti penambahan materi atau pengiriman tugas.
+2. **Concurrency Handling (LockService)**: Mencegah tabrakan data (*data collision*) ketika puluhan mahasiswa melakukan klik absen atau buka materi di detik yang sama. Sistem menggunakan `LockService.getScriptLock().waitLock()` untuk mengatur antrean *request* hingga 10 detik.
+3. **Single Batch Data Fetching**: Memuat seluruh data (Materi, Kuis, Lesson, Jadwal, dan Nilai) dalam **satu kali panggilan server** `getPaketDataRuangKelas` atau `getPaketDataAnalitikKelas`.
+4. **Anti All-or-Nothing Paradigm**: Pemanggilan paket kelas dibungkus dengan metode *Try-Catch* parsial. Jika tabel *Jadwal* mengalami *error*, modul materi dan kuis akan tetap berhasil dimuat tanpa menyebabkan *crash* pada keseluruhan ruang kelas.
 
 ---
 
@@ -73,8 +76,8 @@ Saat sistem dijalankan pertama kali, fungsi `setupDatabase()` akan secara otomat
 | **`QUIZ_TRACK`** | Log pelacakan saat mahasiswa mulai mengerjakan kuis. |
 | **`LESSON_ASSIGN`** | Data tugas presensi reflektif beserta pengaturan tanggal tenggat (*deadline*). |
 | **`LESSON_SUBMIT`** | Penyimpanan *insight*/jawaban mahasiswa sebagai bukti rekap presensi. |
-| **`JADWAL`** | **[BARU]** Data pertemuan luring/daring, jam pelaksanaan, dan lokasi/link. |
-| **`NILAI`** | **[BARU]** Rekapitulasi jenis penilaian spesifik beserta angka perolehan mahasiswa. |
+| **`JADWAL`** | Data pertemuan luring/daring, jam pelaksanaan, dan lokasi/link. |
+| **`NILAI`** | Rekapitulasi jenis penilaian spesifik beserta angka perolehan mahasiswa. |
 
 ---
 
@@ -85,7 +88,7 @@ Saat sistem dijalankan pertama kali, fungsi `setupDatabase()` akan secara otomat
    * Pilih menu **Extensions (Ekstensi)** > **Apps Script**.
 2. **Injeksi Kode**:
    * Buat file **`Kode.gs`** (Tempel fungsi `doGet` dan logika *Login*).
-   * Buat file **`database.gs`** (Tempel seluruh logika *backend*, CRUD, kalkulasi *analytics*, dan integrasi jadwal/nilai).
+   * Buat file **`database.gs`** (Tempel seluruh logika *backend*, CRUD, kalkulasi *analytics*, integrasi *Cache*, dan integrasi jadwal/nilai).
    * Buat file **`Index.html`** (Tempel seluruh kode UI/UX, Tailwind, dan Script *client-side*).
 3. **Build Database Otomatis**:
    * Di file `database.gs`, pilih fungsi `setupDatabase` pada *dropdown* atas.
