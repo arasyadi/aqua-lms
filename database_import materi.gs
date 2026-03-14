@@ -986,3 +986,38 @@ function importKontenKelas(sourceCourseId, targetCourseId) {
     };
   }
 }
+
+// ==========================================
+// FITUR BARU: IMPORT NILAI BATCH (EXCEL/CSV)
+// ==========================================
+function importNilaiBatch(courseId, jenisNilai, dataNilaiArray) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("NILAI");
+  
+  if (!sheet) {
+    sheet = ss.insertSheet("NILAI");
+    sheet.appendRow(["course_id", "user_id", "jenis_nilai", "nilai"]);
+  }
+
+  // Ambil data mahasiswa yang terdaftar di kelas ini untuk validasi 
+  var enrollments = getSheetData("ENROLLMENTS").filter(function(e) { return String(e.course_id).trim() === String(courseId).trim(); });
+  var validNIMs = enrollments.map(function(e) { return String(e.user_id).trim(); });
+
+  var countSuccess = 0;
+
+  for (var i = 0; i < dataNilaiArray.length; i++) {
+    var nim = String(dataNilaiArray[i].nim).trim();
+    var nilai = dataNilaiArray[i].nilai;
+
+    // Hanya masukkan nilai jika mahasiswa terdaftar di kelas ini
+    if (validNIMs.indexOf(nim) !== -1) {
+      sheet.appendRow([courseId, nim, jenisNilai, nilai]);
+      countSuccess++;
+    }
+  }
+
+  return {
+    success: true,
+    message: countSuccess + " data nilai berhasil diimpor ke kelas!"
+  };
+}
