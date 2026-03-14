@@ -137,21 +137,26 @@ function getCourseMaterials(courseId) {
 // Fungsi Tracker: Mencatat saat mahasiswa membuka materi (DIPERBAIKI DENGAN LOCKSERVICE)
 function logMaterialAccess(userId, materialId) {
   var lock = LockService.getScriptLock();
-  try {
-    lock.waitLock(5000); // Tunggu antrean maksimal 5 detik
-  } catch (e) {
-    return false; // Jika gagal antre, abaikan saja (tracker background tidak perlu pesan error ke user)
-  }
+  try { lock.waitLock(5000); } catch (e) { return false; }
 
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getSheetByName("MATERIAL_TRACK");
-    
-    var trackId = "T-" + new Date().getTime();
-    var timestamp = new Date();
-    
-    sheet.appendRow([trackId, userId, materialId, timestamp]);
+    sheet.appendRow(["T-" + new Date().getTime(), userId, materialId, new Date()]);
     SpreadsheetApp.flush();
+
+    // Cache: ranking & progress mahasiswa ini berubah
+    // Cari courseId dari materialId agar bisa invalidate cache yang tepat
+    var materials = getSheetData("MATERIALS");
+    var mat = materials.find(function(m) { return String(m.material_id).trim() === String(materialId).trim(); });
+    if (mat) {
+      var courseId = mat.course_id;
+      // Invalidate cache analitik (ranking dosen) dan cache personal mahasiswa
+      cacheRemove('paket_analitik_' + courseId);
+      cacheRemove('paket_kelas_'    + courseId);
+      cacheRemove('paket_personal_' + courseId + '_' + userId);
+    }
+
     return true;
   } catch (err) {
     return false;
@@ -206,33 +211,32 @@ function getCourseLessons(courseId) {
 
 // Menyimpan jawaban Lesson Learn mahasiswa (DIPERBAIKI DENGAN LOCKSERVICE)
 function submitLesson(assignId, userId, insight) {
-  // Mengaktifkan sistem antrean, tunggu maksimal 10 detik jika sedang sibuk
   var lock = LockService.getScriptLock();
-  try {
-    lock.waitLock(10000); 
-  } catch (e) {
+  try { lock.waitLock(10000); } catch (e) {
     return { success: false, message: "Sistem sedang sibuk. Silakan coba klik tombol kirim lagi dalam beberapa detik." };
   }
 
-  // Jika giliran sudah tiba, jalankan penulisan data
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getSheetByName("LESSON_SUBMIT");
-    
-    var submitId = "SUB-" + new Date().getTime();
-    var status = "Hadir";
-    var timestamp = new Date();
-    
-    sheet.appendRow([submitId, assignId, userId, insight, status, timestamp]);
-    
-    // Pastikan data benar-benar selesai ditulis ke Google Sheets sebelum kunci dilepas
-    SpreadsheetApp.flush(); 
+    sheet.appendRow(["SUB-" + new Date().getTime(), assignId, userId, insight, "Hadir", new Date()]);
+    SpreadsheetApp.flush();
+
+    // Cache: presensi & ranking mahasiswa ini berubah
+    // Cari courseId dari assignId
+    var lessons = getSheetData("LESSON_ASSIGN");
+    var lesson = lessons.find(function(l) { return String(l.assign_id).trim() === String(assignId).trim(); });
+    if (lesson) {
+      var courseId = lesson.course_id;
+      cacheRemove('paket_analitik_' + courseId);
+      cacheRemove('paket_personal_' + courseId + '_' + userId);
+    }
+
     return true;
   } catch (err) {
     return { success: false, message: "Terjadi kesalahan saat menyimpan data." };
   } finally {
-    // Lepaskan antrean untuk mahasiswa berikutnya
-    lock.releaseLock(); 
+    lock.releaseLock();
   }
 }
 
@@ -320,25 +324,28 @@ function getCourseQuizzes(courseId, userId) {
 // Mencatat saat mahasiswa mengklik Kuis (DIPERBAIKI DENGAN LOCKSERVICE)
 function logQuizAccess(userId, quizId) {
   var lock = LockService.getScriptLock();
-  try {
-    lock.waitLock(5000); // Tunggu antrean maksimal 5 detik
-  } catch (e) {
-    return false;
-  }
+  try { lock.waitLock(5000); } catch (e) { return false; }
 
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getSheetByName("QUIZ_TRACK");
-    
     if (!sheet) {
       sheet = ss.insertSheet("QUIZ_TRACK");
       sheet.appendRow(["track_id", "user_id", "quiz_id", "timestamp"]);
     }
-    
-    var trackId = "QT-" + new Date().getTime();
-    sheet.appendRow([trackId, userId, quizId, new Date()]);
-    
+    sheet.appendRow(["QT-" + new Date().getTime(), userId, quizId, new Date()]);
     SpreadsheetApp.flush();
+
+    // Cache: ranking & status kuis mahasiswa berubah
+    var quizzes = getSheetData("QUIZ");
+    var quiz = quizzes.find(function(q) { return String(q.quiz_id).trim() === String(quizId).trim(); });
+    if (quiz) {
+      var courseId = quiz.course_id;
+      cacheRemove('paket_analitik_' + courseId);
+      cacheRemove('paket_kelas_'    + courseId);
+      cacheRemove('paket_personal_' + courseId + '_' + userId);
+    }
+
     return true;
   } catch (err) {
     return false;
@@ -452,17 +459,16 @@ function getLecturerCourses(dosenId) {
 // 1. Menambah Mata Kuliah Baru
 function tambahMataKuliah(courseId, courseName, dosenId) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("COURSES");
-  
-  // Memastikan ID Kelas tidak ada yang duplikat
   var data = sheet.getDataRange().getValues();
   for (var i = 1; i < data.length; i++) {
     if (String(data[i][0]).trim() === String(courseId).trim()) {
       return { success: false, message: "Gagal: Kode Kelas sudah digunakan!" };
     }
   }
-  
-  // Tambahkan ke baris paling bawah
   sheet.appendRow([courseId, courseName, dosenId]);
+
+  // Cache: kelas baru tidak mempengaruhi cache kelas lain
+  // Tidak perlu invalidate — cukup bersih
   return { success: true, message: "Mata Kuliah berhasil ditambahkan!" };
 }
 
@@ -471,63 +477,53 @@ function hapusMataKuliah(courseId, dosenId) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var courseSheet = ss.getSheetByName("COURSES");
   var courseData = courseSheet.getDataRange().getValues();
-  
+
   var isAuthorized = false;
   var courseRowIndex = -1;
-  
-  // 1. Verifikasi apakah Dosen ini memiliki hak untuk menghapus kelas ini
+
   for (var i = 1; i < courseData.length; i++) {
-    if (String(courseData[i][0]).trim() === String(courseId).trim() && 
+    if (String(courseData[i][0]).trim() === String(courseId).trim() &&
         String(courseData[i][2]).trim() === String(dosenId).trim()) {
       isAuthorized = true;
-      courseRowIndex = i + 1; // +1 karena index array mulai dari 0, baris sheet mulai dari 1
+      courseRowIndex = i + 1;
       break;
     }
   }
-  
+
   if (!isAuthorized) {
     return { success: false, message: "Gagal: Anda tidak memiliki akses untuk menghapus kelas ini." };
   }
 
-  // 2. Kumpulkan ID turunan (Cucu) sebelum data induknya dihapus
-  // Kita butuh ID Materi, Lesson, dan Kuis untuk menghapus log (tracker) mereka
   var materials = getSheetData("MATERIALS").filter(m => String(m.course_id).trim() === String(courseId).trim()).map(m => m.material_id);
-  var lessons = getSheetData("LESSON_ASSIGN").filter(l => String(l.course_id).trim() === String(courseId).trim()).map(l => l.assign_id);
-  var quizzes = getSheetData("QUIZ").filter(q => String(q.course_id).trim() === String(courseId).trim()).map(q => q.quiz_id);
+  var lessons   = getSheetData("LESSON_ASSIGN").filter(l => String(l.course_id).trim() === String(courseId).trim()).map(l => l.assign_id);
+  var quizzes   = getSheetData("QUIZ").filter(q => String(q.course_id).trim() === String(courseId).trim()).map(q => q.quiz_id);
 
-  // 3. FUNGSI HELPER: Menghapus baris dari BAWAH ke ATAS agar index tidak rusak
   function hapusBarisTerkait(sheetName, columnIndex, idsToDelete) {
     var sheet = ss.getSheetByName(sheetName);
     if (!sheet) return;
-    
     var data = sheet.getDataRange().getValues();
-    // Looping mundur (Reverse Loop)
-    for (var r = data.length - 1; r >= 1; r--) { 
-      var cellValue = String(data[r][columnIndex]).trim();
-      if (idsToDelete.includes(cellValue)) {
-        sheet.deleteRow(r + 1); // Hapus baris yang cocok
+    for (var r = data.length - 1; r >= 1; r--) {
+      if (idsToDelete.includes(String(data[r][columnIndex]).trim())) {
+        sheet.deleteRow(r + 1);
       }
     }
   }
 
-  // 4. EKSEKUSI SAPU BERSIH 
-  // Tahap A: Hapus log aktivitas mahasiswa berdasarkan ID turunannya
-  if (materials.length > 0) hapusBarisTerkait("MATERIAL_TRACK", 2, materials); // Kolom C (Index 2)
-  if (lessons.length > 0) hapusBarisTerkait("LESSON_SUBMIT", 1, lessons);      // Kolom B (Index 1)
-  if (quizzes.length > 0) hapusBarisTerkait("QUIZ_TRACK", 2, quizzes);         // Kolom C (Index 2)
+  if (materials.length > 0) hapusBarisTerkait("MATERIAL_TRACK", 2, materials);
+  if (lessons.length > 0)   hapusBarisTerkait("LESSON_SUBMIT", 1, lessons);
+  if (quizzes.length > 0)   hapusBarisTerkait("QUIZ_TRACK", 2, quizzes);
 
-  // Tahap B: Hapus data relasi dan materi utama berdasarkan ID Kelas (courseId)
-  hapusBarisTerkait("ENROLLMENTS", 1, [courseId]); // Kolom B (Index 1)
-  hapusBarisTerkait("MATERIALS", 1, [courseId]);     // Kolom B (Index 1)
-  hapusBarisTerkait("QUIZ", 1, [courseId]); // Kolom B (Index 1)
-  hapusBarisTerkait("LESSON_ASSIGN", 1, [courseId]); // Kolom B (Index 1)
-  
-  // SINKRONISASI FITUR BARU: Hapus seluruh nilai dan jadwal mahasiswa di kelas ini
-  hapusBarisTerkait("NILAI", 0, [courseId]); // Kolom A (Index 0)
-  hapusBarisTerkait("JADWAL", 0, [courseId]); // Kolom A (Index 0)
+  hapusBarisTerkait("ENROLLMENTS", 1, [courseId]);
+  hapusBarisTerkait("MATERIALS",   1, [courseId]);
+  hapusBarisTerkait("QUIZ",        1, [courseId]);
+  hapusBarisTerkait("LESSON_ASSIGN", 1, [courseId]);
+  hapusBarisTerkait("NILAI",  0, [courseId]);
+  hapusBarisTerkait("JADWAL", 0, [courseId]);
 
-  // Tahap C: Terakhir, hapus Kelas Utama di tabel COURSES
   courseSheet.deleteRow(courseRowIndex);
+
+  // Cache: bersihkan semua cache kelas yang dihapus
+  invalidateCourseCache(courseId);
 
   return { success: true, message: "Mata Kuliah beserta seluruh materi, tugas, dan log aktivitas mahasiswa telah dibersihkan!" };
 }
@@ -554,9 +550,12 @@ function getStudentManagementData(courseId) {
 // 2. Memasukkan mahasiswa ke kelas (Enroll)
 function enrollStudent(courseId, userId) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("ENROLLMENTS");
-  var enrollmentId = "E-" + new Date().getTime(); // Generate ID unik
-  
+  var enrollmentId = "E-" + new Date().getTime();
   sheet.appendRow([enrollmentId, courseId, userId]);
+
+  // Cache: daftar mahasiswa & ranking berubah
+  invalidateCourseCache(courseId);
+
   return { success: true, message: "Mahasiswa berhasil ditambahkan ke kelas!" };
 }
 
@@ -564,12 +563,17 @@ function enrollStudent(courseId, userId) {
 function unenrollStudent(courseId, userId) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("ENROLLMENTS");
   var data = sheet.getDataRange().getValues();
-  
-  // Cari baris enrollment dari bawah ke atas agar tidak merusak index
+
   for (var i = data.length - 1; i >= 1; i--) {
-    if (String(data[i][1]).trim() === String(courseId).trim() && 
+    if (String(data[i][1]).trim() === String(courseId).trim() &&
         String(data[i][2]).trim() === String(userId).trim()) {
       sheet.deleteRow(i + 1);
+
+      // Cache: daftar mahasiswa & ranking berubah
+      invalidateCourseCache(courseId);
+      // Cache personal mahasiswa ini juga dihapus
+      cacheRemove('paket_personal_' + courseId + '_' + userId);
+
       return { success: true, message: "Mahasiswa berhasil dikeluarkan dari kelas!" };
     }
   }
@@ -583,11 +587,12 @@ function unenrollStudent(courseId, userId) {
 // 1. Menambah Materi Baru
 function tambahMateri(courseId, title, urlDrive) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("MATERIALS");
-  
-  // Generate ID unik untuk materi
-  var materialId = "M-" + new Date().getTime(); 
-  
+  var materialId = "M-" + new Date().getTime();
   sheet.appendRow([materialId, courseId, title, urlDrive]);
+
+  // Cache: daftar materi berubah
+  invalidateCourseCache(courseId);
+
   return { success: true, message: "Materi berhasil ditambahkan!" };
 }
 
@@ -596,27 +601,30 @@ function hapusMateri(materialId) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var matSheet = ss.getSheetByName("MATERIALS");
   var matData = matSheet.getDataRange().getValues();
-  
-  // Cari dan hapus di tabel MATERIALS (Dari bawah ke atas)
+
+  var courseId = null;
+
   for (var i = matData.length - 1; i >= 1; i--) {
     if (String(matData[i][0]).trim() === String(materialId).trim()) {
+      courseId = String(matData[i][1]).trim(); // Ambil courseId sebelum dihapus
       matSheet.deleteRow(i + 1);
-      break; // Karena ID pasti unik, bisa langsung berhenti setelah ketemu
+      break;
     }
   }
-  
-  // CASCADE DELETE: Hapus riwayat baca di MATERIAL_TRACK
+
   var trackSheet = ss.getSheetByName("MATERIAL_TRACK");
   if (trackSheet) {
     var trackData = trackSheet.getDataRange().getValues();
     for (var j = trackData.length - 1; j >= 1; j--) {
-      // Kolom C (Index 2) di MATERIAL_TRACK adalah material_id
       if (String(trackData[j][2]).trim() === String(materialId).trim()) {
         trackSheet.deleteRow(j + 1);
       }
     }
   }
-  
+
+  // Cache: materi & ranking berubah
+  if (courseId) invalidateCourseCache(courseId);
+
   return { success: true, message: "Materi dan riwayat baca mahasiswa berhasil dihapus!" };
 }
 
@@ -625,8 +633,12 @@ function hapusMateri(materialId) {
 // ==========================================
 function tambahKuis(courseId, title, urlForm) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("QUIZ");
-  var quizId = "Q-" + new Date().getTime(); 
+  var quizId = "Q-" + new Date().getTime();
   sheet.appendRow([quizId, courseId, title, urlForm]);
+
+  // Cache: daftar kuis berubah
+  invalidateCourseCache(courseId);
+
   return { success: true, message: "Kuis berhasil ditambahkan!" };
 }
 
@@ -634,15 +646,17 @@ function hapusKuis(quizId) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName("QUIZ");
   var data = sheet.getDataRange().getValues();
-  
+
+  var courseId = null;
+
   for (var i = data.length - 1; i >= 1; i--) {
     if (String(data[i][0]).trim() === String(quizId).trim()) {
+      courseId = String(data[i][1]).trim(); // Ambil courseId sebelum dihapus
       sheet.deleteRow(i + 1);
       break;
     }
   }
-  
-  // CASCADE DELETE: Hapus log klik kuis
+
   var trackSheet = ss.getSheetByName("QUIZ_TRACK");
   if (trackSheet) {
     var trackData = trackSheet.getDataRange().getValues();
@@ -650,6 +664,10 @@ function hapusKuis(quizId) {
       if (String(trackData[j][2]).trim() === String(quizId).trim()) trackSheet.deleteRow(j + 1);
     }
   }
+
+  // Cache: kuis & ranking berubah
+  if (courseId) invalidateCourseCache(courseId);
+
   return { success: true, message: "Kuis dan riwayat pengerjaan berhasil dihapus!" };
 }
 
@@ -658,8 +676,12 @@ function hapusKuis(quizId) {
 // ==========================================
 function tambahLesson(courseId, topic, deadline) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("LESSON_ASSIGN");
-  var assignId = "L-" + new Date().getTime(); 
+  var assignId = "L-" + new Date().getTime();
   sheet.appendRow([assignId, courseId, topic, deadline]);
+
+  // Cache: daftar lesson berubah
+  invalidateCourseCache(courseId);
+
   return { success: true, message: "Tugas Lesson Learn berhasil ditambahkan!" };
 }
 
@@ -667,15 +689,17 @@ function hapusLesson(assignId) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName("LESSON_ASSIGN");
   var data = sheet.getDataRange().getValues();
-  
+
+  var courseId = null;
+
   for (var i = data.length - 1; i >= 1; i--) {
     if (String(data[i][0]).trim() === String(assignId).trim()) {
+      courseId = String(data[i][1]).trim(); // Ambil courseId sebelum dihapus
       sheet.deleteRow(i + 1);
       break;
     }
   }
-  
-  // CASCADE DELETE: Hapus jawaban submit presensi mahasiswa
+
   var submitSheet = ss.getSheetByName("LESSON_SUBMIT");
   if (submitSheet) {
     var submitData = submitSheet.getDataRange().getValues();
@@ -683,6 +707,10 @@ function hapusLesson(assignId) {
       if (String(submitData[j][1]).trim() === String(assignId).trim()) submitSheet.deleteRow(j + 1);
     }
   }
+
+  // Cache: lesson & ranking berubah
+  if (courseId) invalidateCourseCache(courseId);
+
   return { success: true, message: "Lesson Learn dan data presensi mahasiswa berhasil dihapus!" };
 }
 
@@ -691,20 +719,15 @@ function hapusLesson(assignId) {
 // ==========================================
 function enrollStudentsBatch(courseId, userIds) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("ENROLLMENTS");
-  
-  // Looping sebanyak jumlah mahasiswa yang dicentang
   for (var i = 0; i < userIds.length; i++) {
-    // Generate ID unik untuk setiap enrollment (ditambah index i agar tidak bentrok)
-    var enrollmentId = "E-" + new Date().getTime() + "-" + i; 
-    
-    // Memasukkan data ke baris paling bawah
+    var enrollmentId = "E-" + new Date().getTime() + "-" + i;
     sheet.appendRow([enrollmentId, courseId, userIds[i]]);
   }
-  
-  return { 
-    success: true, 
-    message: userIds.length + " Mahasiswa berhasil ditambahkan ke kelas!" 
-  };
+
+  // Cache: daftar mahasiswa & ranking berubah
+  invalidateCourseCache(courseId);
+
+  return { success: true, message: userIds.length + " Mahasiswa berhasil ditambahkan ke kelas!" };
 }
 
 // ==========================================
@@ -745,14 +768,16 @@ function getRekapNilaiMahasiswa(courseId, userId) {
 function tambahNilaiMahasiswa(courseId, userId, jenisNilai, nilai) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName("NILAI");
-  
-  // Jika sheet NILAI belum ada, buat otomatis
   if (!sheet) {
     sheet = ss.insertSheet("NILAI");
-    sheet.appendRow(["course_id", "user_id", "jenis_nilai", "nilai"]); // Buat header
+    sheet.appendRow(["course_id", "user_id", "jenis_nilai", "nilai"]);
   }
-  
   sheet.appendRow([courseId, userId, jenisNilai, nilai]);
+
+  // Cache: nilai kelas & nilai personal mahasiswa berubah
+  invalidateCourseCache(courseId);
+  cacheRemove('paket_personal_' + courseId + '_' + userId);
+
   return { success: true, message: "Nilai berhasil disimpan!" };
 }
 
@@ -790,11 +815,26 @@ function getSemuaNilaiKelas(courseId) {
 // 3. Menghapus data nilai (berdasarkan nomor baris di spreadsheet)
 function hapusNilaiMahasiswa(rowIndex) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("NILAI");
-  if (sheet) {
-    sheet.deleteRow(rowIndex);
-    return { success: true, message: "Data nilai berhasil dihapus!" };
+  if (!sheet) return { success: false, message: "Gagal menghapus nilai." };
+
+  // Ambil courseId & userId dari baris yang akan dihapus, sebelum dihapus
+  var data = sheet.getDataRange().getValues();
+  var courseId = null;
+  var userId   = null;
+  if (data[rowIndex - 1]) {
+    courseId = String(data[rowIndex - 1][0]).trim();
+    userId   = String(data[rowIndex - 1][1]).trim();
   }
-  return { success: false, message: "Gagal menghapus nilai." };
+
+  sheet.deleteRow(rowIndex);
+
+  // Cache: nilai kelas & nilai personal mahasiswa berubah
+  if (courseId) {
+    invalidateCourseCache(courseId);
+    if (userId) cacheRemove('paket_personal_' + courseId + '_' + userId);
+  }
+
+  return { success: true, message: "Data nilai berhasil dihapus!" };
 }
 
 // ==========================================
@@ -805,13 +845,15 @@ function hapusNilaiMahasiswa(rowIndex) {
 function tambahJadwal(courseId, pertemuan, tanggal, waktu, mode, lokasiLink) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName("JADWAL");
-  
   if (!sheet) {
     sheet = ss.insertSheet("JADWAL");
     sheet.appendRow(["course_id", "pertemuan", "tanggal", "waktu", "mode", "lokasi_link"]);
   }
-  
   sheet.appendRow([courseId, pertemuan, tanggal, waktu, mode, lokasiLink]);
+
+  // Cache: jadwal berubah
+  invalidateCourseCache(courseId);
+
   return { success: true, message: "Jadwal berhasil ditambahkan!" };
 }
 
@@ -884,32 +926,67 @@ function getJadwalKelas(courseId) {
 // 3. Hapus Jadwal
 function hapusJadwal(rowIndex) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("JADWAL");
-  if (sheet) {
-    sheet.deleteRow(rowIndex);
-    return { success: true, message: "Jadwal berhasil dihapus!" };
+  if (!sheet) return { success: false, message: "Gagal menghapus jadwal." };
+
+  // Ambil courseId sebelum dihapus
+  var data = sheet.getDataRange().getValues();
+  var courseId = null;
+  if (data[rowIndex - 1]) {
+    courseId = String(data[rowIndex - 1][0]).trim();
   }
-  return { success: false, message: "Gagal menghapus jadwal." };
+
+  sheet.deleteRow(rowIndex);
+
+  // Cache: jadwal berubah
+  if (courseId) invalidateCourseCache(courseId);
+
+  return { success: true, message: "Jadwal berhasil dihapus!" };
 }
 
-// OPTIMASI: FUNGSI BATCH UNTUK MAHASISWA
 function getPaketDataRuangKelas(courseId, userId) {
-  var paketData = {
-    materials: [],
-    quizzes: [],
-    lessons: [],
-    nilai: [],
-    jadwal: []
+
+  // ── CACHE CHECK ──
+  var keyKelas    = 'paket_kelas_'    + courseId;
+  var keyPersonal = 'paket_personal_' + courseId + '_' + userId;
+
+  var dataKelas    = cacheGet(keyKelas);
+  var dataPersonal = cacheGet(keyPersonal);
+
+  // Jika kedua cache tersedia, langsung return tanpa query Sheets
+  if (dataKelas && dataPersonal) {
+    return {
+      materials : dataKelas.materials,
+      quizzes   : dataKelas.quizzes,
+      jadwal    : dataKelas.jadwal,
+      lessons   : dataPersonal.lessons,
+      nilai     : dataPersonal.nilai
+    };
+  }
+
+  // ── QUERY SHEETS (hanya jika cache miss) ──
+  // Pertahankan pola try-catch anti all-or-nothing
+  if (!dataKelas) {
+    dataKelas = { materials: [], quizzes: [], jadwal: [] };
+    try { dataKelas.materials = getCourseMaterials(courseId);         } catch(e) {}
+    try { dataKelas.quizzes   = getCourseQuizzes(courseId, userId);   } catch(e) {}
+    try { dataKelas.jadwal    = getJadwalKelas(courseId);             } catch(e) {}
+    cachePut(keyKelas, dataKelas);
+  }
+
+  if (!dataPersonal) {
+    dataPersonal = { lessons: [], nilai: [] };
+    try { dataPersonal.lessons = getCourseLessons(courseId);                  } catch(e) {}
+    try { dataPersonal.nilai   = getRekapNilaiMahasiswa(courseId, userId);    } catch(e) {}
+    cachePut(keyPersonal, dataPersonal);
+  }
+
+  return {
+    materials : dataKelas.materials,
+    quizzes   : dataKelas.quizzes,
+    jadwal    : dataKelas.jadwal,
+    lessons   : dataPersonal.lessons,
+    nilai     : dataPersonal.nilai
   };
-  
-  // Menggunakan blok try-catch agar jika satu data error, 
-  // data yang lain tetap aman dan tidak gagal load total (Anti All-or-Nothing)
-  try { paketData.materials = getCourseMaterials(courseId); } catch(e) {}
-  try { paketData.quizzes = getCourseQuizzes(courseId, userId); } catch(e) {}
-  try { paketData.lessons = getCourseLessons(courseId); } catch(e) {}
-  try { paketData.nilai = getRekapNilaiMahasiswa(courseId, userId); } catch(e) {}
-  try { paketData.jadwal = getJadwalKelas(courseId); } catch(e) {}
-  
-  return paketData;
 }
 
 // ==========================================
@@ -917,74 +994,66 @@ function getPaketDataRuangKelas(courseId, userId) {
 // ==========================================
 function importKontenKelas(sourceCourseId, targetCourseId) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  
-  // 1. Ambil data dari KELAS SUMBER (Yang mau di-copy)
+
   var sourceMaterials = getSheetData("MATERIALS").filter(function(m) { return String(m.course_id).trim() === String(sourceCourseId).trim(); });
-  var sourceQuizzes = getSheetData("QUIZ").filter(function(q) { return String(q.course_id).trim() === String(sourceCourseId).trim(); });
-  var sourceLessons = getSheetData("LESSON_ASSIGN").filter(function(l) { return String(l.course_id).trim() === String(sourceCourseId).trim(); });
+  var sourceQuizzes   = getSheetData("QUIZ").filter(function(q) { return String(q.course_id).trim() === String(sourceCourseId).trim(); });
+  var sourceLessons   = getSheetData("LESSON_ASSIGN").filter(function(l) { return String(l.course_id).trim() === String(sourceCourseId).trim(); });
 
   if (sourceMaterials.length === 0 && sourceQuizzes.length === 0 && sourceLessons.length === 0) {
     return { success: false, message: "Kelas sumber tidak memiliki materi, kuis, atau presensi untuk diimpor." };
   }
 
-  // 2. Ambil data dari KELAS TARGET (Untuk dicek agar tidak duplikat)
   var targetMaterials = getSheetData("MATERIALS").filter(function(m) { return String(m.course_id).trim() === String(targetCourseId).trim(); });
-  var targetQuizzes = getSheetData("QUIZ").filter(function(q) { return String(q.course_id).trim() === String(targetCourseId).trim(); });
-  var targetLessons = getSheetData("LESSON_ASSIGN").filter(function(l) { return String(l.course_id).trim() === String(targetCourseId).trim(); });
+  var targetQuizzes   = getSheetData("QUIZ").filter(function(q) { return String(q.course_id).trim() === String(targetCourseId).trim(); });
+  var targetLessons   = getSheetData("LESSON_ASSIGN").filter(function(l) { return String(l.course_id).trim() === String(targetCourseId).trim(); });
 
-  // Buat daftar judul yang sudah ada di kelas target (diubah ke huruf kecil semua agar pengecekan lebih akurat)
-  var existingMatTitles = targetMaterials.map(function(m) { return String(m.title).toLowerCase().trim(); });
-  var existingQuizTitles = targetQuizzes.map(function(q) { return String(q.title).toLowerCase().trim(); });
+  var existingMatTitles    = targetMaterials.map(function(m) { return String(m.title).toLowerCase().trim(); });
+  var existingQuizTitles   = targetQuizzes.map(function(q) { return String(q.title).toLowerCase().trim(); });
   var existingLessonTopics = targetLessons.map(function(l) { return String(l.topic).toLowerCase().trim(); });
 
-  var timeBase = new Date().getTime(); // Untuk membuat ID Unik
+  var timeBase = new Date().getTime();
   var countMat = 0, countQuiz = 0, countLesson = 0;
 
-  // 3. Insert Materi (Hanya jika judul belum ada)
   if (sourceMaterials.length > 0) {
     var matSheet = ss.getSheetByName("MATERIALS");
     for (var i = 0; i < sourceMaterials.length; i++) {
-      var judulSumber = String(sourceMaterials[i].title).toLowerCase().trim();
-      if (existingMatTitles.indexOf(judulSumber) === -1) { // Jika -1 berarti belum ada
+      if (existingMatTitles.indexOf(String(sourceMaterials[i].title).toLowerCase().trim()) === -1) {
         matSheet.appendRow(["M-" + timeBase + "-IMP" + i, targetCourseId, sourceMaterials[i].title, sourceMaterials[i].url_drive]);
         countMat++;
       }
     }
   }
 
-  // 4. Insert Kuis (Hanya jika judul belum ada)
   if (sourceQuizzes.length > 0) {
     var quizSheet = ss.getSheetByName("QUIZ");
     for (var j = 0; j < sourceQuizzes.length; j++) {
-      var judulSumber = String(sourceQuizzes[j].title).toLowerCase().trim();
-      if (existingQuizTitles.indexOf(judulSumber) === -1) {
+      if (existingQuizTitles.indexOf(String(sourceQuizzes[j].title).toLowerCase().trim()) === -1) {
         quizSheet.appendRow(["Q-" + timeBase + "-IMP" + j, targetCourseId, sourceQuizzes[j].title, sourceQuizzes[j].url_form]);
         countQuiz++;
       }
     }
   }
 
-  // 5. Insert Lesson Learn (Hanya jika topik belum ada)
   if (sourceLessons.length > 0) {
     var lessonSheet = ss.getSheetByName("LESSON_ASSIGN");
     for (var k = 0; k < sourceLessons.length; k++) {
-      var topikSumber = String(sourceLessons[k].topic).toLowerCase().trim();
-      if (existingLessonTopics.indexOf(topikSumber) === -1) {
+      if (existingLessonTopics.indexOf(String(sourceLessons[k].topic).toLowerCase().trim()) === -1) {
         lessonSheet.appendRow(["L-" + timeBase + "-IMP" + k, targetCourseId, sourceLessons[k].topic, sourceLessons[k].deadline]);
         countLesson++;
       }
     }
   }
 
+  // Cache: konten kelas target berubah
+  if (countMat + countQuiz + countLesson > 0) {
+    invalidateCourseCache(targetCourseId);
+  }
+
   var totalAdded = countMat + countQuiz + countLesson;
   if (totalAdded === 0) {
     return { success: true, message: "Tidak ada data baru yang diimpor. Semua konten dari kelas sumber sudah ada di kelas ini." };
-  } else {
-    return { 
-      success: true, 
-      message: "Berhasil mengimpor konten baru: " + countMat + " Materi, " + countQuiz + " Kuis, dan " + countLesson + " Presensi!" 
-    };
   }
+  return { success: true, message: "Berhasil mengimpor konten baru: " + countMat + " Materi, " + countQuiz + " Kuis, dan " + countLesson + " Presensi!" };
 }
 
 // ==========================================
@@ -993,31 +1062,106 @@ function importKontenKelas(sourceCourseId, targetCourseId) {
 function importNilaiBatch(courseId, jenisNilai, dataNilaiArray) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName("NILAI");
-  
   if (!sheet) {
     sheet = ss.insertSheet("NILAI");
     sheet.appendRow(["course_id", "user_id", "jenis_nilai", "nilai"]);
   }
 
-  // Ambil data mahasiswa yang terdaftar di kelas ini untuk validasi 
   var enrollments = getSheetData("ENROLLMENTS").filter(function(e) { return String(e.course_id).trim() === String(courseId).trim(); });
-  var validNIMs = enrollments.map(function(e) { return String(e.user_id).trim(); });
-
+  var validNIMs   = enrollments.map(function(e) { return String(e.user_id).trim(); });
   var countSuccess = 0;
 
   for (var i = 0; i < dataNilaiArray.length; i++) {
-    var nim = String(dataNilaiArray[i].nim).trim();
+    var nim   = String(dataNilaiArray[i].nim).trim();
     var nilai = dataNilaiArray[i].nilai;
-
-    // Hanya masukkan nilai jika mahasiswa terdaftar di kelas ini
     if (validNIMs.indexOf(nim) !== -1) {
       sheet.appendRow([courseId, nim, jenisNilai, nilai]);
       countSuccess++;
     }
   }
 
-  return {
-    success: true,
-    message: countSuccess + " data nilai berhasil diimpor ke kelas!"
+  // Cache: nilai seluruh kelas berubah, plus cache personal setiap mahasiswa yang nilainya diimport
+  if (countSuccess > 0) {
+    invalidateCourseCache(courseId);
+    // Hapus juga cache personal setiap mahasiswa yang nilainya diimport
+    for (var j = 0; j < dataNilaiArray.length; j++) {
+      cacheRemove('paket_personal_' + courseId + '_' + String(dataNilaiArray[j].nim).trim());
+    }
+  }
+
+  return { success: true, message: countSuccess + " data nilai berhasil diimpor ke kelas!" };
+}
+
+function getPaketDataAnalitikKelas(courseId) {
+  var cacheKey = 'paket_analitik_' + courseId;
+  var cached   = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  var paket = {
+    materials : getCourseMaterials(courseId),
+    quizzes   : getCourseQuizzes(courseId),
+    lessons   : getCourseLessons(courseId),
+    students  : getStudentManagementData(courseId),
+    rankings  : getStudentRankings(courseId),
+    inactive  : getInactiveStudents(courseId),
+    nilai     : getSemuaNilaiKelas(courseId),
+    jadwal    : getJadwalKelas(courseId)
   };
+
+  cachePut(cacheKey, paket);
+  return paket;
+}
+
+// ══════════════════════════════════════════════
+//  CACHE UTILITY
+//  Simpan dan ambil data dari ScriptCache GAS
+//  Max per entry: 100KB | Max TTL: 21600 detik (6 jam)
+// ══════════════════════════════════════════════
+
+var CACHE_TTL = 300; // 5 menit (ubah sesuai kebutuhan)
+
+function cacheGet(key) {
+  try {
+    var raw = CacheService.getScriptCache().get(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) {
+    return null;
+  }
+}
+
+function cachePut(key, data) {
+  try {
+    var str = JSON.stringify(data);
+    // CacheService max 100KB per entry
+    // Jika data terlalu besar, skip caching (jangan crash)
+    if (str.length < 95000) {
+      CacheService.getScriptCache().put(key, str, CACHE_TTL);
+    }
+  } catch(e) {
+    // Gagal cache tidak boleh membuat fungsi utama crash
+    Logger.log('Cache write failed: ' + e.message);
+  }
+}
+
+function cacheRemove(key) {
+  try {
+    CacheService.getScriptCache().remove(key);
+  } catch(e) {}
+}
+
+// Hapus semua cache yang terkait satu courseId
+// Dipanggil setiap kali ada perubahan data (tambah/hapus materi, nilai, dst.)
+function invalidateCourseCache(courseId) {
+  var keys = [
+    'paket_analitik_' + courseId,
+    'materials_'      + courseId,
+    'quizzes_'        + courseId,
+    'lessons_'        + courseId,
+    'students_'       + courseId,
+    'rankings_'       + courseId,
+    'inactive_'       + courseId,
+    'nilai_'          + courseId,
+    'jadwal_'         + courseId
+  ];
+  CacheService.getScriptCache().removeAll(keys);
 }
