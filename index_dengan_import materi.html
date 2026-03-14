@@ -283,7 +283,7 @@
     <div id="loadingNilai" style="color:#3a6a85;font-size:14px;">Memuat nilai...</div>
     <div class="tbl-wrap mb-8">
       <table>
-        <thead><tr><th>Jenis Penilaian</th><th>Nilai</th></tr></thead>
+        <thead><tr><th>Jenis Penilaian</th><th style="text-align:center; width:120px;">Nilai</th></tr></thead>
         <tbody id="nilaiList"><tr><td colspan="2" style="text-align:center;color:#3a6a85;">Memuat...</td></tr></tbody>
       </table>
     </div>
@@ -530,8 +530,9 @@
             </div>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-            <button class="btn btn-teal btn-sm" id="btnSimpanNilai" onclick="simpanNilaiKelas()">+ Simpan Nilai</button>
-            <button class="btn btn-amber btn-sm" onclick="bukaModalExport()">📥 Export ke Excel</button>
+              <button class="btn btn-teal btn-sm" id="btnSimpanNilai" onclick="simpanNilaiKelas()">+ Simpan Nilai</button>
+              <button class="btn btn-ocean btn-sm" onclick="bukaModalImportNilai()">📤 Impor dari Excel</button>
+              <button class="btn btn-amber btn-sm" onclick="bukaModalExport()">📥 Export ke Excel</button>
           </div>
           <div class="tbl-wrap mt-4">
             <table style="table-layout:fixed;width:100%;">
@@ -854,7 +855,8 @@
     nilaiData.forEach(function(item) {
       html += '<tr>'
             + '<td style="color:#c0dbe8;font-weight:500;">' + item.jenis_nilai + '</td>'
-            + '<td><span class="badge badge-mint" style="font-size:13px; font-weight:700;">' + item.nilai + '</span></td>'
+            // Tambahkan text-align:center pada baris td di bawah ini
+            + '<td style="text-align:center;"><span class="badge badge-mint" style="font-size:13px; font-weight:700;">' + item.nilai + '</span></td>'
             + '</tr>';
     });
     tbody.innerHTML = html;
@@ -1236,6 +1238,93 @@
     }
   }
 
+  // ══════════════════════════════════════════
+  // FITUR IMPOR NILAI DARI EXCEL/CSV
+  // ══════════════════════════════════════════
+
+  function bukaModalImportNilai() {
+    document.getElementById('importJenisNilai').value = '';
+    document.getElementById('fileImportNilai').value = '';
+    document.getElementById('importNilaiModalOverlay').style.display = 'flex';
+  }
+
+  function tutupModalImportNilai() {
+    document.getElementById('importNilaiModalOverlay').style.display = 'none';
+  }
+
+  function prosesImportNilaiExcel() {
+    var jenisNilai = document.getElementById('importJenisNilai').value.trim();
+    var fileInput = document.getElementById('fileImportNilai');
+
+    if (!jenisNilai) { alert('Jenis Penilaian wajib diisi!'); return; }
+    if (fileInput.files.length === 0) { alert('Silakan pilih file Excel/CSV terlebih dahulu!'); return; }
+
+    var file = fileInput.files[0];
+    var reader = new FileReader();
+    var btn = document.getElementById('btnProsesImportNilai');
+    
+    btn.innerText = 'Membaca File...'; btn.disabled = true;
+
+    reader.onload = function(e) {
+      try {
+        var data = new Uint8Array(e.target.result);
+        var workbook = XLSX.read(data, {type: 'array'});
+        var firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        var jsonData = XLSX.utils.sheet_to_json(firstSheet, {defval: ""});
+
+        var parsedData = [];
+        for (var i = 0; i < jsonData.length; i++) {
+          var row = jsonData[i];
+          
+          // Smart Detector: Deteksi otomatis nama kolom dari Google Forms / SIAKAD
+          var nim = row["NIM"] || row["nim"] || row["Username"] || row["NIM / ID"];
+          var nilai = row["Nilai"] || row["nilai"] || row["Skor"] || row["Score"] || row["Total score"];
+
+          // Jika Google Forms memformat skor menjadi "85.00 / 100", ambil angka depannya saja
+          if (typeof nilai === 'string' && nilai.includes('/')) {
+            nilai = nilai.split('/')[0].trim();
+          }
+
+          if (nim && nilai !== undefined && nilai !== "") {
+            parsedData.push({ nim: String(nim).trim(), nilai: parseFloat(nilai) });
+          }
+        }
+
+        if (parsedData.length === 0) {
+          alert('Gagal: Tidak menemukan kolom "NIM" dan "Skor/Nilai" di dalam file. Pastikan nama kolom di baris pertama Excel Anda sudah benar.');
+          btn.innerText = '📤 Proses Impor'; btn.disabled = false;
+          return;
+        }
+
+        btn.innerText = 'Menyimpan ke Database...';
+
+        // Kirim ke backend menggunakan Failure Handler (Anti Stuck)
+        google.script.run
+          .withSuccessHandler(function(r) {
+            btn.innerText = '📤 Proses Impor'; btn.disabled = false;
+            if (r.success) {
+              alert('✅ ' + r.message);
+              tutupModalImportNilai();
+              google.script.run.withSuccessHandler(renderTabelNilaiDosen).getSemuaNilaiKelas(activeCourseId);
+            } else {
+              alert('❌ ' + r.message);
+            }
+          })
+          .withFailureHandler(function(err) {
+            btn.innerText = '📤 Proses Impor'; btn.disabled = false;
+            alert('Terjadi kesalahan koneksi: ' + err.message);
+          })
+          .importNilaiBatch(activeCourseId, jenisNilai, parsedData);
+
+      } catch (err) {
+        btn.innerText = '📤 Proses Impor'; btn.disabled = false;
+        alert('Gagal membaca file. Pastikan file tidak rusak dan berformat Excel/CSV.');
+      }
+    };
+
+    reader.readAsArrayBuffer(file);
+  }
+
   // ══════════════════════════════════
   // FITUR BARU: KALENDER PERTEMUAN
   // ══════════════════════════════════
@@ -1584,6 +1673,30 @@
     <div style="display:flex;gap:10px;">
       <button id="btnProsesImport" class="btn btn-ocean" style="flex:1;" onclick="prosesImportKonten()">📥 Mulai Impor</button>
       <button class="btn btn-dark" onclick="tutupModalImport()">Batal</button>
+    </div>
+  </div>
+</div>
+<div id="importNilaiModalOverlay" class="modal-overlay" style="display:none;" onclick="if(event.target===this)tutupModalImportNilai()">
+  <div class="modal-card">
+    <h3 class="modal-title">📤 Impor Nilai dari Excel/CSV</h3>
+    <p style="font-size:13px;color:#5a8fa8;margin-bottom:12px;">
+      Unggah file Excel hasil Google Forms. Pastikan file memiliki kolom bernama <b style="color:var(--foam);">NIM</b> dan <b style="color:var(--mint);">Skor / Nilai</b>.
+    </p>
+
+    <div class="grid gap-3" style="grid-template-columns:1fr; margin-bottom:14px;">
+      <div>
+        <label class="form-label">Jenis Penilaian</label>
+        <input type="text" id="importJenisNilai" class="form-input" placeholder="Contoh: Kuis 1, Tugas Kelompok, UTS">
+      </div>
+      <div>
+        <label class="form-label">Pilih File (.xlsx / .csv)</label>
+        <input type="file" id="fileImportNilai" class="form-input" accept=".xlsx, .xls, .csv" style="padding: 7px 10px;">
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button id="btnProsesImportNilai" class="btn btn-teal" style="flex:1;" onclick="prosesImportNilaiExcel()">📤 Proses Impor</button>
+      <button class="btn btn-dark" onclick="tutupModalImportNilai()">Batal</button>
     </div>
   </div>
 </div>
