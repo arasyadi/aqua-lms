@@ -941,31 +941,66 @@
   }
 
   function bukaAnalitikKelas(courseId, courseName) {
-    activeCourseId=courseId; activeCourseName=courseName;
-    showView('lecturerAnalyticsView');
-    switchTab('tabPembelajaran', document.getElementById('tabBtnPembelajaran'));
-    document.getElementById('analyticsCourseTitle').innerText=courseName;
-    document.getElementById('analyticsCourseTitle-nav').innerText=courseName;
-    ['materiDosenBody','kuisDosenBody','lessonDosenBody','enrolledBody'].forEach(function(id){
-      document.getElementById(id).innerHTML='<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Memuat…</td></tr>';
-    });
-    document.getElementById('nilaiDosenBody').innerHTML='<tr><td colspan="5" style="text-align:center;color:#3a6a85;">Memuat…</td></tr>';
-    document.getElementById('rankingContainer').style.display='none';
-    document.getElementById('loadingRanking').style.display='block';
-    document.getElementById('loadingInactive').style.display='block';
-    document.getElementById('inactiveList').innerHTML='';
-    document.getElementById('studentCheckboxList').innerHTML='<p style="color:#3a6a85;font-size:13px;padding:8px;">Memuat…</p>';
-    google.script.run.withSuccessHandler(renderManajemenMateri).getCourseMaterials(courseId);
-    google.script.run.withSuccessHandler(renderManajemenKuis).getCourseQuizzes(courseId);
-    google.script.run.withSuccessHandler(renderManajemenLesson).getCourseLessons(courseId);
-    google.script.run.withSuccessHandler(renderManajemenMahasiswa).getStudentManagementData(courseId);
-    google.script.run.withSuccessHandler(renderRankings).getStudentRankings(courseId);
-    google.script.run.withSuccessHandler(renderInactive).getInactiveStudents(courseId);
-    // Memuat data nilai saat kelas dibuka
-    google.script.run.withSuccessHandler(renderTabelNilaiDosen).getSemuaNilaiKelas(courseId);
-    // Memuat jadwal saat kelas dibuka
-    google.script.run.withSuccessHandler(renderTabelJadwalDosen).getJadwalKelas(courseId);
-  }
+  activeCourseId  = courseId;
+  activeCourseName = courseName;
+
+  // ── 1. Tampilkan view & set judul ──
+  showView('lecturerAnalyticsView');
+  switchTab('tabPembelajaran', document.getElementById('tabBtnPembelajaran'));
+  document.getElementById('analyticsCourseTitle').innerText     = courseName;
+  document.getElementById('analyticsCourseTitle-nav').innerText = courseName;
+
+  // ── 2. Reset semua tabel ke state "Memuat…" ──
+  ['materiDosenBody', 'kuisDosenBody', 'lessonDosenBody', 'enrolledBody'].forEach(function(id) {
+    document.getElementById(id).innerHTML =
+      '<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Memuat…</td></tr>';
+  });
+  document.getElementById('nilaiDosenBody').innerHTML =
+    '<tr><td colspan="5" style="text-align:center;color:#3a6a85;">Memuat…</td></tr>';
+  document.getElementById('jadwalDosenBody') &&
+    (document.getElementById('jadwalDosenBody').innerHTML =
+      '<tr><td colspan="4" style="text-align:center;color:#3a6a85;">Memuat…</td></tr>');
+
+  document.getElementById('rankingContainer').style.display  = 'none';
+  document.getElementById('loadingRanking').style.display    = 'block';
+  document.getElementById('loadingInactive').style.display   = 'block';
+  document.getElementById('inactiveList').innerHTML          = '';
+  document.getElementById('studentCheckboxList').innerHTML   =
+    '<p style="color:#3a6a85;font-size:13px;padding:8px;">Memuat…</p>';
+
+  // ── 3. SATU panggilan GAS menggantikan 8 panggilan terpisah ──
+  google.script.run
+    .withSuccessHandler(function(paket) {
+      if (!paket) {
+        _tampilkanErrorAnalitik('Server mengembalikan data kosong.');
+        return;
+      }
+      renderManajemenMateri(paket.materials);
+      renderManajemenKuis(paket.quizzes);
+      renderManajemenLesson(paket.lessons);
+      renderManajemenMahasiswa(paket.students);
+      renderRankings(paket.rankings);
+      renderInactive(paket.inactive);
+      renderTabelNilaiDosen(paket.nilai);
+      renderTabelJadwalDosen(paket.jadwal);
+    })
+    .withFailureHandler(function(err) {
+      _tampilkanErrorAnalitik('Gagal memuat data kelas. Coba refresh halaman.<br><small>' + err.message + '</small>');
+    })
+    .getPaketDataAnalitikKelas(courseId);
+}
+
+// Helper error — tampilkan pesan di semua tabel sekaligus
+function _tampilkanErrorAnalitik(pesanHtml) {
+  ['materiDosenBody', 'kuisDosenBody', 'lessonDosenBody', 'enrolledBody'].forEach(function(id) {
+    document.getElementById(id).innerHTML =
+      '<tr><td colspan="3" style="text-align:center;color:var(--coral);">' + pesanHtml + '</td></tr>';
+  });
+  document.getElementById('nilaiDosenBody').innerHTML =
+    '<tr><td colspan="5" style="text-align:center;color:var(--coral);">' + pesanHtml + '</td></tr>';
+  document.getElementById('loadingRanking').innerHTML  = '<span style="color:var(--coral);">' + pesanHtml + '</span>';
+  document.getElementById('loadingInactive').innerHTML = '<span style="color:var(--coral);">' + pesanHtml + '</span>';
+}
 
   function kembaliKeDashboardDosen() {
     activeCourseId=null; activeCourseName=null;
