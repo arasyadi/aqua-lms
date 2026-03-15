@@ -26,18 +26,16 @@ Fokus pada antarmuka yang intuitif dan *gamification* untuk meningkatkan motivas
 ### 👨‍🏫 Panel Dosen (Lecturer Super-Admin)
 Dilengkapi dengan fitur *Centralized Command* untuk mengelola kelas dari satu panel.
 * **Manajemen Kelas Terpusat (CRUD)**: Pembuatan mata kuliah, penambahan materi via Google Drive, serta penugasan berbasis Google Forms.
-* **Smart Import Konten Kelas [BARU]**: Memungkinkan dosen untuk menyalin (mengimpor) Materi, Kuis, dan Tugas Presensi dari kelas lain (misal: kelas dari semester sebelumnya). Sistem dilengkapi pendeteksi anti-duplikasi sehingga materi yang sama tidak akan dimasukkan dua kali.
-* **Sistem *Cascade Delete* Otomatis**: Jika sebuah mata kuliah, materi, atau kuis dihapus oleh dosen, algoritma backend akan melakukan *reverse-looping* untuk menyapu bersih seluruh riwayat (*log*) aktivitas dan pelacakan mahasiswa yang terkait, sehingga *database* Google Sheets tidak menumpuk/bocor.
-* **Batch Student Enrollment**: Memasukkan daftar mahasiswa ke dalam kelas dalam satu kali proses (*batching*) menggunakan sistem *checkbox* cerdas yang otomatis menyembunyikan mahasiswa yang sudah terdaftar.
-* **Manajemen Kalender dengan Auto-Hide**: Dosen dapat mengatur jadwal pertemuan. Sistem akan menyembunyikan jadwal dari *dashboard* mahasiswa secara otomatis jika waktu telah terlewat 1x24 jam (mencegah penumpukan jadwal kadaluarsa).
-* **Learning Analytics & Early Warning System**:
-  * 🏆 **Leaderboard**: Meranking mahasiswa secara otomatis berdasarkan poin aktivitas (Materi = 5 Poin, Kuis & Lesson = 10 Poin).
-  * ⚠️ **Deteksi Mahasiswa Tidak Aktif**: Mengidentifikasi mahasiswa dengan skor "0" sebagai *Early Warning System* bagi dosen untuk melakukan intervensi akademik.
+* **Smart Import Konten Kelas**: Memungkinkan dosen untuk menyalin (mengimpor) Materi, Kuis, dan Tugas Presensi dari kelas lain.
+* **Integrasi Excel SIMAK (Smart Student Enrollment) [BARU]**: 
+  * Dosen dapat mendaftarkan puluhan mahasiswa sekaligus hanya dengan mengunggah *file* Excel bawaan sistem kampus (SIMAK). 
+  * Sistem cerdas secara otomatis membaca data dari baris/kolom spesifik, memunculkan *Live Preview*, dan memfilter/mencoret mahasiswa yang sudah terdaftar agar terhindar dari duplikasi data.
+* **Sistem *Cascade Delete* Otomatis**: Algoritma backend *reverse-looping* untuk menyapu bersih seluruh riwayat aktivitas jika kelas dihapus agar *database* tidak bocor.
+* **Manajemen Kalender dengan Auto-Hide**: Jadwal kelas akan disembunyikan otomatis jika waktu telah terlewat 1x24 jam.
+* **Learning Analytics & Early Warning System**: Ranking mahasiswa otomatis dan deteksi mahasiswa tidak aktif (Skor = 0).
 * **Manajemen Nilai & Export Auto-Grading**: 
-  * Dosen dapat melakukan input nilai secara spesifik (UTS, UAS, Tugas, dll).
-  * **Import Nilai Batch [BARU]**: Kemampuan mengimpor nilai banyak mahasiswa sekaligus dari data array.
-  * Fitur **📥 Download Excel** terintegrasi menggunakan *SheetJS* di sisi *client*.
-  * **Auto-Grading Rule**: Sistem otomatis menghitung rata-rata nilai per mahasiswa dan mengonversinya menjadi **Nilai Huruf** sesuai standar akademik.
+  * **Import Nilai Batch**: Mengimpor nilai massal dari salinan Excel.
+  * **📥 Download Excel**: Konversi rata-rata nilai menjadi Nilai Huruf secara otomatis.
 
 ---
 
