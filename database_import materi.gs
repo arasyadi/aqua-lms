@@ -945,46 +945,40 @@ function hapusJadwal(rowIndex) {
 
 function getPaketDataRuangKelas(courseId, userId) {
 
-  // ── CACHE CHECK ──
   var keyKelas    = 'paket_kelas_'    + courseId;
   var keyPersonal = 'paket_personal_' + courseId + '_' + userId;
 
   var dataKelas    = cacheGet(keyKelas);
   var dataPersonal = cacheGet(keyPersonal);
 
-  // Jika kedua cache tersedia, langsung return tanpa query Sheets
-  if (dataKelas && dataPersonal) {
-    return {
-      materials : dataKelas.materials,
-      quizzes   : dataKelas.quizzes,
-      jadwal    : dataKelas.jadwal,
-      lessons   : dataPersonal.lessons,
-      nilai     : dataPersonal.nilai
-    };
-  }
-
-  // ── QUERY SHEETS (hanya jika cache miss) ──
-  // Pertahankan pola try-catch anti all-or-nothing
+  // 1. CACHE KELAS UMUM (TANPA KUIS)
   if (!dataKelas) {
-    dataKelas = { materials: [], quizzes: [], jadwal: [] };
-    try { dataKelas.materials = getCourseMaterials(courseId);         } catch(e) {}
-    try { dataKelas.quizzes   = getCourseQuizzes(courseId, userId);   } catch(e) {}
-    try { dataKelas.jadwal    = getJadwalKelas(courseId);             } catch(e) {}
+    dataKelas = { materials: [], jadwal: [], lessons: [] }; // Kuis dikeluarkan dari sini
+    try { dataKelas.materials = getCourseMaterials(courseId); } catch(e) {}
+    try { dataKelas.jadwal    = getJadwalKelas(courseId);     } catch(e) {}
+    try { dataKelas.lessons   = getCourseLessons(courseId);   } catch(e) {}
     cachePut(keyKelas, dataKelas);
   }
 
+  // 2. CACHE PERSONAL MAHASISWA (KUIS PINDAH KE SINI)
   if (!dataPersonal) {
-    dataPersonal = { lessons: [], nilai: [] };
-    try { dataPersonal.lessons = getCourseLessons(courseId);                  } catch(e) {}
-    try { dataPersonal.nilai   = getRekapNilaiMahasiswa(courseId, userId);    } catch(e) {}
+    dataPersonal = { nilai: [], submittedLessonIds: [], quizzes: [] };
+    try { dataPersonal.nilai              = getRekapNilaiMahasiswa(courseId, userId); } catch(e) {}
+    try { dataPersonal.submittedLessonIds = getSubmittedLessonIds(userId);            } catch(e) {}
+    try { dataPersonal.quizzes            = getCourseQuizzes(courseId, userId);       } catch(e) {} // AMAN: Kuis disimpan secara personal
     cachePut(keyPersonal, dataPersonal);
   }
 
+  // 3. FILTER LESSON (Logika Brilian dari Claude)
+  var lessonsBelumDijawab = dataKelas.lessons.filter(function(l) {
+    return dataPersonal.submittedLessonIds.indexOf(String(l.assign_id)) === -1;
+  });
+
   return {
     materials : dataKelas.materials,
-    quizzes   : dataKelas.quizzes,
+    quizzes   : dataPersonal.quizzes, // Mengambil kuis dari area personal
     jadwal    : dataKelas.jadwal,
-    lessons   : dataPersonal.lessons,
+    lessons   : lessonsBelumDijawab,
     nilai     : dataPersonal.nilai
   };
 }
@@ -1150,10 +1144,10 @@ function cacheRemove(key) {
 }
 
 // Hapus semua cache yang terkait satu courseId
-// Dipanggil setiap kali ada perubahan data (tambah/hapus materi, nilai, dst.)
 function invalidateCourseCache(courseId) {
   var keys = [
     'paket_analitik_' + courseId,
+    'paket_kelas_'    + courseId, // <-- BARIS INI WAJIB ADA AGAR MATERI BARU LANGSUNG MUNCUL
     'materials_'      + courseId,
     'quizzes_'        + courseId,
     'lessons_'        + courseId,
@@ -1164,4 +1158,19 @@ function invalidateCourseCache(courseId) {
     'jadwal_'         + courseId
   ];
   CacheService.getScriptCache().removeAll(keys);
+}
+
+// Mengambil daftar assign_id yang sudah dijawab oleh mahasiswa tertentu
+function getSubmittedLessonIds(userId) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("LESSON_SUBMIT");
+  if (!sheet) return [];
+  var data = sheet.getDataRange().getValues();
+  var ids = [];
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][2]).trim() === String(userId).trim()) {
+      var assignId = String(data[i][1]).trim();
+      if (ids.indexOf(assignId) === -1) ids.push(assignId);
+    }
+  }
+  return ids;
 }
