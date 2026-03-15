@@ -531,8 +531,8 @@
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
               <button class="btn btn-teal btn-sm" id="btnSimpanNilai" onclick="simpanNilaiKelas()">+ Simpan Nilai</button>
-              <button class="btn btn-ocean btn-sm" onclick="bukaModalImportNilai()">📤 Impor dari Excel</button>
-              <button class="btn btn-amber btn-sm" onclick="bukaModalExport()">📥 Export ke Excel</button>
+              <button class="btn btn-ocean btn-sm" onclick="bukaModalImportNilai()">📤 Impor Nilai</button>
+              <button class="btn btn-amber btn-sm" onclick="bukaModalExport()">📥 Download Rekapitulasi Nilai</button>
           </div>
           <div class="tbl-wrap mt-4">
             <table style="table-layout:fixed;width:100%;">
@@ -821,6 +821,35 @@
     window.open(urlForm,'_blank');
   }
 
+  function formatDeadlineWITA(deadlineStr) {
+    var hariIndo  = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+    var bulanIndo = ['Januari','Februari','Maret','April','Mei','Juni',
+                   'Juli','Agustus','September','Oktober','November','Desember'];
+
+    var d = null;
+
+    // Format DD-MM-YYYY (input manual dosen)
+    var parts = String(deadlineStr).split('-');
+    if (parts.length === 3 && parts[0].length <= 2) {
+      var day   = parseInt(parts[0], 10);
+      var month = parseInt(parts[1], 10) - 1;
+      var year  = parseInt(parts[2], 10);
+      if (year < 100) year += 2000;
+      d = new Date(year, month, day, 23, 59, 59);
+    } else {
+      // Format Date object dari Sheets (Mon Mar 16 2026 ...)
+      d = new Date(deadlineStr);
+      }
+
+    if (!d || isNaN(d.getTime())) return deadlineStr; // Fallback: tampilkan apa adanya
+
+    return hariIndo[d.getDay()] + ', '
+       + d.getDate() + ' '
+       + bulanIndo[d.getMonth()] + ' '
+       + d.getFullYear()
+       + ' jam 24.00 WITA';
+  }
+
   function renderLessons(lessons) {
     document.getElementById('loadingLessons').style.display='none';
     var list=document.getElementById('lessonList');
@@ -830,7 +859,7 @@
       var id=l.assign_id||'L-UNKNOWN';
       var locked=(l.deadline_ms&&now>l.deadline_ms);
       var labelColor=locked?'var(--coral)':'#5a8fa8';
-      var labelTxt=locked?'🔒 Terkunci — Melewati batas '+l.deadline:'📅 Deadline: '+l.deadline;
+      var labelTxt = locked ? '🔒 Terkunci — Melewati batas ' + formatDeadlineWITA(l.deadline) : '📅 Deadline: ' + formatDeadlineWITA(l.deadline);
       var btnTxt=locked?'🔒 Waktu Habis':'✉️ Kirim Refleksi & Presensi';
       var btnCls=locked?'btn-dark':'btn-ocean';
       var dis=locked?'disabled':'';
@@ -1107,7 +1136,7 @@ function _tampilkanErrorAnalitik(pesanHtml) {
     lessons.forEach(function(l){
       tbody.innerHTML+='<tr>'
         +'<td style="font-weight:500;color:#c0dbe8;">'+l.topic+'</td>'
-        +'<td><span class="badge badge-mint">'+l.deadline+'</span></td>'
+        +'<td><span class="badge badge-mint">'+formatDeadlineWITA(l.deadline)+'</span></td>'
         +'<td><button class="btn btn-coral btn-sm" onclick="konfirmasiHapusLesson(\''+l.assign_id+'\',\''+l.topic+'\')">Hapus</button></td>'
         +'</tr>';
     });
@@ -1443,7 +1472,7 @@ function _tampilkanErrorAnalitik(pesanHtml) {
       var badgeCls = isDaring ? 'badge-mint' : 'badge-amber';
       var icon = isDaring ? '💻' : '🏢';
       var actionArea = isDaring
-        ? '<a href="'+j.lokasi_link+'" target="_blank" class="btn btn-teal btn-full mt-2" style="text-decoration:none;">▶️ Gabung Kelas (Zoom/Meet)</a>'
+        ? '<a href="'+j.lokasi_link+'" target="_blank" class="btn btn-teal btn-full mt-2" style="text-decoration:none;">▶️ Gabung Kelas (Zoom Meeting)</a>'
         : '<div style="margin-top:10px;padding:10px;background:rgba(232,168,58,0.1);border:1px solid rgba(232,168,58,0.3);border-radius:10px;font-size:13px;color:var(--amber);text-align:center;">📍 Lokasi: <b>'+j.lokasi_link+'</b></div>';
       return '<div class="glass rounded-2xl p-5" style="border:1px solid var(--border);">'
         + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'
@@ -1657,7 +1686,7 @@ function _tampilkanErrorAnalitik(pesanHtml) {
 <!-- ── MODAL EXPORT NILAI ── -->
 <div id="exportModalOverlay" class="modal-overlay" style="display:none;" onclick="if(event.target===this)tutupModalExport()">
   <div class="modal-card">
-    <h3 class="modal-title">📥 Export Nilai ke Excel</h3>
+    <h3 class="modal-title">📥 Download Rekapitulasi Nilai</h3>
     <p style="font-size:13px;color:#5a8fa8;margin-bottom:18px;">
       Sistem akan menghitung <b style="color:var(--foam);">rata-rata</b> semua nilai yang telah diinput,
       lalu mengkonversinya ke <b style="color:var(--mint);">Nilai Huruf</b> secara otomatis.
@@ -1686,7 +1715,7 @@ function _tampilkanErrorAnalitik(pesanHtml) {
     </div>
 
     <div style="display:flex;gap:10px;">
-      <button id="btnProsesExport" class="btn btn-amber" style="flex:1;" onclick="prosesExportNilai()">📥 Download Excel</button>
+      <button id="btnProsesExport" class="btn btn-amber" style="flex:1;" onclick="prosesExportNilai()">📥 Download</button>
       <button class="btn btn-dark" onclick="tutupModalExport()">Batal</button>
     </div>
   </div>
