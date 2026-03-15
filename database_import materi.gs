@@ -718,16 +718,204 @@ function hapusLesson(assignId) {
 // FITUR BARU: BATCH ENROLL (MEMASUKKAN BANYAK MAHASISWA SEKALIGUS)
 // ==========================================
 function enrollStudentsBatch(courseId, userIds) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("ENROLLMENTS");
+  var ss     = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet  = ss.getSheetByName("ENROLLMENTS");
+
+  // Ambil semua NIM yang ada di tabel USERS
+  var semuaUsers = getSheetData("USERS");
+  var nimTerdaftar = semuaUsers.map(function(u) { return String(u.user_id).trim(); });
+
+  // Ambil NIM yang sudah enrolled di kelas ini agar tidak duplikat
+  var enrollments   = getSheetData("ENROLLMENTS");
+  var sudahEnrolled = enrollments
+    .filter(function(e) { return String(e.course_id).trim() === String(courseId).trim(); })
+    .map(function(e) { return String(e.user_id).trim(); });
+
+  var countBerhasil  = 0;
+  var nimTidakAda    = [];
+  var nimSudahMasuk  = [];
+
   for (var i = 0; i < userIds.length; i++) {
+    var nim = String(userIds[i]).trim();
+
+    // Validasi 1: NIM harus ada di tabel USERS
+    if (nimTerdaftar.indexOf(nim) === -1) {
+      nimTidakAda.push(nim);
+      continue;
+    }
+
+    // Validasi 2: NIM belum terdaftar di kelas ini
+    if (sudahEnrolled.indexOf(nim) !== -1) {
+      nimSudahMasuk.push(nim);
+      continue;
+    }
+
+    // Lolos validasi — daftarkan
     var enrollmentId = "E-" + new Date().getTime() + "-" + i;
-    sheet.appendRow([enrollmentId, courseId, userIds[i]]);
+    sheet.appendRow([enrollmentId, courseId, nim]);
+    sudahEnrolled.push(nim); // Update daftar lokal agar iterasi berikutnya akurat
+    countBerhasil++;
   }
 
-  // Cache: daftar mahasiswa & ranking berubah
+  // Invalidasi cache
   invalidateCourseCache(courseId);
 
-  return { success: true, message: userIds.length + " Mahasiswa berhasil ditambahkan ke kelas!" };
+  // Susun pesan hasil yang informatif
+  var pesan = countBerhasil + ' mahasiswa berhasil didaftarkan.';
+
+  if (nimTidakAda.length > 0) {
+    pesan += '\n\n⚠️ ' + nimTidakAda.length + ' NIM tidak ditemukan di database USERS (tidak didaftarkan):\n'
+           + nimTidakAda.join(', ');
+  }
+
+  if (nimSudahMasuk.length > 0) {
+    pesan += '\n\nℹ️ ' + nimSudahMasuk.length + ' NIM sudah terdaftar di kelas ini (dilewati).';
+  }
+
+  return {
+    success       : true,
+    message       : pesan,
+    countBerhasil : countBerhasil,
+    nimTidakAda   : nimTidakAda,
+    nimSudahMasuk : nimSudahMasuk
+  };
+}
+
+// ══════════════════════════════════════════════
+//  IMPORT MAHASISWA DARI EXCEL SIMAK
+//  Baca NIM dari kolom B mulai baris 9 (B9:B)
+// ══════════════════════════════════════════════
+
+var _nimDariExcel = []; // Menyimpan sementara NIM hasil baca Excel
+
+function prosesImportExcelMhs(input) {
+  if (!input.files || !input.files[0]) return;
+
+  var file   = input.files[0];
+  var reader = new FileReader();
+
+  reader.onload = function(e) {
+    try {
+      var data     = new Uint8Array(e.target.result);
+      var workbook = XLSX.read(data, { type: 'array' });
+
+      // Ambil sheet pertama
+      var sheetName = workbook.SheetNames[0];
+      var sheet     = workbook.Sheets[sheetName];
+
+      // Konversi ke array of arrays (raw values)
+      var rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+
+      // Baca NIM dari kolom B (index 1) mulai baris 9 (index 8)
+      _nimDariExcel = [];
+      for (var i = 8; i < rows.length; i++) {
+        var nim = rows[i][1]; // Kolom B
+        if (nim !== null && nim !== undefined && String(nim).trim() !== '') {
+          _nimDariExcel.push(String(nim).trim());
+        }
+      }
+
+      if (_nimDariExcel.length === 0) {
+        alert('❌ Tidak ada NIM yang ditemukan di kolom B mulai baris 9.\nPastikan file adalah template SIMAK yang benar.');
+        input.value = '';
+        return;
+      }
+
+      // Tampilkan preview
+      _tampilkanPreviewNim(_nimDariExcel);
+
+    } catch(err) {
+      alert('❌ Gagal membaca file Excel. Pastikan file tidak rusak dan berformat .xlsx');
+      console.error(err);
+    }
+
+    // Reset input agar file yang sama bisa diupload ulang
+    input.value = '';
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+
+function _tampilkanPreviewNim(nimList) {
+  var container = document.getElementById('previewImportMhs');
+  var listEl    = document.getElementById('previewNimList');
+  var jumlahEl  = document.getElementById('previewJumlahNim');
+  var ketEl     = document.getElementById('previewKeteranganNim');
+
+  // Cek NIM mana yang sudah terdaftar di kelas ini
+  var enrolledBody = document.getElementById('enrolledBody');
+  var enrolledNims = [];
+  if (enrolledBody) {
+    var badges = enrolledBody.querySelectorAll('.badge-blue');
+    badges.forEach(function(b) { enrolledNims.push(b.innerText.trim()); });
+  }
+
+  var nimBaru    = nimList.filter(function(n) { return enrolledNims.indexOf(n) === -1; });
+  var nimDuplikat = nimList.filter(function(n) { return enrolledNims.indexOf(n) !== -1; });
+
+  jumlahEl.innerText = nimBaru.length + ' NIM baru';
+
+  if (nimDuplikat.length > 0) {
+    ketEl.innerText = '(' + nimDuplikat.length + ' NIM sudah terdaftar, dilewati otomatis)';
+  } else {
+    ketEl.innerText = '— semua baru';
+  }
+
+  // Render badge NIM
+  listEl.innerHTML = '';
+  nimList.forEach(function(nim) {
+    var isDuplikat = enrolledNims.indexOf(nim) !== -1;
+    listEl.innerHTML += '<span style="'
+      + 'display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;'
+      + (isDuplikat
+          ? 'background:rgba(92,200,240,0.08);color:#3a6a85;border:1px solid rgba(92,200,240,0.15);text-decoration:line-through;'
+          : 'background:rgba(52,201,138,0.18);color:var(--mint);border:1px solid rgba(52,201,138,0.3);')
+      + '">' + nim + '</span>';
+  });
+
+  // Update tombol: kirim hanya NIM yang belum terdaftar
+  document.getElementById('btnKonfirmasiImportMhs').setAttribute('data-nim-baru', JSON.stringify(nimBaru));
+
+  container.style.display = 'block';
+}
+
+function konfirmasiImportMahasiswaExcel() {
+  var btn     = document.getElementById('btnKonfirmasiImportMhs');
+  var nimBaru = JSON.parse(btn.getAttribute('data-nim-baru') || '[]');
+
+  if (nimBaru.length === 0) {
+    alert('Semua NIM dari file ini sudah terdaftar di kelas.');
+    return;
+  }
+
+  btn.innerText  = 'Mendaftarkan…';
+  btn.disabled   = true;
+
+  google.script.run
+    .withSuccessHandler(function(r) {
+      btn.innerText = '✅ Daftarkan Semua ke Kelas Ini';
+      btn.disabled  = false;
+
+      if (r.success) {
+        document.getElementById('previewImportMhs').style.display = 'none';
+        _nimDariExcel = [];
+        // Refresh panel kelas
+        bukaAnalitikKelas(activeCourseId, activeCourseName);
+      } else {
+        alert('❌ ' + r.message);
+      }
+    })
+    .withFailureHandler(function(err) {
+      btn.innerText = '✅ Daftarkan Semua ke Kelas Ini';
+      btn.disabled  = false;
+      alert('❌ Gagal: ' + err.message);
+    })
+    .enrollStudentsBatch(activeCourseId, nimBaru);
+}
+
+function batalImportMhs() {
+  document.getElementById('previewImportMhs').style.display = 'none';
+  _nimDariExcel = [];
 }
 
 // ==========================================
