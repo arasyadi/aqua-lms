@@ -2,6 +2,20 @@
 
 Semua perubahan yang signifikan pada proyek **AquaLearn LMS** akan didokumentasikan di file ini. 
 
+## [Unreleased] - 2026-03-16
+
+### ✨ Added (Fitur Baru)
+* **Smart Import Mahasiswa (Integrasi SIMAK)**: Menambahkan antarmuka pengunggahan file `.xlsx` untuk mendaftarkan mahasiswa ke dalam kelas secara massal.
+* **Live Preview Data Mahasiswa**: Menambahkan sistem *preview UI* yang memvalidasi *array* NIM hasil bacaan Excel. Dilengkapi fitur *Smart Filter* yang otomatis mencoret (melewati) NIM yang sudah ada di dalam tabel `ENROLLMENTS` kelas tersebut.
+* **Sistem Caching Tingkat Lanjut (`CacheService`)**: Mengimplementasikan penyimpanan memori di server Apps Script selama 5 menit.
+* **Auto-Hide Lesson Learn**: Tugas presensi yang sudah dikerjakan kini akan otomatis disembunyikan dari *dashboard* belajar mahasiswa.
+* **Smart Import Konten (`importKontenKelas`)**: Fitur impor Materi, Kuis, dan Presensi lintas kelas.
+* **Import Nilai Batch (`importNilaiBatch`)**: Input nilai ganda otomatis berdasarkan pencocokan NIM.
+
+### 🛠 Changed / Optimized (Pembaruan & Optimasi)
+* **Client-Side Data Processing**: Memindahkan beban komputasi pembacaan *file* Excel (untuk Import Mahasiswa dan Import Nilai) sepenuhnya ke sisi *browser* (Client-Side) menggunakan library `SheetJS`. Menghemat durasi eksekusi Google Apps Script dan mencegah batas waktu habis (*timeout*).
+* **Split Cache Architecture (Pemisahan Cache)**: Merestrukturisasi pengambilan data menjadi *Shared Cache* dan *Personal Cache* untuk mencegah *Cross-User Data Leak*.
+
 ## [Unreleased] - 2026-03-15
 
 ### ✨ Added (Fitur Baru)
