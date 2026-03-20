@@ -519,6 +519,7 @@ function hapusMataKuliah(courseId, dosenId) {
   hapusBarisTerkait("LESSON_ASSIGN", 1, [courseId]);
   hapusBarisTerkait("NILAI",  0, [courseId]);
   hapusBarisTerkait("JADWAL", 0, [courseId]);
+  hapusBarisTerkait("GRADE_CONFIG", 0, [courseId]);
 
   courseSheet.deleteRow(courseRowIndex);
 
@@ -1167,7 +1168,8 @@ function getPaketDataRuangKelas(courseId, userId) {
     quizzes   : dataPersonal.quizzes, // Mengambil kuis dari area personal
     jadwal    : dataKelas.jadwal,
     lessons   : lessonsBelumDijawab,
-    nilai     : dataPersonal.nilai
+    nilai     : dataPersonal.nilai,
+    gradeConfig : getAdminGradeConfig(courseId)
   };
 }
 
@@ -1361,4 +1363,55 @@ function getSubmittedLessonIds(userId) {
     }
   }
   return ids;
+}
+
+// ==========================================
+// FITUR BARU: KALKULASI & RILIS NILAI AKHIR
+// ==========================================
+
+// 1. Mengambil pengaturan bobot nilai dari dosen
+function getAdminGradeConfig(courseId) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("GRADE_CONFIG");
+  // Jika sheet belum ada, buat otomatis nilainya default (kosong dan belum rilis)
+  if (!sheet) return { bobot: {}, is_released: false };
+  
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === String(courseId).trim()) {
+      return {
+        bobot: JSON.parse(data[i][1] || "{}"),
+        is_released: data[i][2] === true || String(data[i][2]).toUpperCase() === "TRUE"
+      };
+    }
+  }
+  return { bobot: {}, is_released: false };
+}
+
+// 2. Menyimpan pengaturan bobot & status rilis nilai
+function saveGradeConfig(courseId, bobotJsonStr, isReleased) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("GRADE_CONFIG");
+  // Buat sheet otomatis jika baru pertama kali dipakai
+  if (!sheet) {
+    sheet = ss.insertSheet("GRADE_CONFIG");
+    sheet.appendRow(["course_id", "komponen_bobot", "is_released"]);
+    sheet.getRange("A1:C1").setFontWeight("bold");
+  }
+  
+  var data = sheet.getDataRange().getValues();
+  var found = false;
+  // Cari apakah pengaturan kelas ini sudah ada sebelumnya
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === String(courseId).trim()) {
+      sheet.getRange(i + 1, 2).setValue(bobotJsonStr);
+      sheet.getRange(i + 1, 3).setValue(isReleased);
+      found = true; 
+      break;
+    }
+  }
+  // Jika kelas baru, tambahkan baris baru
+  if (!found) sheet.appendRow([courseId, bobotJsonStr, isReleased]);
+  
+  return { success: true, message: "Pengaturan Bobot & Rilis Nilai berhasil disimpan!" };
 }
