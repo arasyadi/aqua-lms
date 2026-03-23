@@ -1174,9 +1174,9 @@ function getPaketDataRuangKelas(courseId, userId) {
 }
 
 // ==========================================
-// FITUR BARU: IMPOR KONTEN DARI KELAS LAIN (SMART IMPORT ANTI DUPLIKASI)
+// FITUR: IMPOR KONTEN DARI KELAS LAIN (SMART IMPORT ANTI DUPLIKASI + DEADLINE BARU)
 // ==========================================
-function importKontenKelas(sourceCourseId, targetCourseId) {
+function importKontenKelas(sourceCourseId, targetCourseId, newDeadline) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
   var sourceMaterials = getSheetData("MATERIALS").filter(function(m) { return String(m.course_id).trim() === String(sourceCourseId).trim(); });
@@ -1198,6 +1198,7 @@ function importKontenKelas(sourceCourseId, targetCourseId) {
   var timeBase = new Date().getTime();
   var countMat = 0, countQuiz = 0, countLesson = 0;
 
+  // 1. Salin Materi
   if (sourceMaterials.length > 0) {
     var matSheet = ss.getSheetByName("MATERIALS");
     for (var i = 0; i < sourceMaterials.length; i++) {
@@ -1208,6 +1209,7 @@ function importKontenKelas(sourceCourseId, targetCourseId) {
     }
   }
 
+  // 2. Salin Kuis
   if (sourceQuizzes.length > 0) {
     var quizSheet = ss.getSheetByName("QUIZ");
     for (var j = 0; j < sourceQuizzes.length; j++) {
@@ -1218,17 +1220,19 @@ function importKontenKelas(sourceCourseId, targetCourseId) {
     }
   }
 
+  // 3. Salin Lesson Learn (Gunakan Deadline Baru)
   if (sourceLessons.length > 0) {
     var lessonSheet = ss.getSheetByName("LESSON_ASSIGN");
     for (var k = 0; k < sourceLessons.length; k++) {
       if (existingLessonTopics.indexOf(String(sourceLessons[k].topic).toLowerCase().trim()) === -1) {
-        lessonSheet.appendRow(["L-" + timeBase + "-IMP" + k, targetCourseId, sourceLessons[k].topic, sourceLessons[k].deadline]);
+        // PERHATIAN: Di sini kita menimpa deadline lama dengan newDeadline dari frontend
+        lessonSheet.appendRow(["L-" + timeBase + "-IMP" + k, targetCourseId, sourceLessons[k].topic, newDeadline]);
         countLesson++;
       }
     }
   }
 
-  // Cache: konten kelas target berubah
+  // Cache: konten kelas target berubah (Beresihkan memori cache agar update langsung tampil)
   if (countMat + countQuiz + countLesson > 0) {
     invalidateCourseCache(targetCourseId);
   }
@@ -1414,4 +1418,120 @@ function saveGradeConfig(courseId, bobotJsonStr, isReleased) {
   if (!found) sheet.appendRow([courseId, bobotJsonStr, isReleased]);
   
   return { success: true, message: "Pengaturan Bobot & Rilis Nilai berhasil disimpan!" };
+}
+
+// ==========================================
+// FITUR KEAMANAN: BINDING 1 DEVICE 1 AKUN
+// ==========================================
+
+// 1. Fungsi Cek & Kunci Perangkat
+function verifikasiDeviceBinding(userId, deviceToken) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("DEVICE_BINDING");
+  
+  // Jika sheet belum ada, buat otomatis
+  if (!sheet) {
+    sheet = ss.insertSheet("DEVICE_BINDING");
+    sheet.appendRow(["user_id", "device_token", "waktu_tertaut"]);
+    sheet.getRange("A1:C1").setFontWeight("bold");
+  }
+
+  var data = sheet.getDataRange().getValues();
+
+  // Cek apakah mahasiswa ini sudah pernah login sebelumnya
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === String(userId).trim()) {
+      var savedToken = String(data[i][1]).trim();
+      
+      // Jika token cocok (Login dari HP yang sama)
+      if (savedToken === String(deviceToken).trim()) {
+        return { success: true, isNewBind: false };
+      } 
+      // Jika token BEDA (Login dari HP lain/HP Joki)
+      else {
+        
+        // --- LOGIKA BARU: BACA INFO DEVICE LAMA ---
+        // Memecah token "android_chrome_kodeunik" menjadi array
+        var tokenParts = savedToken.split('_'); 
+        
+        // Ambil bagian OS dan Browser, beri default jika format lama
+        var savedOs = (tokenParts.length > 0) ? tokenParts[0] : "Tidak diketahui";
+        var savedBrowser = (tokenParts.length > 1) ? tokenParts[1] : "Tidak diketahui";
+        
+        // Fungsi pembantu agar huruf pertamanya kapital (android -> Android)
+        function hurufKapital(teks) {
+          if (!teks || teks === "unknown") return "Tidak Dikenali";
+          return teks.charAt(0).toUpperCase() + teks.slice(1);
+        }
+
+        // Susun pesan peringatannya
+        var pesanPeringatan = "⛔ Akses Ditolak: Akun Anda sudah tertaut dengan perangkat lain. Dilarang menggunakan perangkat berbeda. Hubungi Dosen jika Anda membeli HP/Laptop baru.\n\n" +
+                              "📱 Login Terakhir Anda:\n" +
+                              "Perangkat: " + hurufKapital(savedOs) + "\n" +
+                              "Browser: " + hurufKapital(savedBrowser);
+
+        return { 
+          success: false, 
+          message: pesanPeringatan 
+        };
+      }
+    }
+  }
+
+  // Jika user belum ada di database, artinya ini LOGIN PERTAMA.
+  sheet.appendRow([userId, deviceToken, new Date()]);
+  return { success: true, isNewBind: true };
+}
+
+// 2. Fungsi Reset BATCH (Banyak Mahasiswa Sekaligus)
+function resetDeviceBindingBatch(nimArray) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("DEVICE_BINDING");
+  
+  if (!sheet) return { success: false, message: "Database binding belum ada." };
+
+  var data = sheet.getDataRange().getValues();
+  var countReset = 0;
+
+  // Pastikan semua NIM dalam array berformat string dan tidak ada spasi agar cocok
+  var nimListToReset = nimArray.map(function(nim) { return String(nim).trim(); });
+
+  // Loop dari BAWAH KE ATAS (wajib jika kita ingin menghapus baris)
+  for (var i = data.length - 1; i > 0; i--) {
+    var rowUserId = String(data[i][0]).trim();
+    
+    // Jika NIM di baris ini ada di dalam daftar NIM yang dicentang Dosen
+    if (nimListToReset.indexOf(rowUserId) !== -1) {
+      sheet.deleteRow(i + 1);
+      countReset++;
+    }
+  }
+
+  // Berikan laporan balik ke Dosen
+  if (countReset > 0) {
+    return { success: true, message: "✅ Berhasil mereset " + countReset + " perangkat mahasiswa. Mahasiswa sudah bisa login di perangkat barunya." };
+  } else {
+    return { success: false, message: "Tidak ada perangkat yang direset. Mahasiswa yang Anda pilih mungkin belum pernah login sama sekali." };
+  }
+}
+
+// ==========================================
+// FITUR: REFRESH DATA & AMBIL SEMUA KONTEN KELAS (1 API CALL)
+// ==========================================
+function refreshAndGetCourseData(courseId) {
+  try {
+    // 1. Hapus cache lama
+    invalidateCourseCache(courseId);
+    
+    // 2. Ambil semua data segar secara bersamaan
+    return { 
+      success: true, 
+      materials: getCourseMaterials(courseId),
+      quizzes: getCourseQuizzes(courseId),
+      lessons: getCourseLessons(courseId),
+      message: "Data kelas berhasil disinkronisasi!" 
+    };
+  } catch (e) {
+    return { success: false, message: "Gagal mereset data: " + e.toString() };
+  }
 }
