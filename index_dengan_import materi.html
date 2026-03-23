@@ -5,8 +5,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AquaLearn LMS</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Lora:wght@600;700&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -29,6 +27,8 @@
       color: #d6edf8;
       min-height: 100vh;
       overflow-x: hidden;
+      margin: 0;        /* ← tambah ini */
+      padding: 0;       /* ← tambah ini */
     }
     #ocean-bg {
       position: fixed; inset: 0; z-index: 0; pointer-events: none;
@@ -39,7 +39,9 @@
         linear-gradient(180deg, #060f1e 0%, #0b1f3a 100%);
     }
     .bubble {
-      position: fixed; border-radius: 50%; pointer-events: none; z-index: 0;
+      position: absolute; /* ← ganti dari fixed ke absolute */
+      border-radius: 50%; pointer-events: none;
+      /* hapus z-index dari sini, dikontrol oleh container */
       background: radial-gradient(circle at 30% 30%, rgba(92,200,240,0.15), rgba(33,150,211,0.03));
       border: 1px solid rgba(92,200,240,0.1);
       animation: rise linear infinite;
@@ -193,7 +195,41 @@
       font-family: 'Lora', serif; font-size: 18px; color: var(--foam);
       margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--border);
     }
-  </style>
+  
+/* ── Tailwind replacements (CDN dihapus, class dipertahankan) ── */
+.flex            { display: flex; }
+.flex-col        { flex-direction: column; }
+.flex-wrap       { flex-wrap: wrap; }
+.grid            { display: grid; }
+.items-center    { align-items: center; }
+.items-baseline  { align-items: baseline; }
+.justify-center  { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.ml-auto         { margin-left: auto; }
+.text-center     { text-align: center; }
+.text-2xl        { font-size: 1.5rem; }
+.text-5xl        { font-size: 3rem; }
+.overflow-hidden { overflow: hidden; }
+.w-full          { width: 100%; }
+.gap-3           { gap: 0.75rem; }
+.gap-4           { gap: 1rem; }
+.space-y-3 > * + * { margin-top: 0.75rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-3 { margin-bottom: 0.75rem; }
+.mb-4 { margin-bottom: 1rem; }
+.mb-6 { margin-bottom: 1.5rem; }
+.mb-8 { margin-bottom: 2rem; }
+.mt-3 { margin-top: 0.75rem; }
+.mt-4 { margin-top: 1rem; }
+.mt-5 { margin-top: 1.25rem; }
+.mt-8 { margin-top: 2rem; }
+.p-2  { padding: 0.5rem; }
+.p-4  { padding: 1rem; }
+.p-5  { padding: 1.25rem; }
+.rounded-xl  { border-radius: 0.75rem; }
+.rounded-2xl { border-radius: 1rem; }
+
+</style>
 </head>
 <body>
 
@@ -646,6 +682,11 @@
 <!-- BUBBLES -->
 <script>
 (function(){
+  // Buat dedicated layer dengan stacking context sendiri
+  var layer = document.createElement('div');
+  layer.style.cssText = 'position:fixed;inset:0;z-index:3;pointer-events:none;overflow:hidden;';
+  document.body.appendChild(layer);
+
   var cfg=[
     {s:55,l:4, d:19,del:0 },{s:80,l:13,d:26,del:4 },{s:38,l:22,d:17,del:8 },
     {s:110,l:32,d:32,del:2 },{s:28,l:44,d:15,del:11},{s:70,l:56,d:24,del:6 },
@@ -654,9 +695,10 @@
   cfg.forEach(function(c){
     var el=document.createElement('div');el.className='bubble';
     el.style.cssText='width:'+c.s+'px;height:'+c.s+'px;left:'+c.l+'%;animation-duration:'+c.d+'s;animation-delay:-'+c.del+'s;';
-    document.body.appendChild(el);
+    layer.appendChild(el); // ← append ke layer, bukan body
   });
 })();
+
 </script>
 
 <!-- APP LOGIC -->
@@ -1332,6 +1374,24 @@ function _tampilkanErrorAnalitik(pesanHtml) {
   }
 
 // ══════════════════════════════════════════════
+//  LAZY LOADER — xlsx.js dimuat hanya saat dibutuhkan
+// ══════════════════════════════════════════════
+
+function _loadXLSX(callback) {
+  if (typeof XLSX !== 'undefined') {
+    callback();
+    return;
+  }
+  var s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  s.onload = function() { callback(); };
+  s.onerror = function() {
+    alert('❌ Gagal memuat library Excel. Periksa koneksi internet Anda dan coba lagi.');
+  };
+  document.head.appendChild(s);
+}
+
+// ══════════════════════════════════════════════
 //  IMPORT MAHASISWA DARI EXCEL SIMAK
 //  Baca NIM dari kolom B mulai baris 9 (B9:B)
 // ══════════════════════════════════════════════
@@ -1340,8 +1400,14 @@ var _nimDariExcel = []; // Menyimpan sementara NIM hasil baca Excel
 
 function prosesImportExcelMhs(input) {
   if (!input.files || !input.files[0]) return;
+  var file = input.files[0];
 
-  var file   = input.files[0];
+  _loadXLSX(function() {
+    _bacaExcelMhs(file, input);
+  });
+}
+
+function _bacaExcelMhs(file, input) {
   var reader = new FileReader();
 
   reader.onload = function(e) {
@@ -1349,14 +1415,10 @@ function prosesImportExcelMhs(input) {
       var data     = new Uint8Array(e.target.result);
       var workbook = XLSX.read(data, { type: 'array' });
 
-      // Ambil sheet pertama
       var sheetName = workbook.SheetNames[0];
       var sheet     = workbook.Sheets[sheetName];
+      var rows      = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
 
-      // Konversi ke array of arrays (raw values)
-      var rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
-
-      // Baca NIM dari kolom B (index 1) mulai baris 9 (index 8)
       _nimDariExcel = [];
       for (var i = 8; i < rows.length; i++) {
         var nim = rows[i][1]; // Kolom B
@@ -1371,7 +1433,6 @@ function prosesImportExcelMhs(input) {
         return;
       }
 
-      // Tampilkan preview
       _tampilkanPreviewNim(_nimDariExcel);
 
     } catch(err) {
@@ -1379,7 +1440,6 @@ function prosesImportExcelMhs(input) {
       console.error(err);
     }
 
-    // Reset input agar file yang sama bisa diupload ulang
     input.value = '';
   };
 
@@ -1619,77 +1679,91 @@ function batalImportMhs() {
   }
 
   function prosesImportNilaiExcel() {
-    var jenisNilai = document.getElementById('importJenisNilai').value.trim();
-    var fileInput = document.getElementById('fileImportNilai');
+  var jenisNilai = document.getElementById('importJenisNilai').value.trim();
+  var fileInput  = document.getElementById('fileImportNilai');
+  var btn        = document.getElementById('btnProsesImportNilai');
 
-    if (!jenisNilai) { alert('Jenis Penilaian wajib diisi!'); return; }
-    if (fileInput.files.length === 0) { alert('Silakan pilih file Excel/CSV terlebih dahulu!'); return; }
+  if (!jenisNilai) { alert('Jenis Penilaian wajib diisi!'); return; }
+  if (fileInput.files.length === 0) { alert('Silakan pilih file Excel/CSV terlebih dahulu!'); return; }
 
-    var file = fileInput.files[0];
-    var reader = new FileReader();
-    var btn = document.getElementById('btnProsesImportNilai');
-    
-    btn.innerText = 'Membaca File...'; btn.disabled = true;
+  var file = fileInput.files[0];
 
-    reader.onload = function(e) {
-      try {
-        var data = new Uint8Array(e.target.result);
-        var workbook = XLSX.read(data, {type: 'array'});
-        var firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        var jsonData = XLSX.utils.sheet_to_json(firstSheet, {defval: ""});
+  btn.innerText = 'Memuat library...';
+  btn.disabled  = true;
 
-        var parsedData = [];
-        for (var i = 0; i < jsonData.length; i++) {
-          var row = jsonData[i];
-          
-          // Smart Detector: Deteksi otomatis nama kolom dari Google Forms / SIAKAD
-          var nim = row["NIM"] || row["nim"] || row["Username"] || row["NIM / ID"];
-          var nilai = row["Nilai"] || row["nilai"] || row["Skor"] || row["Score"] || row["Total score"];
+  _loadXLSX(function() {
+    _bacaExcelNilai(file, jenisNilai, btn);
+  });
+}
 
-          // Jika Google Forms memformat skor menjadi "85.00 / 100", ambil angka depannya saja
-          if (typeof nilai === 'string' && nilai.includes('/')) {
-            nilai = nilai.split('/')[0].trim();
-          }
+function _bacaExcelNilai(file, jenisNilai, btn) {
+  var reader = new FileReader();
 
-          if (nim && nilai !== undefined && nilai !== "") {
-            parsedData.push({ nim: String(nim).trim(), nilai: parseFloat(nilai) });
-          }
+  btn.innerText = 'Membaca File...';
+
+  reader.onload = function(e) {
+    try {
+      var data       = new Uint8Array(e.target.result);
+      var workbook   = XLSX.read(data, { type: 'array' });
+      var firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      var jsonData   = XLSX.utils.sheet_to_json(firstSheet, { defval: '' });
+
+      var parsedData = [];
+      for (var i = 0; i < jsonData.length; i++) {
+        var row = jsonData[i];
+
+        // Smart Detector: Deteksi otomatis nama kolom dari Google Forms / SIAKAD
+        var nim   = row['NIM'] || row['nim'] || row['Username'] || row['NIM / ID'];
+        var nilai = row['Nilai'] || row['nilai'] || row['Skor'] || row['Score'] || row['Total score'];
+
+        // Jika Google Forms memformat skor menjadi "85.00 / 100", ambil angka depannya saja
+        if (typeof nilai === 'string' && nilai.includes('/')) {
+          nilai = nilai.split('/')[0].trim();
         }
 
-        if (parsedData.length === 0) {
-          alert('Gagal: Tidak menemukan kolom "NIM" dan "Skor/Nilai" di dalam file. Pastikan nama kolom di baris pertama Excel Anda sudah benar.');
-          btn.innerText = '📤 Proses Impor'; btn.disabled = false;
-          return;
+        if (nim && nilai !== undefined && nilai !== '') {
+          parsedData.push({ nim: String(nim).trim(), nilai: parseFloat(nilai) });
         }
-
-        btn.innerText = 'Menyimpan ke Database...';
-
-        // Kirim ke backend menggunakan Failure Handler (Anti Stuck)
-        google.script.run
-          .withSuccessHandler(function(r) {
-            btn.innerText = '📤 Proses Impor'; btn.disabled = false;
-            if (r.success) {
-              alert('✅ ' + r.message);
-              tutupModalImportNilai();
-              google.script.run.withSuccessHandler(renderTabelNilaiDosen).getSemuaNilaiKelas(activeCourseId);
-            } else {
-              alert('❌ ' + r.message);
-            }
-          })
-          .withFailureHandler(function(err) {
-            btn.innerText = '📤 Proses Impor'; btn.disabled = false;
-            alert('Terjadi kesalahan koneksi: ' + err.message);
-          })
-          .importNilaiBatch(activeCourseId, jenisNilai, parsedData);
-
-      } catch (err) {
-        btn.innerText = '📤 Proses Impor'; btn.disabled = false;
-        alert('Gagal membaca file. Pastikan file tidak rusak dan berformat Excel/CSV.');
       }
-    };
 
-    reader.readAsArrayBuffer(file);
-  }
+      if (parsedData.length === 0) {
+        alert('Gagal: Tidak menemukan kolom "NIM" dan "Skor/Nilai" di dalam file. Pastikan nama kolom di baris pertama Excel Anda sudah benar.');
+        btn.innerText = '📤 Proses Impor';
+        btn.disabled  = false;
+        return;
+      }
+
+      btn.innerText = 'Menyimpan ke Database...';
+
+      // Kirim ke backend menggunakan Failure Handler (Anti Stuck)
+      google.script.run
+        .withSuccessHandler(function(r) {
+          btn.innerText = '📤 Proses Impor';
+          btn.disabled  = false;
+          if (r.success) {
+            alert('✅ ' + r.message);
+            tutupModalImportNilai();
+            google.script.run.withSuccessHandler(renderTabelNilaiDosen).getSemuaNilaiKelas(activeCourseId);
+          } else {
+            alert('❌ ' + r.message);
+          }
+        })
+        .withFailureHandler(function(err) {
+          btn.innerText = '📤 Proses Impor';
+          btn.disabled  = false;
+          alert('Terjadi kesalahan koneksi: ' + err.message);
+        })
+        .importNilaiBatch(activeCourseId, jenisNilai, parsedData);
+
+    } catch (err) {
+      btn.innerText = '📤 Proses Impor';
+      btn.disabled  = false;
+      alert('Gagal membaca file. Pastikan file tidak rusak dan berformat Excel/CSV.');
+    }
+  };
+
+  reader.readAsArrayBuffer(file);
+}
 
   // ══════════════════════════════════
   // FITUR BARU: KALENDER PERTEMUAN
@@ -1912,30 +1986,37 @@ function refreshDataKelas() {
   }
 
   function prosesExportNilai() {
-    var tahunAjaran = document.getElementById('exportTahunAjaran').value.trim();
-    var semester    = document.getElementById('exportSemester').value.trim();
-    var pengampu    = document.getElementById('exportPengampu').value.trim();
-    
-    if (!tahunAjaran || !semester || !pengampu) {
-      alert('Mohon lengkapi semua data sebelum export!'); return;
-    }
-    
-    var btnExport = document.getElementById('btnProsesExport');
-    btnExport.innerText = 'Memproses...'; btnExport.disabled = true;
+  var tahunAjaran = document.getElementById('exportTahunAjaran').value.trim();
+  var semester    = document.getElementById('exportSemester').value.trim();
+  var pengampu    = document.getElementById('exportPengampu').value.trim();
 
-    // 1. Ambil Pengaturan Bobot (Grade Config) terlebih dahulu
+  if (!tahunAjaran || !semester || !pengampu) {
+    alert('Mohon lengkapi semua data sebelum export!'); return;
+  }
+
+  var btnExport = document.getElementById('btnProsesExport');
+  btnExport.innerText = 'Memuat library...';
+  btnExport.disabled  = true;
+
+  // Pastikan XLSX sudah tersedia sebelum mengambil data apapun
+  _loadXLSX(function() {
+
+    btnExport.innerText = 'Memproses...';
+
+    // Alur asli: ambil config bobot dulu, lalu ambil data nilai
     google.script.run.withSuccessHandler(function(configBobot) {
-      
-      // 2. Setelah bobot didapat, ambil data nilai mentah dari Sheet
+
       google.script.run.withSuccessHandler(function(dataNilai) {
-        btnExport.innerText = '📥 Download Excel'; btnExport.disabled = false;
+        btnExport.innerText = '📥 Download Excel';
+        btnExport.disabled  = false;
         tutupModalExport();
-        // 3. Kirim data nilai sekaligus config bobot ke fungsi pembuat Excel
         generateExcelNilai(dataNilai, configBobot, tahunAjaran, semester, pengampu);
       }).getSemuaNilaiKelas(activeCourseId);
-      
+
     }).getAdminGradeConfig(activeCourseId);
-  }
+
+  });
+}
 
   function generateExcelNilai(dataNilai, configBobot, tahunAjaran, semester, pengampu) {
     if (!dataNilai || dataNilai.length === 0) {
