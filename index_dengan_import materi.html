@@ -346,6 +346,7 @@
       <div class="topbar-sub">Dosen</div>
     </div>
     <div class="ml-auto flex items-center gap-3">
+      <button id="btnRefreshData" class="btn btn-ghost btn-sm" onclick="refreshDataKelas()" title="Tarik data terbaru langsung dari Spreadsheet" style="color: #4dd0e1; font-weight: 500;">🔄 Refresh Data</button>
       <button class="btn btn-ghost btn-sm" onclick="kembaliKeDashboardDosen()">← Daftar Kelas</button>
       <button class="btn btn-coral btn-sm" onclick="logout()">Keluar</button>
     </div>
@@ -578,6 +579,7 @@
             <button class="btn btn-ocean btn-sm" id="btnTambahMhs" onclick="masukkanMahasiswaBatch()">+ Masukkan Mahasiswa Terpilih</button>
             <button class="btn btn-teal btn-sm" onclick="document.getElementById('inputExcelMhs').click()">📂 Import dari Excel SIMAK</button>
             <input type="file" id="inputExcelMhs" accept=".xlsx,.xls" style="display:none;" onchange="prosesImportExcelMhs(this)">
+            <button class="btn btn-coral btn-sm" onclick="resetPerangkatBatch()">🔓 Reset Perangkat Mahasiswa</button>
           </div>
 
       <!-- Preview hasil baca Excel sebelum dieksekusi -->
@@ -700,10 +702,49 @@
 
   function handleLoginResponse(response) {
     if (response.success) {
-      currentUserInfo = response;
-      localStorage.setItem('lms_session', JSON.stringify(response));
-      applySession(response);
+      
+      // ─── 1. CEK JIKA YANG LOGIN ADALAH MAHASISWA ───
+      if (response.role === 'Mahasiswa') {
+        
+        document.getElementById('message').innerText = 'Memverifikasi keamanan perangkat... 🔒';
+        
+        var userIdInput = document.getElementById('username').value.trim();
+        var tokenHP = dapatkanDeviceToken(); // Memanggil fungsi pembuat token yang kita buat sebelumnya
+
+        // Kirim token ke server untuk dicocokkan
+        google.script.run.withSuccessHandler(function(cekDevice) {
+          
+          if (!cekDevice.success) {
+            // ❌ GAGAL: Perangkat berbeda (indikasi joki)
+            document.getElementById('message').innerText = "Akses Ditolak: Perangkat tidak dikenali.";
+            alert(cekDevice.message); // Munculkan peringatan ke mahasiswa
+            return; // Hentikan proses, jangan biarkan masuk dashboard
+          } 
+          else {
+            // ✅ SUKSES: Perangkat sama ATAU baru pertama kali login
+            if (cekDevice.isNewBind) {
+               alert("✅ PERHATIAN: Perangkat (Browser) ini sekarang telah ditautkan secara permanen dengan akun Anda. Jangan gunakan mode Samaran (Incognito) atau menghapus Cache Browser.");
+            }
+            
+            // Lanjutkan proses login normal
+            document.getElementById('message').innerText = 'Berhasil masuk...';
+            currentUserInfo = response;
+            localStorage.setItem('lms_session', JSON.stringify(response));
+            applySession(response);
+          }
+          
+        }).verifikasiDeviceBinding(userIdInput, tokenHP);
+
+      } 
+      // ─── 2. JIKA YANG LOGIN ADALAH DOSEN (BEBAS DEVICE) ───
+      else {
+        currentUserInfo = response;
+        localStorage.setItem('lms_session', JSON.stringify(response));
+        applySession(response);
+      }
+
     } else {
+      // Jika password atau username salah dari awal
       document.getElementById('message').innerText = response.message;
     }
   }
@@ -720,6 +761,44 @@
       showView('lecturerDashboardView');
       memuatDashboardDosen();
     }
+  }
+
+  // Fungsi pembuat Token Deskriptif (Mendeteksi OS & Browser)
+  function dapatkanDeviceToken() {
+    var token = localStorage.getItem('aqua_lms_device_token');
+    
+    // Jika belum punya kunci, kita buatkan yang baru dan deskriptif
+    if (!token) {
+      var ua = navigator.userAgent.toLowerCase();
+      var os = "unknown";
+      var browser = "unknown";
+
+      // 1. Deteksi Sistem Operasi (OS)
+      if (ua.indexOf("android") > -1) os = "android";
+      else if (ua.indexOf("iphone") > -1) os = "iphone";
+      else if (ua.indexOf("ipad") > -1) os = "ipad";
+      else if (ua.indexOf("windows") > -1) os = "windows";
+      else if (ua.indexOf("mac") > -1) os = "macintosh";
+      else if (ua.indexOf("linux") > -1) os = "linux";
+
+      // 2. Deteksi Nama Browser
+      // Urutan pengecekan ini penting karena beberapa browser memakai 'mesin' yang sama
+      if (ua.indexOf("edg") > -1) browser = "edge";
+      else if (ua.indexOf("opr") > -1 || ua.indexOf("opera") > -1) browser = "opera";
+      else if (ua.indexOf("chrome") > -1) browser = "chrome";
+      else if (ua.indexOf("safari") > -1 && ua.indexOf("chrome") === -1) browser = "safari";
+      else if (ua.indexOf("firefox") > -1) browser = "firefox";
+
+      // 3. Gabungkan OS, Browser, dan Kode Unik (Waktu + Acak)
+      var kodeUnik = Math.random().toString(36).substr(2, 5);
+      
+      // Hasilnya akan seperti: android_chrome_x7y9z
+      token = os + '_' + browser + '_' + kodeUnik;
+      
+      localStorage.setItem('aqua_lms_device_token', token);
+    }
+    
+    return token;
   }
 
   function checkSession() {
@@ -743,6 +822,47 @@
     document.getElementById('username').value = '';
     document.getElementById('password').value = '';
     document.getElementById('message').innerText = '';
+  }
+
+  // ==========================================
+  // FITUR DOSEN: RESET DEVICE MAHASISWA (BATCH)
+  // ==========================================
+  function resetPerangkatBatch() {
+    // 1. Cari semua checkbox yang dicentang di dalam area Daftar Mahasiswa
+    var checkboxes = document.querySelectorAll('#studentCheckboxList input[type="checkbox"]:checked');
+    var selectedNims = [];
+    
+    // 2. Kumpulkan NIM dari checkbox yang dicentang
+    for (var i = 0; i < checkboxes.length; i++) {
+      selectedNims.push(checkboxes[i].value); // Mengambil value (NIM) dari checkbox
+    }
+
+    // 3. Validasi jika dosen belum mencentang siapapun
+    if (selectedNims.length === 0) {
+      alert("⚠️ Silakan centang minimal satu mahasiswa terlebih dahulu dari daftar di atas.");
+      return;
+    }
+
+    // 4. Konfirmasi tindakan
+    if (confirm("Anda yakin ingin mereset pengikatan perangkat untuk " + selectedNims.length + " mahasiswa terpilih?\n\nSetelah direset, mahasiswa dapat login kembali menggunakan perangkat atau browser baru.")) {
+      
+      // 5. Kirim kumpulan NIM tersebut ke server (Backend)
+      google.script.run.withSuccessHandler(function(response) {
+        
+        if (response.success) {
+          alert(response.message);
+          // Opsional: Hilangkan centang setelah berhasil direset
+          for (var j = 0; j < checkboxes.length; j++) {
+            checkboxes[j].checked = false;
+          }
+        } else {
+          alert("❌ " + response.message);
+        }
+        
+      }).withFailureHandler(function(err) {
+        alert("❌ Gagal terhubung ke server. Coba lagi.");
+      }).resetDeviceBindingBatch(selectedNims); // <-- Memanggil fungsi baru di server
+    }
   }
 
   // ════════ MAHASISWA ════════
@@ -1668,6 +1788,38 @@ function batalImportMhs() {
     }).join('');
   }
 
+  // Fungsi untuk memicu pembaruan data dari server (Dioptimasi jadi 1 API Call)
+function refreshDataKelas() {
+  if (!activeCourseId) {
+    alert("Tidak ada kelas yang sedang aktif.");
+    return;
+  }
+
+  var btn = document.getElementById('btnRefreshData');
+  if (btn) { 
+    btn.innerHTML = '⏳ Memperbarui...'; 
+    btn.disabled = true; 
+  }
+
+  // Panggil 1 fungsi super yang mengurus cache dan mengambil data sekaligus
+  google.script.run.withSuccessHandler(function(r) {
+    if (btn) { 
+      btn.innerHTML = '🔄 Refresh Data'; 
+      btn.disabled = false; 
+    }
+
+    if (r.success) {
+      // Langsung render (tampilkan) semua data dari 1 respon server
+      renderManajemenMateri(r.materials);
+      renderManajemenKuis(r.quizzes);
+      renderManajemenLesson(r.lessons);
+      console.log("Sinkronisasi berhasil."); 
+    } else {
+      alert("❌ " + r.message);
+    }
+  }).refreshAndGetCourseData(activeCourseId);
+}
+
   // ══════════════════════════════════════════
   // FITUR EXPORT NILAI KE EXCEL
   // ══════════════════════════════════════════
@@ -1702,9 +1854,11 @@ function batalImportMhs() {
   // FITUR IMPOR KONTEN ANTAR KELAS
   // ══════════════════════════════════════════
 
+  // Modifikasi fungsi buka modal agar mereset tanggal
   function bukaModalImport() {
     document.getElementById('importTargetName').innerText = activeCourseName;
     document.getElementById('importSourceCourse').innerHTML = '<option value="">-- Memuat kelas... --</option>';
+    document.getElementById('importNewDeadline').value = ''; // Reset input tanggal
     document.getElementById('importModalOverlay').style.display = 'flex';
 
     google.script.run.withSuccessHandler(function(courses) {
@@ -1718,14 +1872,19 @@ function batalImportMhs() {
     }).getLecturerCourses(currentUserInfo.userId);
   }
 
-  function tutupModalImport() {
-    document.getElementById('importModalOverlay').style.display = 'none';
-  }
-
+  // Modifikasi fungsi proses untuk mem-parsing tanggal baru
   function prosesImportKonten() {
     var sourceCourseId = document.getElementById('importSourceCourse').value;
+    var rawDate = document.getElementById('importNewDeadline').value; // Ambil nilai tanggal
+
     if (!sourceCourseId) { alert('Silakan pilih kelas sumber terlebih dahulu!'); return; }
+    if (!rawDate) { alert('Silakan tentukan Deadline Lesson Learn untuk kelas ini!'); return; }
+
     if (!confirm('Yakin ingin menyalin semua konten dari kelas tersebut ke kelas ini?')) { return; }
+
+    // Format tanggal dari YYYY-MM-DD (bawaan input date HTML) menjadi DD-MM-YYYY (standar backend kita)
+    var parts = rawDate.split('-');
+    var formattedDeadline = parts[2] + '-' + parts[1] + '-' + parts[0];
 
     var btn = document.getElementById('btnProsesImport');
     btn.innerText = 'Menyalin Data...'; btn.disabled = true;
@@ -1741,7 +1900,11 @@ function batalImportMhs() {
       } else {
         alert('❌ ' + r.message);
       }
-    }).importKontenKelas(sourceCourseId, activeCourseId);
+    }).importKontenKelas(sourceCourseId, activeCourseId, formattedDeadline); // <-- Parameter deadline disisipkan di sini
+  }
+
+  function tutupModalImport() {
+    document.getElementById('importModalOverlay').style.display = 'none';
   }
 
   function tutupModalExport() {
@@ -2124,12 +2287,19 @@ function batalImportMhs() {
     <p style="font-size:13px;color:#5a8fa8;margin-bottom:18px;">
       Pilih kelas sumber. Semua <b>Materi, Kuis, dan Presensi</b> dari kelas tersebut akan disalin ke kelas <b style="color:var(--foam);" id="importTargetName"></b>.
     </p>
-    <div style="margin-bottom:20px;">
+    
+    <div style="margin-bottom:15px;">
       <label class="form-label">Pilih Kelas Sumber</label>
       <select id="importSourceCourse" class="form-input" style="padding: 10px 14px;">
         <option value="">-- Memuat kelas... --</option>
       </select>
     </div>
+
+    <div style="margin-bottom:20px;">
+      <label class="form-label">📅 Deadline Lesson Learn (Untuk Kelas Ini)</label>
+      <input type="date" id="importNewDeadline" class="form-input" title="Tentukan batas waktu presensi untuk kelas target">
+    </div>
+
     <div style="display:flex;gap:10px;">
       <button id="btnProsesImport" class="btn btn-ocean" style="flex:1;" onclick="prosesImportKonten()">📥 Mulai Impor</button>
       <button class="btn btn-dark" onclick="tutupModalImport()">Batal</button>
