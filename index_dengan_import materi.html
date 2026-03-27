@@ -195,6 +195,38 @@
       font-family: 'Lora', serif; font-size: 18px; color: var(--foam);
       margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--border);
     }
+
+    /* ── Custom Toast V2 ── */
+    .c-toast {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 12px 16px; border-radius: 12px; pointer-events: all;
+      min-width: 260px; max-width: 320px;
+      font-family: 'Sora', sans-serif;
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      animation: toast-slide-in 0.3s cubic-bezier(0.175,0.885,0.32,1.275);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    .c-toast.hide { opacity: 0; transform: translateX(20px); }
+    .c-toast-success { background: rgba(52,201,138,0.15); border: 1px solid rgba(52,201,138,0.35); }
+    .c-toast-error   { background: rgba(242,109,81,0.15);  border: 1px solid rgba(242,109,81,0.35);  }
+    .c-toast-warning { background: rgba(232,168,58,0.15);  border: 1px solid rgba(232,168,58,0.35);  }
+    .c-toast-info    { background: rgba(92,200,240,0.12);  border: 1px solid rgba(92,200,240,0.3);   }
+    .c-toast-icon  { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+    .c-toast-title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+    .c-toast-msg   { font-size: 12px; opacity: 0.85; line-height: 1.4; }
+    .c-toast-success .c-toast-title { color: #34c98a; }
+    .c-toast-success .c-toast-msg   { color: #34c98a; }
+    .c-toast-error   .c-toast-title { color: #f26d51; }
+    .c-toast-error   .c-toast-msg   { color: #f26d51; }
+    .c-toast-warning .c-toast-title { color: #e8a83a; }
+    .c-toast-warning .c-toast-msg   { color: #e8a83a; }
+    .c-toast-info    .c-toast-title { color: #5cc8f0; }
+    .c-toast-info    .c-toast-msg   { color: #5cc8f0; }
+
+    @keyframes toast-slide-in {
+      from { opacity: 0; transform: translateX(30px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
   
 /* ── Tailwind replacements (CDN dihapus, class dipertahankan) ── */
 .flex            { display: flex; }
@@ -717,6 +749,69 @@
     el.classList.add('fade-in');
   }
 
+// ==========================================
+// FUNGSI HELPER: PENGGANTI ALERT & CONFIRM V2
+// ==========================================
+
+function showToast(message, type) {
+  var cfg = {
+    success: { icon: '✅', title: 'Berhasil',    cls: 'c-toast-success', dur: 3000 },
+    error:   { icon: '❌', title: 'Gagal',       cls: 'c-toast-error',   dur: 5000 },
+    warning: { icon: '⚠️', title: 'Perhatian',   cls: 'c-toast-warning', dur: 5000 },
+    info:    { icon: 'ℹ️', title: 'Info',         cls: 'c-toast-info',    dur: 4000 }
+  };
+  var c = cfg[type] || cfg['info'];
+
+  // Pisahkan emoji prefix dari pesan jika ada
+  var cleanMsg = message.replace(/^[✅❌⚠️ℹ️🔒📋]+\s*/u, '').trim();
+
+  var container = document.getElementById('toastContainer');
+  var el = document.createElement('div');
+  el.className = 'c-toast ' + c.cls;
+  el.innerHTML = '<span class="c-toast-icon">' + c.icon + '</span>'
+    + '<div><div class="c-toast-title">' + c.title + '</div>'
+    + '<div class="c-toast-msg">' + cleanMsg + '</div></div>';
+  container.appendChild(el);
+
+  // Animasi hilang otomatis
+  setTimeout(function() {
+    el.classList.add('hide');
+    setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 350);
+  }, c.dur);
+}
+
+function showConfirm(message, onConfirmCallback, options) {
+  var opt = options || {};
+  var overlay = document.getElementById('customConfirmOverlay');
+  
+  // Setel teks dan desain sesuai opsi (atau pakai default)
+  document.getElementById('confirmMessage').innerText = message;
+  document.getElementById('confirmTitle').innerText   = opt.title  || 'Konfirmasi';
+  document.getElementById('confirmIcon').innerText    = opt.icon   || '⚠️';
+  document.getElementById('btnConfirmYes').innerText  = opt.btnYes || 'Ya, Lanjutkan';
+  document.getElementById('btnConfirmYes').className  = 'btn ' + (opt.btnYesCls || 'btn-coral');
+
+  overlay.style.display = 'flex';
+
+  // Jika tombol batal diklik
+  document.getElementById('btnConfirmNo').onclick = function() {
+    overlay.style.display = 'none';
+  };
+  
+  // Jika tombol Ya diklik
+  document.getElementById('btnConfirmYes').onclick = function() {
+    overlay.style.display = 'none';
+    if (typeof onConfirmCallback === 'function') onConfirmCallback();
+  };
+}
+
+// ==========================================
+// BAJAK ALERT BAWAAN BROWSER
+// ==========================================
+window.alert = function(pesan) {
+  showToast(pesan, 'warning');
+};
+
   function switchTab(panelId, btnEl) {
     document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
     document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
@@ -765,7 +860,7 @@
           else {
             // ✅ SUKSES: Perangkat sama ATAU baru pertama kali login
             if (cekDevice.isNewBind) {
-               alert("✅ PERHATIAN: Perangkat (Browser) ini sekarang telah ditautkan secara permanen dengan akun Anda. Jangan gunakan mode Samaran (Incognito) atau menghapus Cache Browser.");
+               alert("✅ Perangkat (Browser) ini sekarang telah ditautkan secara permanen dengan akun Anda. Jangan gunakan mode Samaran (Incognito) atau menghapus Cache Browser.");
             }
             
             // Lanjutkan proses login normal
@@ -881,7 +976,7 @@
 
     // 3. Validasi jika dosen belum mencentang siapapun
     if (selectedNims.length === 0) {
-      alert("⚠️ Silakan centang minimal satu mahasiswa terlebih dahulu dari daftar di atas.");
+      alert("Silakan centang minimal satu mahasiswa terlebih dahulu!");
       return;
     }
 
@@ -1667,7 +1762,6 @@ function batalImportMhs() {
   // ══════════════════════════════════════════
   // FITUR IMPOR NILAI DARI EXCEL/CSV
   // ══════════════════════════════════════════
-
   function bukaModalImportNilai() {
     document.getElementById('importJenisNilai').value = '';
     document.getElementById('fileImportNilai').value = '';
@@ -2471,6 +2565,20 @@ function refreshDataKelas() {
       * Nilai final bergantung pada hasil kompilasi Ketua Dosen Pengampu Mata Kuliah berdasarkan kompilasi seluruh dosen pengampu.
     </p>
     <button class="btn btn-dark btn-full mt-5" onclick="tutupModalNilaiAkhir()">Tutup</button>
+  </div>
+</div>
+
+<div id="toastContainer" style="position:fixed;top:70px;right:20px;z-index:99999;display:flex;flex-direction:column;gap:8px;pointer-events:none;"></div>
+
+<div id="customConfirmOverlay" style="display:none;position:fixed;inset:0;z-index:100000;background:rgba(6,15,30,0.85);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:20px;">
+  <div class="glass-solid" style="width:100%;max-width:360px;text-align:center;padding:28px 24px;border-radius:20px;border:1px solid var(--border);animation:fadeUp 0.25s ease;">
+    <div id="confirmIcon" style="font-size:36px;margin-bottom:10px;">⚠️</div>
+    <h3 id="confirmTitle" style="font-family:'Lora',serif;color:var(--foam);font-size:17px;margin:0 0 8px;">Konfirmasi</h3>
+    <p id="confirmMessage" style="color:#8ab8cc;font-size:13px;line-height:1.6;margin:0 0 22px;">Apakah Anda yakin?</p>
+    <div style="display:flex;gap:10px;">
+      <button id="btnConfirmNo" class="btn btn-dark" style="flex:1;">Batal</button>
+      <button id="btnConfirmYes" class="btn btn-coral" style="flex:1;">Ya, Lanjutkan</button>
+    </div>
   </div>
 </div>
 
