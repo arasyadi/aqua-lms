@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Analitik CBT</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Lora:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --deep:   #060f1e; --foam:   #5cc8f0; --coral:  #f26d51; --amber:  #e8a83a; --mint:   #34c98a; --border: rgba(92,200,240,0.18);
+    }
+    body { font-family: 'Sora', sans-serif; background-color: var(--deep); color: #d6edf8; margin: 0; padding: 20px; background-image: radial-gradient(ellipse 80% 60% at 50% 100%, rgba(11,31,58,0.9) 0%, transparent 75%), linear-gradient(180deg, #060f1e 0%, #0b1f3a 100%); min-height: 100vh; }
+    .container { max-width: 900px; margin: 0 auto; }
+    .glass { background: rgba(13,61,107,0.35); border: 1px solid var(--border); backdrop-filter: blur(16px); border-radius: 16px; padding: 25px; }
+    .header-title { font-family: 'Lora', serif; font-size: 24px; color: var(--foam); margin: 0 0 5px 0; }
+    .stat-box { text-align: center; padding: 20px; background: rgba(33,150,211,0.08); border-radius: 12px; border: 1px solid rgba(33,150,211,0.2); margin-bottom: 25px; }
+    .stat-box h2 { font-family: 'Lora', serif; font-size: 32px; color: var(--foam); margin: 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th { background: rgba(13,61,107,0.8); color: var(--foam); padding: 12px; text-align: left; font-size: 12px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+    td { padding: 12px; font-size: 13px; border-bottom: 1px solid rgba(92,200,240,0.08); color: #c0dbe8; }
+    .badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; }
+    .badge-mint { background: rgba(52,201,138,0.18); color: var(--mint); border: 1px solid rgba(52,201,138,0.3); }
+    .badge-amber { background: rgba(232,168,58,0.18); color: var(--amber); border: 1px solid rgba(232,168,58,0.3); }
+    .btn-dark { background: rgba(6,15,30,0.7); color: #8ab8cc; border: 1px solid rgba(92,200,240,0.2); padding: 10px 20px; border-radius: 10px; cursor: pointer; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="glass">
+    <h1 class="header-title" id="dashTitle">📊 Memuat Dashboard CBT...</h1>
+    <p style="font-size: 13px; color: #5a8fa8; margin: 0 0 20px 0;">Memantau progress mahasiswa secara real-time.</p>
+
+    <div class="stat-box">
+      <h2 id="dashProgress">-</h2>
+      <p style="font-size: 12px; color: #8ab8cc; text-transform: uppercase; margin: 5px 0 0 0;">Progress Pengerjaan Kelas</p>
+    </div>
+
+    <div style="overflow-x: auto;">
+      <div style="text-align: right; margin-bottom: 15px;">
+       <button id="btnGradeAI" onclick="jalankanAIGrading()" style="background: linear-gradient(135deg, #9c27b0, #7b1fa2); color: white; padding: 10px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(156,39,176,0.3);">🤖 Nilai Essay dengan AI</button>
+    </div>
+      <table>
+        <thead>
+          <tr>
+            <th>NIM</th>
+            <th>Nama Mahasiswa</th>
+            <th style="text-align:center;">Status</th>
+            <th style="text-align:center;">Nilai</th>
+            <th style="text-align:center;">⚠️ Pelanggaran</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="5" style="text-align:center;">Loading data...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <div style="text-align: center; margin-top: 20px;">
+      <button class="btn-dark" onclick="tutupAman()">Tutup Tab Dashboard</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // 1. Buat variabel global
+  var globalQuizId = null; 
+  var globalCourseId = null; // Tambahkan penampung ID Kelas
+
+  window.onload = function() {
+    google.script.url.getLocation(function(location) {
+      globalQuizId = location.parameter.quizId; 
+      globalCourseId = location.parameter.courseId; // Simpan ke variabel global
+      
+      if (!globalQuizId) {
+        document.getElementById("dashTitle").innerText = "❌ URL Tidak Valid"; 
+        document.getElementById("dashSubtitle").innerText = "Parameter ID Ujian tidak ditemukan.";
+        document.getElementById("tableBody").innerHTML = "";
+        return;
+      }
+
+      document.getElementById("dashTitle").innerText = "📊 Analitik Ujian: " + globalQuizId;
+      
+      google.script.run.withSuccessHandler(renderDashboard).withFailureHandler(function(e) {
+          alert("Gagal memuat analitik: " + e.message);
+      }).getCbtAnalytics(globalQuizId, globalCourseId);
+    });
+  };
+
+  function renderDashboard(data) {
+    var persen = data.total > 0 ? Math.round((data.sudah / data.total) * 100) : 0;
+    document.getElementById("dashProgress").innerText = data.sudah + " dari " + data.total + " (" + persen + "%) Selesai";
+
+    var tbody = document.getElementById("tableBody");
+    tbody.innerHTML = "";
+
+    if(data.students.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Belum ada mahasiswa di kelas ini.</td></tr>'; return;
+    }
+
+    data.students.forEach(function(s) {
+      var isDone = s.status === 'Sudah';
+      var badgeCls = isDone ? 'badge-mint' : 'badge-amber';
+      var vioStyle = s.violations > 0 ? 'color:var(--coral); font-weight:bold;' : 'color:var(--mint);';
+      var vioText = isDone ? (s.violations + 'x') : '-';
+
+      tbody.innerHTML += '<tr>'
+        + '<td style="font-family:monospace; color:#8ab8cc;">' + s.userId + '</td>'
+        + '<td style="font-weight:500;">' + s.nama + '</td>'
+        + '<td style="text-align:center;"><span class="badge ' + badgeCls + '">' + s.status + '</span></td>'
+        + '<td style="text-align:center; font-weight:bold; color:var(--foam);">' + s.score + '</td>'
+        + '<td style="text-align:center; ' + vioStyle + '">' + vioText + '</td>'
+        + '</tr>';
+    });
+  }
+
+function tutupAman() {
+  var btn = event.target;
+  if(btn) btn.innerText = "Mengalihkan...";
+
+  // Coba tutup tab secara paksa
+  try { window.top.close(); } catch(e) {}
+
+  // Jika gagal ditutup oleh browser, arahkan kembali ke LMS
+  google.script.run.withSuccessHandler(function(url) {
+    window.location.href = url;
+  }).getScriptUrl();
+}
+
+  // 2. Fungsi Tombol AI (Bebas Blank Screen)
+  function jalankanAIGrading() {
+    if (!globalQuizId) {
+      alert("ID Ujian belum dimuat! Silakan tunggu sebentar.");
+      return;
+    }
+
+    if(!confirm("Mulai menilai Essay dengan AI?\n\nPERINGATAN: Proses ini membutuhkan waktu (sekitar 4 detik per soal per mahasiswa) agar API AI tidak diblokir Google. Jangan tutup tab ini selama memproses!")) return;
+
+    var btn = document.getElementById("btnGradeAI");
+    btn.innerText = "⏳ Sedang Menilai (Tunggu Hingga Selesai)...";
+    btn.disabled = true;
+    btn.style.opacity = "0.6";
+
+    google.script.run.withSuccessHandler(function(res) {
+      btn.innerText = "🤖 Nilai Essay dengan AI";
+      btn.disabled = false;
+      btn.style.opacity = "1";
+      
+      alert(res.message);
+      
+      // SOLUSI BLANK: Tarik ulang data secara instan tanpa me-reload browser!
+      document.getElementById("tableBody").innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--foam);">🔄 Memperbarui nilai di tabel...</td></tr>';
+      
+      google.script.run.withSuccessHandler(renderDashboard).getCbtAnalytics(globalQuizId, globalCourseId);
+      
+    }).withFailureHandler(function(e) {
+      alert("Terjadi kesalahan: " + e.message);
+      btn.innerText = "🤖 Nilai Essay dengan AI";
+      btn.disabled = false;
+      btn.style.opacity = "1";
+    }).prosesPenilaianEssayMasal(globalQuizId); 
+  }
+</script>
+</body>
+</html>
