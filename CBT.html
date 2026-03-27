@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CBT Ujian - AquaLMS</title>
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f4f9; margin: 0; padding: 20px; color: #333; }
+    .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    .header { border-bottom: 2px solid #ddd; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+    .question-card { margin-bottom: 25px; padding: 15px; background: #fafafa; border-radius: 8px; border: 1px solid #eee; }
+    .options { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+    textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: inherit; margin-top: 10px; resize: vertical; }
+    button { background: #1565a8; color: white; padding: 12px 24px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; }
+    button:hover { background: #0d3d6b; }
+    button:disabled { background: #aaa; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+
+<div class="container" id="cbtApp">
+  <div class="header">
+    <div>
+      <h2 style="margin: 0;">Ujian Berbasis Komputer</h2>
+      <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">Mahasiswa: <span id="studentName">Memuat...</span></p>
+    </div>
+    <div id="quizTimer" style="font-weight: bold; color: #d32f2f;"></div>
+  </div>
+
+  <div id="loading" style="text-align: center; color: #666;">Memuat soal ujian...</div>
+  
+  <div id="questionContainer"></div>
+  
+  <button id="btnSubmit" style="display: none;" onclick="submitKuis()">Kirim Jawaban</button>
+  
+  <div id="resultArea" style="display: none; text-align: center; margin-top: 20px;">
+    <h3>Ujian Selesai!</h3>
+    <p>Nilai Akhir Anda: <strong style="font-size: 24px; color: #4CAF50;" id="finalScoreDisplay">0</strong> / 100</p>
+    <button onclick="tutupAman()" style="margin-top: 15px; background: #555;">Kembali ke LMS / Tutup</button>
+  </div>
+</div>
+
+<script>
+  var currentUser = null;
+  var quizId = null;
+  var userAnswers = {}; // Format: { "Q1": "Jawaban", "Q2": "A" }
+
+  var cheatViolations = 0; // Sensor anti-curang
+
+  window.onload = function() {
+    // Meminta API Google untuk membaca URL saat ini
+    google.script.url.getLocation(function(location) {
+      quizId = location.parameter.quizId;
+      var tokenSesi = location.parameter.token;
+
+      // 1. Coba ambil sesi dari URL (Solusi Bypass Iframe)
+      if (tokenSesi) {
+        try {
+          currentUser = JSON.parse(atob(tokenSesi)); // Buka bungkusan data
+          // Simpan ke local storage CBT agar saat mahasiswa mereload tab, sesi tidak hilang
+          localStorage.setItem('lms_session', JSON.stringify(currentUser));
+        } catch(e) { console.log("Token sesi tidak valid."); }
+      }
+
+      // 2. Jika tidak ada di URL (misal dibuka langsung), coba ambil dari LocalStorage biasa
+      if (!currentUser) {
+        var sessionData = localStorage.getItem('lms_session');
+        if (sessionData) currentUser = JSON.parse(sessionData);
+      }
+
+      // 3. Validasi Final: Jika tetap tidak ada data, tendang kembali
+      if (!currentUser) {
+        alert("Anda belum login! Silakan login melalui halaman utama LMS.");
+        document.getElementById("loading").innerText = "Akses Ditolak. Harap login dari LMS.";
+        return;
+      }
+
+      // Tampilkan nama mahasiswa ke layar
+      document.getElementById("studentName").innerText = currentUser.name + " (" + currentUser.userId + ")";
+
+      // 4. Lanjutkan mengecek ID Kuis
+      if (!quizId) {
+        alert("ID Ujian tidak valid atau tidak ditemukan di link!");
+        document.getElementById("loading").innerText = "Gagal memuat. Parameter ID Kuis tidak ditemukan.";
+        return;
+      }
+
+      // VALIDASI AKSES (Deadline & Double Submit)
+      google.script.run.withSuccessHandler(function(access) {
+        if (!access.allowed) {
+           // Siapkan tombol HTML-nya agar bisa dipakai berulang kali
+           var btnKembali = `<br><br><button onclick="tutupAman()" style="background: #555; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s;">Tutup / Kembali ke LMS</button>`;
+
+           if (access.reason === "submitted") {
+             // Tampilkan nilai DAN tombol kembalinya
+             document.getElementById("loading").innerHTML = `<h3 style="color:#4CAF50; margin-bottom:5px;">✅ Anda sudah mengerjakan ujian ini.</h3><p style="margin-top:0;">Nilai Akhir Anda: <strong style="font-size: 24px; color:#1565a8;">${access.score}</strong> / 100</p>` + btnKembali;
+           } else if (access.reason === "deadline") {
+             // Tampilkan pesan deadline DAN tombol kembalinya
+             document.getElementById("loading").innerHTML = `<h3 style="color:#f44336; margin-bottom:5px;">🔒 Ujian Terkunci</h3><p style="margin-top:0;">Batas waktu pengerjaan ujian ini telah habis.</p>` + btnKembali;
+           }
+           return; // Hentikan proses, jangan tampilkan soal
+        }
+        
+        // Jika lolos validasi, baru ambil soal dari server
+        google.script.run.withSuccessHandler(renderSoal).getCbtQuestions(quizId);
+
+      }).validateCbtAccess(quizId, currentUser.userId);
+    });
+  };
+
+  function renderSoal(questions) {
+    document.getElementById("loading").style.display = "none";
+    var container = document.getElementById("questionContainer");
+    
+    if (questions.length === 0) {
+      container.innerHTML = "<p>Soal tidak ditemukan untuk ujian ini.</p>";
+      return;
+    }
+
+    var html = "";
+    questions.forEach(function(q, index) {
+      html += `<div class="question-card">
+        <h4>` + (index + 1) + `. ` + q.text + ` <span style="font-size:12px; font-weight:normal; color:#888;">(` + q.points + ` Poin)</span></h4>`;
+      
+      if (q.type === "PG") {
+        html += `<div class="options">`;
+        q.options.forEach(function(opt) {
+          // Menyimpan jawaban jika radio button diklik
+          html += `<label>
+            <input type="radio" name="${q.question_id}" value="${opt}" onchange="simpanJawaban('${q.question_id}', '${opt}')">
+            ${opt}
+          </label>`;
+        });
+        html += `</div>`;
+      } 
+      else if (q.type === "ESSAY") {
+        html += `<textarea rows="4" placeholder="Ketik jawaban essay Anda di sini..." onblur="simpanJawaban('${q.question_id}', this.value)"></textarea>`;
+      }
+      
+      html += `</div>`;
+    });
+
+    container.innerHTML = html;
+    document.getElementById("btnSubmit").style.display = "block";
+  }
+
+  function simpanJawaban(questionId, answer) {
+    userAnswers[questionId] = answer;
+  }
+
+  function submitKuis() {
+    if(!confirm("Yakin ingin mengumpulkan ujian? Pastikan semua soal telah terjawab!")) return;
+    
+    var btn = document.getElementById("btnSubmit");
+    btn.innerText = "Mengumpulkan Jawaban..."; // Teks diubah karena tidak ada AI proses di sini lagi
+    btn.disabled = true;
+
+    // Sisipkan data pelanggaran (cheatViolations) ke dalam objek jawaban mahasiswa
+    userAnswers._violations = cheatViolations;
+
+    // Kirim jawaban ke backend untuk disimpan & dihitung nilai PG-nya saja
+    google.script.run.withSuccessHandler(function(response) {
+      document.getElementById("questionContainer").style.display = "none";
+      btn.style.display = "none";
+      
+      document.getElementById("resultArea").style.display = "block";
+      
+      // Modifikasi Tampilan Akhir: Berikan info bahwa Essay akan dinilai menyusul
+      document.getElementById("resultArea").innerHTML = `
+        <h3 style="color:#1565a8; margin-bottom: 5px;">✅ Pekerjaan Telah Dikumpulkan!</h3>
+        <p style="color:#555; margin-top: 0;">Jawaban Anda telah tersimpan dengan aman di database.</p>
+        <div style="background: rgba(232,168,58,0.1); border: 1px solid rgba(232,168,58,0.3); padding: 10px; border-radius: 8px; margin-top: 15px;">
+          <p style="font-size:12px; color:#b8761a; margin: 0;">
+            <b>Catatan:</b> Jika assesment ini memiliki soal Essay, Nilai Akhir Anda akan diperbarui setelah Dosen mengoreksi jawaban anda.
+          </p>
+        </div>
+        <button onclick="tutupAman()" style="margin-top: 20px; background: #555; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%;">Tutup / Kembali ke LMS</button>
+      `;
+      
+    }).submitCbtExam(quizId, currentUser.userId, userAnswers);
+  }
+
+function tutupAman() {
+  var btn = event.target;
+  if(btn) btn.innerText = "Mengalihkan...";
+
+  // Coba tutup tab secara paksa
+  try { window.top.close(); } catch(e) {}
+
+  // Jika gagal ditutup oleh browser, arahkan kembali ke LMS
+  google.script.run.withSuccessHandler(function(url) {
+    window.location.href = url;
+  }).getScriptUrl();
+}
+</script>
+
+</body>
+</html>
