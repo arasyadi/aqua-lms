@@ -381,7 +381,7 @@ function calculateCourseProgress(userId, courseId) {
   return Math.round(progressMateri + progressLesson + progressQuiz);
 }
 
-// UPDATE: Meranking Aktivitas Spesifik Per Mata Kuliah (Keadilan Skor)
+// UPDATE: Meranking Aktivitas Spesifik Per Mata Kuliah (Keadilan Skor + Anti Spam)
 function getStudentRankings(courseId) {
   var enrollments = getSheetData("ENROLLMENTS").filter(e => String(e.course_id).trim() === String(courseId).trim());
   var users = getSheetData("USERS").filter(u => u.role === "Mahasiswa");
@@ -389,6 +389,8 @@ function getStudentRankings(courseId) {
   // Ambil data aktivitas dan filter HANYA untuk materi/lesson/kuis di course ini
   var materials = getSheetData("MATERIALS").filter(m => String(m.course_id).trim() === String(courseId).trim());
   var materialIds = materials.map(m => m.material_id);
+  
+  // VARIABEL INILAH YANG KEMUNGKINAN TERLEWAT (Terdapat variabel 'tracks' dengan 's')
   var tracks = getSheetData("MATERIAL_TRACK").filter(t => materialIds.includes(t.material_id));
   
   var lessons = getSheetData("LESSON_ASSIGN").filter(l => String(l.course_id).trim() === String(courseId).trim());
@@ -411,11 +413,29 @@ function getStudentRankings(courseId) {
       if(String(users[u].user_id).trim() === userId) studentName = users[u].nama_lengkap;
     }
     
-    // Hitung skor HANYA dari aktivitas kelas ini
-    var scoreMateri = tracks.filter(t => String(t.user_id).trim() === userId).length * 5;
-    var scoreLesson = lessonSubmits.filter(s => String(s.user_id).trim() === userId).length * 10;
-    var scoreQuiz = quizTracks.filter(q => String(q.user_id).trim() === userId).length * 10;
+    // =====================================
+    // KODE BARU: SISTEM POIN (MATERI GAMIFIKASI + KUIS/LESSON ANTI-SPAM)
+    // =====================================
     
+    // 1. Hitung Skor Materi (Unik = 5 Poin, Pengulangan = 3 Poin)
+    var userMatTracks = tracks.filter(t => String(t.user_id).trim() === userId);
+    var totalMatClicks = userMatTracks.length; // Total semua klik materi
+    var uniqueMatIds = [...new Set(userMatTracks.map(t => t.material_id))];
+    var uniqueMatCount = uniqueMatIds.length; // Jumlah materi berbeda yang dibuka
+    var duplicateMatCount = totalMatClicks - uniqueMatCount; // Total klik berulang
+    var scoreMateri = (uniqueMatCount * 5) + (duplicateMatCount * 3);
+
+    // 2. Hitung Skor Kuis (Hanya dihitung 1x, Unik = 10 Poin)
+    var userQuizTracks = quizTracks.filter(q => String(q.user_id).trim() === userId);
+    var uniqueQuizIds = [...new Set(userQuizTracks.map(t => t.quiz_id))];
+    var scoreQuiz = uniqueQuizIds.length * 10;
+    
+    // 3. Hitung Skor Lesson (Hanya dihitung 1x, Unik = 10 Poin)
+    var userLessonSubmits = lessonSubmits.filter(s => String(s.user_id).trim() === userId);
+    var uniqueAssignIds = [...new Set(userLessonSubmits.map(s => s.assign_id))];
+    var scoreLesson = uniqueAssignIds.length * 10;
+
+    // 4. Gabungkan semua skor
     rankings.push({
       nama: studentName,
       skor: scoreMateri + scoreLesson + scoreQuiz
