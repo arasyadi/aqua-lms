@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CBT Ujian - AquaLMS</title>
+  <style>
+    /* ===== RESET & BASE ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      color: #333;
+      padding: 20px;
+
+      /* ANTI-CHEAT L2: Blokir seleksi teks & drag di seluruh halaman */
+      user-select: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+    }
+
+    /* Textarea tetap bisa dipilih agar mahasiswa bisa mengetik */
+    textarea { user-select: text; -webkit-user-select: text; }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    .header {
+      border-bottom: 2px solid #ddd;
+      padding-bottom: 15px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .question-card {
+      margin-bottom: 25px;
+      padding: 15px;
+      background: #fafafa;
+      border-radius: 8px;
+      border: 1px solid #eee;
+    }
+    .options { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+    textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-family: inherit;
+      margin-top: 10px;
+      resize: vertical;
+    }
+    button.btn-primary {
+      background: #1565a8;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      font-weight: bold;
+      width: 100%;
+      transition: background 0.3s;
+    }
+    button.btn-primary:hover { background: #0d3d6b; }
+    button.btn-primary:disabled { background: #aaa; cursor: not-allowed; }
+    button.btn-secondary {
+      background: #555;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      width: 100%;
+      margin-top: 15px;
+      transition: background 0.3s;
+    }
+    button.btn-secondary:hover { background: #333; }
+
+    /* =====================================================
+       ANTI-CHEAT OVERLAYS (position:fixed — halaman standalone GAS)
+       ===================================================== */
+
+    /* --- Gate Layar Penuh (L3) --- */
+    #ac-fullscreen-gate {
+      position: fixed; inset: 0;
+      background: #1a237e;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9000;
+      color: white;
+      text-align: center;
+      padding: 30px;
+    }
+    #ac-fullscreen-gate h2 { font-size: 22px; margin-bottom: 12px; }
+    #ac-fullscreen-gate p  { font-size: 14px; color: rgba(255,255,255,0.8); margin-bottom: 28px; max-width: 440px; line-height: 1.6; }
+    #ac-fullscreen-gate button {
+      background: #ffffff;
+      color: #1a237e;
+      padding: 14px 32px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    #ac-fullscreen-gate button:hover { opacity: 0.88; }
+
+    /* --- Overlay Kursor Keluar (L4) --- */
+    #ac-cursor-overlay {
+      position: fixed; inset: 0;
+      background: rgba(30,30,30,0.92);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 8000;
+      color: white;
+      text-align: center;
+      padding: 30px;
+    }
+    #ac-cursor-overlay.visible { display: flex; }
+    #ac-cursor-overlay .icon { font-size: 48px; margin-bottom: 16px; }
+    #ac-cursor-overlay h3 { font-size: 20px; margin-bottom: 8px; }
+    #ac-cursor-overlay p  { font-size: 14px; color: rgba(255,255,255,0.75); }
+
+    /* --- Overlay Offline (L6) --- */
+    #ac-offline-overlay {
+      position: fixed; inset: 0;
+      background: rgba(180,0,0,0.93);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 8500;
+      color: white;
+      text-align: center;
+      padding: 30px;
+    }
+    #ac-offline-overlay.visible { display: flex; }
+    #ac-offline-overlay .icon { font-size: 48px; margin-bottom: 16px; }
+    #ac-offline-overlay h3 { font-size: 20px; margin-bottom: 8px; }
+    #ac-offline-overlay p  { font-size: 14px; color: rgba(255,255,255,0.8); }
+
+    /* --- Badge Pelanggaran --- */
+    #ac-violation-badge {
+      position: fixed;
+      bottom: 16px; right: 16px;
+      background: #c62828;
+      color: white;
+      font-size: 12px;
+      font-weight: bold;
+      padding: 6px 12px;
+      border-radius: 20px;
+      display: none;
+      z-index: 7000;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    /* --- Toast Peringatan --- */
+    #ac-toast {
+      position: fixed;
+      top: 16px; left: 50%;
+      transform: translateX(-50%);
+      background: #b71c1c;
+      color: white;
+      padding: 10px 22px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: bold;
+      z-index: 9500;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    #ac-toast.show { opacity: 1; }
+
+    /* Sembunyikan konten utama sampai fullscreen aktif */
+    #main-content { display: none; }
+  </style>
+</head>
+<body>
+
+<!-- ======================================================
+     ANTI-CHEAT OVERLAYS
+     ====================================================== -->
+
+<!-- L3: Gate Masuk Layar Penuh -->
+<div id="ac-fullscreen-gate">
+  <h2>&#128274; Ujian Terkunci</h2>
+  <p>
+    Demi integritas ujian, Anda <strong>wajib</strong> menggunakan mode Layar Penuh selama ujian berlangsung.<br>
+    Keluar dari layar penuh akan dicatat sebagai pelanggaran.
+  </p>
+  <button id="btnEnterFullscreen" onclick="masukLayarPenuh()">
+    &#9654; Masuk Layar Penuh &amp; Mulai Ujian
+  </button>
+</div>
+
+<!-- L4: Overlay Kursor Keluar Area -->
+<div id="ac-cursor-overlay">
+  <div class="icon">&#9888;</div>
+  <h3>Kursor Anda keluar dari area ujian!</h3>
+  <p>Segera kembalikan kursor ke dalam halaman ini untuk melanjutkan.</p>
+</div>
+
+<!-- L6: Overlay Koneksi Putus -->
+<div id="ac-offline-overlay">
+  <div class="icon">&#128245;</div>
+  <h3>Koneksi Internet Terputus!</h3>
+  <p>Ujian dijeda. Soal akan kembali tampil setelah internet terhubung kembali.</p>
+</div>
+
+<!-- Badge Pelanggaran -->
+<div id="ac-violation-badge">Pelanggaran: <span id="violation-count">0</span></div>
+
+<!-- Toast Peringatan -->
+<div id="ac-toast" id="acToast"></div>
+
+<!-- ======================================================
+     KONTEN UTAMA UJIAN
+     ====================================================== -->
+<div id="main-content">
+  <div class="container" id="cbtApp">
+    <div class="header">
+      <div>
+        <h2 style="margin:0;">Computer Assisted Assessment (CAA)</h2>
+        <p style="margin:5px 0 0; color:#666; font-size:14px;">
+          Mahasiswa: <span id="studentName">Memuat...</span>
+        </p>
+      </div>
+      <div id="quizTimer" style="font-weight:bold; color:#d32f2f;"></div>
+    </div>
+
+    <div id="loading" style="text-align:center; color:#666; padding:20px 0;">Memuat soal ujian...</div>
+
+    <div id="questionContainer"></div>
+
+    <button id="btnSubmit" class="btn-primary" style="display:none;" onclick="submitKuis()">
+      Kirim Jawaban
+    </button>
+
+    <div id="resultArea" style="display:none; text-align:center; margin-top:20px;"></div>
+  </div>
+</div><!-- /main-content -->
+
+
+<!-- ======================================================
+     JAVASCRIPT
+     ====================================================== -->
+<script>
+/* =====================================================
+   STATE APLIKASI
+   ===================================================== */
+var currentUser    = null;
+var quizId         = null;
+var userAnswers    = {};
+
+/* --- Anti-cheat state --- */
+var cheatViolations   = 0;
+var acEnabled         = false;   // aktif setelah fullscreen masuk
+var cursorOutside     = false;
+var toastTimer        = null;
+var extensionObserver = null;
+
+/* =====================================================
+   ANTI-CHEAT L3 — FULLSCREEN GATE
+   ===================================================== */
+function masukLayarPenuh() {
+  var el = document.documentElement;
+  var req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+  if (req) {
+    req.call(el).then(function() {
+      // Fullscreen berhasil → sembunyikan gate, tampilkan ujian, aktifkan sensor
+      document.getElementById('ac-fullscreen-gate').style.display = 'none';
+      document.getElementById('main-content').style.display = 'block';
+      acEnabled = true;
+      initAntiCheatSensors();
+      inisialisasiApp();
+    }).catch(function() {
+      tampilToast('Browser menolak mode layar penuh. Coba tekan F11 secara manual.', 4000);
+    });
+  } else {
+    /* Fallback: browser tidak mendukung FS API (jarang) */
+    document.getElementById('ac-fullscreen-gate').style.display = 'none';
+    document.getElementById('main-content').style.display = 'block';
+    acEnabled = true;
+    initAntiCheatSensors();
+    inisialisasiApp();
+  }
+}
+
+/* Deteksi exit fullscreen → catat pelanggaran */
+document.addEventListener('fullscreenchange',      cekStatusFullscreen);
+document.addEventListener('webkitfullscreenchange', cekStatusFullscreen);
+document.addEventListener('mozfullscreenchange',    cekStatusFullscreen);
+document.addEventListener('MSFullscreenChange',     cekStatusFullscreen);
+
+function cekStatusFullscreen() {
+  if (!acEnabled) return;
+  var isFs = !!(
+    document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.mozFullScreenElement ||
+    document.msFullscreenElement
+  );
+  if (!isFs) {
+    tambahPelanggaran('Keluar dari layar penuh (Esc / tombol)');
+    tampilToast('⚠ Pelanggaran! Anda keluar dari mode Layar Penuh.');
+  }
+}
+
+/* =====================================================
+   INISIALISASI SEMUA SENSOR ANTI-CHEAT
+   ===================================================== */
+function initAntiCheatSensors() {
+
+  /* --- L1a: Blokir Klik Kanan --- */
+  document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    tampilToast('⚠ Klik kanan dinonaktifkan selama ujian.');
+  });
+
+  /* --- L1b: Blokir Shortcut Keyboard berbahaya --- */
+  document.addEventListener('keydown', function(e) {
+    var kode = e.key.toLowerCase();
+    var ctrl  = e.ctrlKey || e.metaKey;
+    /* Blokir: Ctrl+C, Ctrl+V, Ctrl+U (view-source), Ctrl+S, Ctrl+P,
+               Ctrl+Shift+I/J/C (devtools), F12, PrintScreen */
+    var terlarang =
+      (ctrl && ['c','v','u','s','p','a'].includes(kode)) ||
+      (ctrl && e.shiftKey && ['i','j','c'].includes(kode)) ||
+      e.key === 'F12' ||
+      e.key === 'PrintScreen';
+
+    if (terlarang) {
+      e.preventDefault();
+      tampilToast('⚠ Shortcut tersebut dinonaktifkan selama ujian.');
+    }
+  });
+
+  /* --- L1c: Deteksi Pindah Tab / Jendela --- */
+  document.addEventListener('visibilitychange', function() {
+    if (!acEnabled) return;
+    if (document.hidden) {
+      tambahPelanggaran('Berpindah tab / jendela browser');
+      tampilToast('⚠ Pelanggaran! Anda mendeteksi Anda meninggalkan tab ujian.');
+    }
+  });
+
+  /* --- L2: Blokir Drag & Drop --- */
+  document.addEventListener('dragstart', function(e) { e.preventDefault(); });
+  document.addEventListener('drop',      function(e) { e.preventDefault(); });
+  document.addEventListener('dragover',  function(e) { e.preventDefault(); });
+
+  /* --- L4: Smart Blur — Kursor Keluar Area Halaman --- */
+  document.addEventListener('mouseleave', function() {
+    if (!acEnabled) return;
+    cursorOutside = true;
+    document.getElementById('ac-cursor-overlay').classList.add('visible');
+    tambahPelanggaran('Kursor keluar dari area halaman ujian');
+  });
+  document.addEventListener('mouseenter', function() {
+    cursorOutside = false;
+    document.getElementById('ac-cursor-overlay').classList.remove('visible');
+  });
+
+  /* --- L5: Deteksi Ekstensi Asing --- */
+  var allowedIds = ['cbtApp', 'main-content', 'ac-fullscreen-gate',
+                    'ac-cursor-overlay', 'ac-offline-overlay',
+                    'ac-violation-badge', 'ac-toast', 'acToast'];
+
+  extensionObserver = new MutationObserver(function(mutations) {
+    mutations.forEach(function(mut) {
+      mut.addedNodes.forEach(function(node) {
+        if (node.nodeType !== 1) return; // bukan elemen HTML
+        /* Tandai ekstensi: biasanya memiliki atribut data-*, shadow-root,
+           atau ID/class yang tidak kita kenal */
+        var id = node.id || '';
+        var suspect =
+          node.getAttribute('data-extension-id') ||
+          node.shadowRoot ||
+          (id && !allowedIds.includes(id) && id.length > 6);
+
+        if (suspect) {
+          /* Coba hapus elemennya */
+          try { node.parentNode.removeChild(node); } catch(e) {}
+          tambahPelanggaran('Ekstensi browser aktif terdeteksi (' + (id || node.tagName) + ')');
+          tampilToast('⚠ Ekstensi browser terdeteksi & diblokir.', 4000);
+        }
+      });
+    });
+  });
+  extensionObserver.observe(document.body, { childList: true, subtree: true });
+
+  /* --- L6: Deteksi Koneksi Terputus --- */
+  window.addEventListener('offline', function() {
+    document.getElementById('ac-offline-overlay').classList.add('visible');
+    tambahPelanggaran('Koneksi internet diputus');
+  });
+  window.addEventListener('online', function() {
+    document.getElementById('ac-offline-overlay').classList.remove('visible');
+    tampilToast('✓ Koneksi kembali. Ujian dilanjutkan.', 3000);
+  });
+}
+
+/* =====================================================
+   UTILITAS ANTI-CHEAT
+   ===================================================== */
+function tambahPelanggaran(alasan) {
+  cheatViolations++;
+  console.warn('[ANTI-CHEAT] Pelanggaran #' + cheatViolations + ': ' + alasan);
+
+  var badge = document.getElementById('ac-violation-badge');
+  document.getElementById('violation-count').innerText = cheatViolations;
+  badge.style.display = 'block';
+
+  /* Jika melebihi batas → paksa kumpul otomatis */
+  if (cheatViolations >= 5) {
+    tampilToast('🚨 Batas pelanggaran tercapai. Ujian dikumpulkan otomatis!', 5000);
+    setTimeout(function() {
+      if (document.getElementById('btnSubmit').style.display !== 'none') {
+        submitKuis(true);
+      }
+    }, 3000);
+  }
+}
+
+function tampilToast(pesan, durasi) {
+  var toast = document.getElementById('ac-toast');
+  toast.innerText = pesan;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function() {
+    toast.classList.remove('show');
+  }, durasi || 2500);
+}
+
+/* =====================================================
+   APLIKASI UTAMA (LOGIKA GAS — TIDAK DIUBAH)
+   ===================================================== */
+function inisialisasiApp() {
+  google.script.url.getLocation(function(location) {
+    quizId = location.parameter.quizId;
+    var tokenSesi = location.parameter.token;
+
+    if (tokenSesi) {
+      try {
+        currentUser = JSON.parse(atob(tokenSesi));
+        localStorage.setItem('lms_session', JSON.stringify(currentUser));
+      } catch(e) { console.log('Token sesi tidak valid.'); }
+    }
+
+    if (!currentUser) {
+      var sessionData = localStorage.getItem('lms_session');
+      if (sessionData) currentUser = JSON.parse(sessionData);
+    }
+
+    if (!currentUser) {
+      alert('Anda belum login! Silakan login melalui halaman utama LMS.');
+      document.getElementById('loading').innerText = 'Akses Ditolak. Harap login dari LMS.';
+      return;
+    }
+
+    document.getElementById('studentName').innerText =
+      currentUser.name + ' (' + currentUser.userId + ')';
+
+    if (!quizId) {
+      alert('ID Ujian tidak valid atau tidak ditemukan di link!');
+      document.getElementById('loading').innerText = 'Gagal memuat. Parameter ID Kuis tidak ditemukan.';
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(function(access) {
+        if (!access.allowed) {
+          var btnKembali = '<br><br><button class="btn-secondary" onclick="tutupAman()">Tutup / Kembali ke LMS</button>';
+          if (access.reason === 'submitted') {
+            document.getElementById('loading').innerHTML =
+              '<h3 style="color:#4CAF50; margin-bottom:5px;">✅ Anda sudah mengerjakan ujian ini.</h3>' +
+              '<p style="margin-top:0;">Nilai Akhir: <strong style="font-size:24px; color:#1565a8;">' +
+              access.score + '</strong> / 100</p>' + btnKembali;
+          } else if (access.reason === 'deadline') {
+            document.getElementById('loading').innerHTML =
+              '<h3 style="color:#f44336; margin-bottom:5px;">🔒 Ujian Terkunci</h3>' +
+              '<p style="margin-top:0;">Batas waktu pengerjaan ujian ini telah habis.</p>' + btnKembali;
+          }
+          /* Matikan sensor jika tidak ada ujian aktif */
+          acEnabled = false;
+          return;
+        }
+
+        google.script.run
+          .withSuccessHandler(renderSoal)
+          .getCbtQuestions(quizId);
+
+      })
+      .validateCbtAccess(quizId, currentUser.userId);
+  });
+}
+
+function renderSoal(questions) {
+  document.getElementById('loading').style.display = 'none';
+  var container = document.getElementById('questionContainer');
+
+  if (!questions || questions.length === 0) {
+    container.innerHTML = '<p>Soal tidak ditemukan untuk ujian ini.</p>';
+    return;
+  }
+
+  var html = '';
+  questions.forEach(function(q, index) {
+    html += '<div class="question-card">';
+    html += '<h4>' + (index + 1) + '. ' + q.text +
+            ' <span style="font-size:12px; font-weight:normal; color:#888;">(' + q.points + ' Poin)</span></h4>';
+
+    if (q.type === 'PG') {
+      html += '<div class="options">';
+      q.options.forEach(function(opt) {
+        html += '<label>' +
+          '<input type="radio" name="' + q.question_id + '" value="' + opt + '" ' +
+          'onchange="simpanJawaban(\'' + q.question_id + '\', \'' + opt + '\')">' +
+          ' ' + opt + '</label>';
+      });
+      html += '</div>';
+    } else if (q.type === 'ESSAY') {
+      html += '<textarea rows="4" placeholder="Ketik jawaban essay Anda di sini..." ' +
+              'onblur="simpanJawaban(\'' + q.question_id + '\', this.value)"></textarea>';
+    }
+
+    html += '</div>';
+  });
+
+  container.innerHTML = html;
+  document.getElementById('btnSubmit').style.display = 'block';
+}
+
+function simpanJawaban(questionId, answer) {
+  userAnswers[questionId] = answer;
+}
+
+function submitKuis(otomatis) {
+  if (!otomatis) {
+    if (!confirm('Yakin ingin mengumpulkan ujian? Pastikan semua soal telah terjawab!')) return;
+  }
+
+  /* Matikan semua sensor agar tidak ada false-positive saat submit */
+  acEnabled = false;
+  if (extensionObserver) extensionObserver.disconnect();
+
+  var btn = document.getElementById('btnSubmit');
+  btn.innerText = 'Mengumpulkan Jawaban...';
+  btn.disabled = true;
+
+  userAnswers._violations = cheatViolations;
+
+  google.script.run
+    .withSuccessHandler(function(response) {
+      document.getElementById('questionContainer').style.display = 'none';
+      btn.style.display = 'none';
+
+      document.getElementById('resultArea').style.display = 'block';
+      document.getElementById('resultArea').innerHTML =
+        '<h3 style="color:#1565a8; margin-bottom:5px;">✅ Pekerjaan Telah Dikumpulkan!</h3>' +
+        '<p style="color:#555; margin-top:0;">Jawaban Anda telah tersimpan dengan aman di database.</p>' +
+        (cheatViolations > 0
+          ? '<div style="background:rgba(220,53,69,.08); border:1px solid rgba(220,53,69,.3); padding:10px; border-radius:8px; margin-top:12px;">' +
+            '<p style="font-size:12px; color:#c62828; margin:0;"><b>Catatan Sistem:</b> Tercatat <b>' + cheatViolations + ' pelanggaran</b> selama sesi ujian ini.</p></div>'
+          : '') +
+        '<div style="background:rgba(232,168,58,.1); border:1px solid rgba(232,168,58,.3); padding:10px; border-radius:8px; margin-top:12px;">' +
+        '<p style="font-size:12px; color:#b8761a; margin:0;"><b>Catatan:</b> Jika terdapat soal Essay, Nilai Akhir akan diperbarui setelah Dosen selesai mengoreksi.</p></div>' +
+        '<button class="btn-secondary" onclick="tutupAman()">Tutup / Kembali ke LMS</button>';
+
+      /* Keluar dari fullscreen setelah selesai */
+      try {
+        var exitFs = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen;
+        if (exitFs) exitFs.call(document);
+      } catch(e) {}
+    })
+    .submitCbtExam(quizId, currentUser.userId, userAnswers);
+}
+
+function tutupAman() {
+  var btn = event && event.target ? event.target : null;
+  if (btn) btn.innerText = 'Mengalihkan...';
+  try { window.top.close(); } catch(e) {}
+  google.script.run.withSuccessHandler(function(url) {
+    window.location.href = url;
+  }).getScriptUrl();
+}
+</script>
+</body>
+</html>
