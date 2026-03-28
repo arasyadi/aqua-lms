@@ -79,7 +79,7 @@ function submitCbtExam(quizId, userId, answersObj) {
 function nilaiEssayDenganGemini(soal, rubrik, jawabanMhs, maxPoin) {
   // 1. TEMPELKAN API KEY BARU ANDA DI SINI
   // Pastikan Anda sudah menghapus API Key yang lama di Google AI Studio!
-  var apiKey = "AIzaSyBxzcTM0wWdGD0lBukTGqwm6AZ01IJey2Q"; 
+  var apiKey = "API GEMINI AI"; 
   
   // 2. Endpoint Gemini 2.5 Flash
   var url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey;
