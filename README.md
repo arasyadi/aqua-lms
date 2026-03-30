@@ -26,6 +26,22 @@ Fokus pada antarmuka yang intuitif dan *gamification* untuk meningkatkan motivas
   * Menampilkan rekapitulasi nilai per komponen penilaian yang diinput oleh dosen.
   * Tombol **📊 Lihat Rincian Nilai Akhir** muncul otomatis saat dosen merilis nilai.
   * Modal rincian menampilkan tabel *breakdown* (Komponen | Nilai | Bobot | Hasil) dan **kalkulasi dilakukan sepenuhnya di sisi *browser* mahasiswa** (*zero server call*) untuk respons instan.
+Fokus pada antarmuka yang intuitif dan *gamification* untuk meningkatkan motivasi belajar.
+* **Computer Based Test (CBT) dengan Anti-Cheat 6 Lapis**: Sistem ujian daring terintegrasi yang dikawal ketat oleh *Fullscreen Gate*, pemblokiran *Copy-Paste* & klik kanan, deteksi perpindahan *tab*, pelacakan kursor keluar halaman, perlindungan dari ekstensi browser pihak ketiga, serta penghentian otomatis saat *offline*. Dilengkapi fitur kumpul paksa (*auto-submit*) jika pelanggaran mencapai batas maksimal.
+* **Smart Dashboard & Progress Bar**: Menampilkan persentase penyelesaian kelas secara otomatis dengan bobot dinamis:
+  * Membaca Materi (40%)
+  * Presensi & Refleksi *Lesson Learn* (40%)
+  * Pengerjaan Kuis/Tugas (20%)
+* **Kalender Pertemuan Cerdas (Smart Schedule)**:
+  * Menampilkan jadwal perkuliahan lengkap dengan mode pelaksanaan (Daring/Luring).
+  * Dilengkapi tombol akses instan ke *link* Zoom/Google Meet untuk kelas daring.
+  * Jadwal kelas luring menampilkan blok lokasi fisik secara otomatis.
+* **Sistem Presensi Reflektif (Auto-Lock)**: Mahasiswa diwajibkan menulis *insight* pembelajaran sebagai bukti kehadiran. Sistem menggunakan logika **Auto-Lock 1×24 jam** di mana tombol *submit* akan terkunci secara otomatis tepat di penghujung hari batas tenggat (*deadline*). Deadline ditampilkan dalam format **WITA** yang konsisten dan mudah dibaca (misal: *Senin, 31 Maret 2026 jam 24.00 WITA*).
+* **Real-time UX Feedback**: Tombol kuis dan materi akan langsung berubah warna dan status (✅ *Sudah Dikerjakan*) seketika setelah diklik, memberikan respons instan tanpa perlu memuat ulang halaman.
+* **Transparansi Nilai & Rincian Nilai Akhir**:
+  * Menampilkan rekapitulasi nilai per komponen penilaian yang diinput oleh dosen.
+  * Tombol **📊 Lihat Rincian Nilai Akhir** muncul otomatis saat dosen merilis nilai.
+  * Modal rincian menampilkan tabel *breakdown* (Komponen | Nilai | Bobot | Hasil) dan **kalkulasi dilakukan sepenuhnya di sisi *browser* mahasiswa** (*zero server call*) untuk respons instan.
 
 ### 👨‍🏫 Panel Dosen (Lecturer Super-Admin)
 Dilengkapi dengan fitur *Centralized Command* untuk mengelola kelas dari satu panel dengan tampilan *accordion* yang rapi.
