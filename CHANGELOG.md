@@ -3,6 +3,25 @@
 Semua perubahan yang signifikan pada proyek **AquaLearn LMS** akan didokumentasikan di file ini.
 
 ---
+## [Unreleased] - 2026-03-30
+
+### ✨ Added (Fitur Baru)
+* **Computer Assisted Assessment (CBT) Terintegrasi dengan 6 Lapis Anti-Cheat**:
+  * **L1**: Pemblokiran klik kanan, *shortcut* keyboard berbahaya (Copy, Paste, Print Screen, Inspect Element), dan deteksi jika mahasiswa berpindah *tab* atau jendela browser.
+  * **L2**: Pemblokiran fitur *drag-and-drop* dan penyeleksian teks di seluruh area halaman ujian (kecuali di dalam area pengetikan *essay*).
+  * **L3 (Fullscreen Gate)**: Mahasiswa diwajibkan untuk masuk ke mode layar penuh (*fullscreen*) sebelum ujian ditampilkan. Keluar dari *fullscreen* dihitung sebagai pelanggaran.
+  * **L4 (Smart Blur / Cursor Tracking)**: Memunculkan layar peringatan otomatis jika kursor *mouse* mahasiswa terdeteksi keluar dari area dokumen ujian.
+  * **L5**: Deteksi dan pemblokiran ekstensi browser mencurigakan menggunakan `MutationObserver` untuk mencegah injeksi elemen eksternal.
+  * **L6**: Deteksi koneksi *offline*. Ujian akan otomatis dijeda dengan layar merah jika internet terputus, dan dilanjutkan saat terhubung kembali.
+* **Sistem Auto-Submit Pelanggaran**: Sistem menghitung jumlah pelanggaran (*cheat violations*). Jika mencapai batas maksimal (5 pelanggaran), ujian akan otomatis dikumpulkan paksa.
+* **Floating Exam Timer**: Indikator hitung mundur waktu ujian yang otomatis melayang di sudut layar saat pengguna menggulir halaman ke bawah, lengkap dengan transisi warna dinamis (Hijau > Oranye > Merah).
+* **Sistem Poin Gamifikasi Baru (Keadilan Skor & Anti-Spam)**:
+  * Pembaruan logika pada fungsi analitik (`getStudentRankings`). 
+  * Akses materi unik/baru mendapatkan 5 poin, akses ulang materi yang sama mendapat 3 poin.
+  * Pengerjaan kuis dan *Lesson Learn* mendapat 10 poin (hanya dihitung 1 kali agar tidak bisa di-*spam*).
+
+### 🛠 Changed / Optimized (Pembaruan & Optimasi)
+* **Integrasi Data CBT**: Memodifikasi pengiriman paket `dataPersonal` pada ruang kelas untuk memuat status pengerjaan kuis terbaru serta injeksi info CBT (`getCourseQuizzesWithCbtInfo`).
 
 ## [Unreleased] - 2026-03-20
 
