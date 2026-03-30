@@ -1174,7 +1174,32 @@ function getPaketDataRuangKelas(courseId, userId) {
     dataPersonal = { nilai: [], submittedLessonIds: [], quizzes: [] };
     try { dataPersonal.nilai              = getRekapNilaiMahasiswa(courseId, userId); } catch(e) {}
     try { dataPersonal.submittedLessonIds = getSubmittedLessonIds(userId);            } catch(e) {}
-    try { dataPersonal.quizzes            = getCourseQuizzes(courseId, userId);       } catch(e) {} // AMAN: Kuis disimpan secara personal
+    // ✅ UPDATED: Ambil kuis + enrich CBT info + tandai dikerjakan dari QUIZ_TRACK
+try {
+  var rawQuizzes = getCourseQuizzesWithCbtInfo(courseId);
+
+  // Ambil quiz_id yang sudah pernah diklik mahasiswa ini dari QUIZ_TRACK
+  // Schema QUIZ_TRACK: track_id(0) | user_id(1) | quiz_id(2) | timestamp(3)
+  var doneQuizIds = [];
+  var qtSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("QUIZ_TRACK");
+  if (qtSheet && userId) {
+    var qtData = qtSheet.getDataRange().getValues();
+    for (var qt = 1; qt < qtData.length; qt++) {
+      if (String(qtData[qt][1]).trim() === String(userId).trim()) {
+        doneQuizIds.push(String(qtData[qt][2]).trim());
+      }
+    }
+  }
+
+  // Tandai flag dikerjakan pada setiap kuis
+  rawQuizzes.forEach(function(q) {
+    q.dikerjakan = doneQuizIds.indexOf(String(q.quiz_id).trim()) > -1;
+  });
+
+  dataPersonal.quizzes = rawQuizzes;
+} catch(e) {
+  dataPersonal.quizzes = [];
+}
     cachePut(keyPersonal, dataPersonal);
   }
 
@@ -1307,7 +1332,7 @@ function getPaketDataAnalitikKelas(courseId) {
 
   var paket = {
     materials : getCourseMaterials(courseId),
-    quizzes   : getCourseQuizzes(courseId),
+    quizzes   : getCourseQuizzesWithCbtInfo(courseId),
     lessons   : getCourseLessons(courseId),
     students  : getStudentManagementData(courseId),
     rankings  : getStudentRankings(courseId),
@@ -1547,7 +1572,7 @@ function refreshAndGetCourseData(courseId) {
     return { 
       success: true, 
       materials: getCourseMaterials(courseId),
-      quizzes: getCourseQuizzes(courseId),
+      quizzes: getCourseQuizzesWithCbtInfo(courseId),
       lessons: getCourseLessons(courseId),
       message: "Data kelas berhasil disinkronisasi!" 
     };
