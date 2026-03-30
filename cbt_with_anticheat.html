@@ -193,11 +193,6 @@
 </head>
 <body>
 
-<!-- ======================================================
-     ANTI-CHEAT OVERLAYS
-     ====================================================== -->
-
-<!-- L3: Gate Masuk Layar Penuh -->
 <div id="ac-fullscreen-gate">
   <h2>&#128274; Ujian Terkunci</h2>
   <p>
@@ -209,39 +204,42 @@
   </button>
 </div>
 
-<!-- L4: Overlay Kursor Keluar Area -->
 <div id="ac-cursor-overlay">
   <div class="icon">&#9888;</div>
   <h3>Kursor Anda keluar dari area ujian!</h3>
   <p>Segera kembalikan kursor ke dalam halaman ini untuk melanjutkan.</p>
 </div>
 
-<!-- L6: Overlay Koneksi Putus -->
 <div id="ac-offline-overlay">
   <div class="icon">&#128245;</div>
   <h3>Koneksi Internet Terputus!</h3>
   <p>Ujian dijeda. Soal akan kembali tampil setelah internet terhubung kembali.</p>
 </div>
 
-<!-- Badge Pelanggaran -->
 <div id="ac-violation-badge">Pelanggaran: <span id="violation-count">0</span></div>
 
-<!-- Toast Peringatan -->
 <div id="ac-toast" id="acToast"></div>
 
-<!-- ======================================================
-     KONTEN UTAMA UJIAN
-     ====================================================== -->
 <div id="main-content">
   <div class="container" id="cbtApp">
     <div class="header">
       <div>
-        <h2 style="margin:0;">Computer Assisted Assessment (CAA)</h2>
+        <h2 style="margin:0;">Computer Assisted Assessment</h2>
         <p style="margin:5px 0 0; color:#666; font-size:14px;">
           Mahasiswa: <span id="studentName">Memuat...</span>
         </p>
       </div>
       <div id="quizTimer" style="font-weight:bold; color:#d32f2f;"></div>
+      <!-- Timer floating — muncul saat header tergulir ke atas -->
+      <div id="floatingTimer"
+           style="display:none; position:fixed; top:12px; right:16px; z-index:9999;
+                  background:#1565a8; color:white; padding:8px 16px;
+                  border-radius:20px; font-weight:bold; font-size:14px;
+                  box-shadow:0 4px 12px rgba(0,0,0,0.3);
+                  border:2px solid rgba(255,255,255,0.2);
+                  transition:opacity .3s ease;">
+          ⏱ <span id="floatingTimerText">--:--</span>
+      </div>
     </div>
 
     <div id="loading" style="text-align:center; color:#666; padding:20px 0;">Memuat soal ujian...</div>
@@ -254,19 +252,14 @@
 
     <div id="resultArea" style="display:none; text-align:center; margin-top:20px;"></div>
   </div>
-</div><!-- /main-content -->
-
-
-<!-- ======================================================
-     JAVASCRIPT
-     ====================================================== -->
-<script>
+</div><script>
 /* =====================================================
    STATE APLIKASI
    ===================================================== */
 var currentUser    = null;
 var quizId         = null;
 var userAnswers    = {};
+var timerInterval  = null;
 
 /* --- Anti-cheat state --- */
 var cheatViolations   = 0;
@@ -503,12 +496,92 @@ function inisialisasiApp() {
         }
 
         google.script.run
+          .withSuccessHandler(function(sessionInfo) {
+            mulaiTimerDurasi(sessionInfo); // ← aktifkan timer
+          })
+          .startCbtSession(quizId, currentUser.userId);
+
+        google.script.run
           .withSuccessHandler(renderSoal)
           .getCbtQuestions(quizId);
 
       })
       .validateCbtAccess(quizId, currentUser.userId);
   });
+}
+
+var timerInterval = null;
+
+function mulaiTimerDurasi(sessionInfo) {
+  var timerEl         = document.getElementById('quizTimer');
+  var floatingEl      = document.getElementById('floatingTimer');
+  var floatingTextEl  = document.getElementById('floatingTimerText');
+
+  if (!sessionInfo.hasDuration || sessionInfo.remainingMs <= 0) {
+    if (sessionInfo.hasDuration && sessionInfo.remainingMs <= 0) {
+      tampilToast('🚨 Waktu pengerjaan Anda sudah habis! Mengumpulkan otomatis...', 5000);
+      setTimeout(function() { submitKuis(true); }, 3000);
+    }
+    timerEl.style.display = 'none';
+    return;
+  }
+
+  var endTime = new Date().getTime() + sessionInfo.remainingMs;
+
+  // ── IntersectionObserver: tampilkan floating timer saat header tidak terlihat ──
+  var headerEl = document.querySelector('.header');
+  if (headerEl && 'IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        // Header tidak terlihat → tampilkan floating timer
+        if (!entry.isIntersecting) {
+          floatingEl.style.display = 'block';
+        } else {
+          floatingEl.style.display = 'none';
+        }
+      });
+    }, { threshold: 0 });
+    observer.observe(headerEl);
+  }
+
+  timerInterval = setInterval(function() {
+    var sisaMs    = endTime - new Date().getTime();
+
+    if (sisaMs <= 0) {
+      clearInterval(timerInterval);
+      var pesanHabis = '⏰ 00:00 — Waktu Habis!';
+      timerEl.innerText        = pesanHabis;
+      timerEl.style.color      = '#f44336';
+      floatingEl.innerText     = pesanHabis;
+      floatingEl.style.background = '#c62828';
+      tampilToast('🚨 Waktu habis! Jawaban dikumpulkan otomatis.', 5000);
+      setTimeout(function() {
+        if (document.getElementById('btnSubmit').style.display !== 'none') {
+          submitKuis(true);
+        }
+      }, 2000);
+      return;
+    }
+
+    var totalDetik = Math.floor(sisaMs / 1000);
+    var menit      = Math.floor(totalDetik / 60);
+    var detik      = totalDetik % 60;
+
+    // Warna berdasarkan sisa waktu
+    var warna = sisaMs < 5  * 60 * 1000 ? '#f44336' :   // merah  < 5 menit
+                sisaMs < 10 * 60 * 1000 ? '#ff9800' :   // oranye < 10 menit
+                '#4CAF50';                                // hijau
+
+    var teksWaktu = '⏱ ' + String(menit).padStart(2,'0') + ':' + String(detik).padStart(2,'0') + ' tersisa';
+
+    // Update kedua timer sekaligus
+    timerEl.style.color      = warna;
+    timerEl.innerText        = teksWaktu;
+    floatingEl.style.background = sisaMs < 5 * 60 * 1000 ? '#c62828' :
+                                  sisaMs < 10 * 60 * 1000 ? '#e65100' : '#1565a8';
+    floatingTextEl.innerText = String(menit).padStart(2,'0') + ':' + String(detik).padStart(2,'0') + ' tersisa';
+
+  }, 1000);
 }
 
 function renderSoal(questions) {
@@ -552,6 +625,8 @@ function simpanJawaban(questionId, answer) {
 }
 
 function submitKuis(otomatis) {
+  clearInterval(timerInterval); // Pastikan timer berhenti saat submit
+
   if (!otomatis) {
     if (!confirm('Yakin ingin mengumpulkan ujian? Pastikan semua soal telah terjawab!')) return;
   }
