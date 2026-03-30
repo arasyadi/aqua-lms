@@ -8,39 +8,100 @@
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Lora:wght@600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --deep:   #060f1e; --foam:   #5cc8f0; --coral:  #f26d51; --amber:  #e8a83a; --mint:   #34c98a; --border: rgba(92,200,240,0.18);
+      --deep:   #060f1e; --foam:   #5cc8f0; --coral:  #f26d51;
+      --amber:  #e8a83a; --mint:   #34c98a; --border: rgba(92,200,240,0.18);
     }
-    body { font-family: 'Sora', sans-serif; background-color: var(--deep); color: #d6edf8; margin: 0; padding: 20px; background-image: radial-gradient(ellipse 80% 60% at 50% 100%, rgba(11,31,58,0.9) 0%, transparent 75%), linear-gradient(180deg, #060f1e 0%, #0b1f3a 100%); min-height: 100vh; }
+    body {
+      font-family: 'Sora', sans-serif;
+      background-color: var(--deep);
+      color: #d6edf8;
+      margin: 0;
+      padding: 20px;
+      background-image:
+        radial-gradient(ellipse 80% 60% at 50% 100%, rgba(11,31,58,0.9) 0%, transparent 75%),
+        linear-gradient(180deg, #060f1e 0%, #0b1f3a 100%);
+      min-height: 100vh;
+    }
     .container { max-width: 900px; margin: 0 auto; }
-    .glass { background: rgba(13,61,107,0.35); border: 1px solid var(--border); backdrop-filter: blur(16px); border-radius: 16px; padding: 25px; }
+    .glass {
+      background: rgba(13,61,107,0.35);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(16px);
+      border-radius: 16px;
+      padding: 25px;
+    }
     .header-title { font-family: 'Lora', serif; font-size: 24px; color: var(--foam); margin: 0 0 5px 0; }
-    .stat-box { text-align: center; padding: 20px; background: rgba(33,150,211,0.08); border-radius: 12px; border: 1px solid rgba(33,150,211,0.2); margin-bottom: 25px; }
+    .stat-box {
+      text-align: center; padding: 20px;
+      background: rgba(33,150,211,0.08);
+      border-radius: 12px;
+      border: 1px solid rgba(33,150,211,0.2);
+      margin-bottom: 25px;
+    }
     .stat-box h2 { font-family: 'Lora', serif; font-size: 32px; color: var(--foam); margin: 0; }
     table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-    th { background: rgba(13,61,107,0.8); color: var(--foam); padding: 12px; text-align: left; font-size: 12px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
-    td { padding: 12px; font-size: 13px; border-bottom: 1px solid rgba(92,200,240,0.08); color: #c0dbe8; }
+    th {
+      background: rgba(13,61,107,0.8); color: var(--foam);
+      padding: 12px; text-align: left; font-size: 12px;
+      text-transform: uppercase; border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 12px; font-size: 13px;
+      border-bottom: 1px solid rgba(92,200,240,0.08);
+      color: #c0dbe8;
+    }
     .badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; }
-    .badge-mint { background: rgba(52,201,138,0.18); color: var(--mint); border: 1px solid rgba(52,201,138,0.3); }
+    .badge-mint  { background: rgba(52,201,138,0.18); color: var(--mint);  border: 1px solid rgba(52,201,138,0.3); }
     .badge-amber { background: rgba(232,168,58,0.18); color: var(--amber); border: 1px solid rgba(232,168,58,0.3); }
-    .btn-dark { background: rgba(6,15,30,0.7); color: #8ab8cc; border: 1px solid rgba(92,200,240,0.2); padding: 10px 20px; border-radius: 10px; cursor: pointer; font-weight: 600; }
+    .btn-dark {
+      background: rgba(6,15,30,0.7); color: #8ab8cc;
+      border: 1px solid rgba(92,200,240,0.2);
+      padding: 10px 20px; border-radius: 10px;
+      cursor: pointer; font-weight: 600;
+      font-family: 'Sora', sans-serif;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
 <body>
 
 <div class="container">
   <div class="glass">
-    <h1 class="header-title" id="dashTitle">📊 Memuat Dashboard CBT...</h1>
-    <p style="font-size: 13px; color: #5a8fa8; margin: 0 0 20px 0;">Memantau progress mahasiswa secara real-time.</p>
 
+    <!-- HEADER -->
+    <h1 class="header-title" id="dashTitle">📊 Memuat Dashboard CBT...</h1>
+    <p style="font-size:13px; color:#5a8fa8; margin:0 0 20px 0;">Memantau progress mahasiswa secara real-time.</p>
+
+    <!-- STAT BOX -->
     <div class="stat-box">
       <h2 id="dashProgress">-</h2>
-      <p style="font-size: 12px; color: #8ab8cc; text-transform: uppercase; margin: 5px 0 0 0;">Progress Pengerjaan Kelas</p>
+      <p style="font-size:12px; color:#8ab8cc; text-transform:uppercase; margin:5px 0 0 0;">Progress Pengerjaan Kelas</p>
     </div>
 
-    <div style="overflow-x: auto;">
-      <div style="text-align: right; margin-bottom: 15px;">
-       <button id="btnGradeAI" onclick="jalankanAIGrading()" style="background: linear-gradient(135deg, #9c27b0, #7b1fa2); color: white; padding: 10px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(156,39,176,0.3);">🤖 Nilai Essay dengan AI</button>
+    <!-- TOMBOL AKSI — Nilai AI + Submit Nilai berdampingan -->
+    <div style="display:flex; gap:10px; justify-content:flex-end; margin-bottom:15px; flex-wrap:wrap;">
+      <button id="btnGradeAI" onclick="jalankanAIGrading()"
+              style="background:linear-gradient(135deg,#9c27b0,#7b1fa2);
+                     color:white; padding:10px 15px; border:none; border-radius:8px;
+                     cursor:pointer; font-weight:bold; font-family:'Sora',sans-serif;
+                     box-shadow:0 4px 10px rgba(156,39,176,0.3);">
+        🤖 Nilai Essay dengan AI
+      </button>
+
+      <button onclick="bukaModalSubmitNilai()"
+              style="background:linear-gradient(135deg,#0d7a6b,#34c98a);
+                     color:white; padding:10px 15px; border:none; border-radius:8px;
+                     cursor:pointer; font-weight:bold; font-family:'Sora',sans-serif;
+                     box-shadow:0 4px 10px rgba(52,201,138,0.3);">
+        📤 Submit Nilai ke LMS
+      </button>
     </div>
+
+    <!-- TABEL MAHASISWA -->
+    <div style="overflow-x:auto;">
       <table>
         <thead>
           <tr>
@@ -56,56 +117,166 @@
         </tbody>
       </table>
     </div>
-    
-    <div style="text-align: center; margin-top: 20px;">
+
+    <!-- TOMBOL TUTUP (seperti semula) -->
+    <div style="text-align:center; margin-top:20px;">
       <button class="btn-dark" onclick="tutupAman()">Tutup Tab Dashboard</button>
     </div>
+
+  </div><!-- /glass -->
+</div><!-- /container -->
+
+
+<!-- ══════════════════════════════════════
+     MODAL SUBMIT NILAI
+     ══════════════════════════════════════ -->
+<div id="overlaySubmitNilai"
+     style="display:none; position:fixed; inset:0; z-index:1000;
+            background:rgba(6,15,30,0.85); backdrop-filter:blur(8px);
+            align-items:center; justify-content:center; padding:20px;">
+
+  <div style="width:100%; max-width:460px; border-radius:20px; padding:28px;
+              background:rgba(11,31,58,0.97);
+              border:1px solid rgba(92,200,240,0.18);
+              animation:fadeUp .25s ease; font-family:'Sora',sans-serif;">
+
+    <!-- Header Modal -->
+    <div style="display:flex; justify-content:space-between; align-items:center;
+                margin-bottom:16px; padding-bottom:14px;
+                border-bottom:1px solid rgba(92,200,240,0.18);">
+      <h3 style="font-family:'Lora',serif; font-size:17px; color:#5cc8f0; margin:0;">
+        📤 Submit Nilai ke LMS
+      </h3>
+      <button onclick="tutupModalSubmitNilai()"
+              style="background:none; border:none; color:#5a8fa8;
+                     font-size:18px; cursor:pointer; line-height:1;">✕</button>
+    </div>
+
+    <!-- Deskripsi -->
+    <p style="font-size:12px; color:#5a8fa8; margin:0 0 18px; line-height:1.7;">
+      Kirim nilai akhir seluruh mahasiswa ke tab
+      <b style="color:#c0dbe8;">Manajemen Nilai</b> di panel kelas dosen.<br>
+      Pastikan soal Essay sudah dinilai AI sebelum submit.
+    </p>
+
+    <!-- Info Progress -->
+    <div style="background:rgba(33,150,211,0.08); border:1px solid rgba(33,150,211,0.2);
+                border-radius:10px; padding:10px 14px; margin-bottom:18px;">
+      <p style="font-size:12px; color:#8ab8cc; margin:0;">
+        📊 Progress saat ini:
+        <b id="modalProgressText" style="color:#5cc8f0;">-</b>
+      </p>
+    </div>
+
+    <!-- Input Jenis Penilaian -->
+    <label style="font-size:11px; color:#8ab8cc; font-weight:600;
+                  text-transform:uppercase; display:block; margin-bottom:6px;">
+      Nama Jenis Penilaian di LMS
+    </label>
+    <input type="text" id="inputJenisNilaiCbt"
+           placeholder="Contoh: Kuis 1, UTS CBT, Ujian Akhir"
+           style="width:100%; padding:11px 14px; border-radius:10px;
+                  border:1px solid rgba(92,200,240,0.22);
+                  background:rgba(6,15,30,0.6); color:#d6edf8;
+                  font-size:13px; font-family:'Sora',sans-serif;
+                  box-sizing:border-box; margin-bottom:8px;
+                  transition:border-color .2s, box-shadow .2s;"
+           onfocus="this.style.borderColor='#2196d3';this.style.boxShadow='0 0 0 3px rgba(33,150,211,0.18)'"
+           onblur="this.style.borderColor='rgba(92,200,240,0.22)';this.style.boxShadow='none'">
+
+    <p style="font-size:11px; color:#3a6a85; margin:0 0 20px; font-style:italic;">
+      * Nama ini harus sama persis dengan komponen bobot nilai di Pengaturan Nilai Akhir.
+    </p>
+
+    <!-- Feedback Box -->
+    <div id="feedbackSubmitNilai"
+         style="display:none; padding:10px 14px; border-radius:8px;
+                margin-bottom:16px; font-size:12px; line-height:1.6;
+                border:1px solid rgba(92,200,240,0.15);
+                background:rgba(6,15,30,0.5);">
+      <p id="feedbackSubmitText" style="margin:0; color:#8ab8cc;"></p>
+    </div>
+
+    <!-- Tombol Aksi -->
+    <div style="display:flex; gap:10px;">
+      <button id="btnSubmitNilaiCbt" onclick="submitNilaiKeGrades()"
+              style="flex:1; background:linear-gradient(135deg,#0d7a6b,#34c98a);
+                     color:white; padding:11px; border:none; border-radius:10px;
+                     font-weight:700; font-size:13px; cursor:pointer;
+                     font-family:'Sora',sans-serif;">
+        📤 Submit Nilai
+      </button>
+      <button onclick="tutupModalSubmitNilai()"
+              style="background:rgba(6,15,30,0.7); color:#8ab8cc;
+                     border:1px solid rgba(92,200,240,0.2);
+                     padding:11px 18px; border-radius:10px;
+                     font-weight:600; font-size:13px; cursor:pointer;
+                     font-family:'Sora',sans-serif;">
+        Batal
+      </button>
+    </div>
+
   </div>
 </div>
 
-<script>
-  // 1. Buat variabel global
-  var globalQuizId = null; 
-  var globalCourseId = null; // Tambahkan penampung ID Kelas
 
+<!-- ══════════════════════════════════════
+     JAVASCRIPT
+     ══════════════════════════════════════ -->
+<script>
+  // ── Variabel Global ──
+  var globalQuizId   = null;
+  var globalCourseId = null;
+
+  // ── Init ──
   window.onload = function() {
     google.script.url.getLocation(function(location) {
-      globalQuizId = location.parameter.quizId; 
-      globalCourseId = location.parameter.courseId; // Simpan ke variabel global
-      
+      globalQuizId   = location.parameter.quizId;
+      globalCourseId = location.parameter.courseId;
+
       if (!globalQuizId) {
-        document.getElementById("dashTitle").innerText = "❌ URL Tidak Valid"; 
-        document.getElementById("dashSubtitle").innerText = "Parameter ID Ujian tidak ditemukan.";
-        document.getElementById("tableBody").innerHTML = "";
+        document.getElementById('dashTitle').innerText = '❌ URL Tidak Valid';
+        document.getElementById('tableBody').innerHTML = '';
         return;
       }
 
-      document.getElementById("dashTitle").innerText = "📊 Analitik Ujian: " + globalQuizId;
-      
-      google.script.run.withSuccessHandler(renderDashboard).withFailureHandler(function(e) {
-          alert("Gagal memuat analitik: " + e.message);
-      }).getCbtAnalytics(globalQuizId, globalCourseId);
+      document.getElementById('dashTitle').innerText = '📊 Analitik Ujian: ' + globalQuizId;
+
+      google.script.run
+        .withSuccessHandler(renderDashboard)
+        .withFailureHandler(function(e) { alert('Gagal memuat analitik: ' + e.message); })
+        .getCbtAnalytics(globalQuizId, globalCourseId);
+    });
+
+    // Tutup modal jika klik overlay gelap
+    // Diletakkan di sini (dalam window.onload) agar elemen sudah ada di DOM
+    document.getElementById('overlaySubmitNilai').addEventListener('click', function(e) {
+      if (e.target === this) tutupModalSubmitNilai();
     });
   };
 
+  // ── Render Tabel ──
   function renderDashboard(data) {
     var persen = data.total > 0 ? Math.round((data.sudah / data.total) * 100) : 0;
-    document.getElementById("dashProgress").innerText = data.sudah + " dari " + data.total + " (" + persen + "%) Selesai";
+    document.getElementById('dashProgress').innerText =
+      data.sudah + ' dari ' + data.total + ' (' + persen + '%) Selesai';
 
-    var tbody = document.getElementById("tableBody");
-    tbody.innerHTML = "";
+    var tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '';
 
-    if(data.students.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Belum ada mahasiswa di kelas ini.</td></tr>'; return;
+    if (data.students.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Belum ada mahasiswa di kelas ini.</td></tr>';
+      return;
     }
 
     data.students.forEach(function(s) {
-      var isDone = s.status === 'Sudah';
+      var isDone   = s.status === 'Sudah';
       var badgeCls = isDone ? 'badge-mint' : 'badge-amber';
       var vioStyle = s.violations > 0 ? 'color:var(--coral); font-weight:bold;' : 'color:var(--mint);';
-      var vioText = isDone ? (s.violations + 'x') : '-';
+      var vioText  = isDone ? (s.violations + 'x') : '-';
 
-      tbody.innerHTML += '<tr>'
+      tbody.innerHTML +=
+        '<tr>'
         + '<td style="font-family:monospace; color:#8ab8cc;">' + s.userId + '</td>'
         + '<td style="font-weight:500;">' + s.nama + '</td>'
         + '<td style="text-align:center;"><span class="badge ' + badgeCls + '">' + s.status + '</span></td>'
@@ -115,52 +286,127 @@
     });
   }
 
-function tutupAman() {
-  var btn = event.target;
-  if(btn) btn.innerText = "Mengalihkan...";
+  // ── Tutup Tab ──
+  function tutupAman() {
+    var btn = event.target;
+    if (btn) btn.innerText = 'Mengalihkan...';
+    try { window.top.close(); } catch(e) {}
+    google.script.run.withSuccessHandler(function(url) {
+      window.location.href = url;
+    }).getScriptUrl();
+  }
 
-  // Coba tutup tab secara paksa
-  try { window.top.close(); } catch(e) {}
-
-  // Jika gagal ditutup oleh browser, arahkan kembali ke LMS
-  google.script.run.withSuccessHandler(function(url) {
-    window.location.href = url;
-  }).getScriptUrl();
-}
-
-  // 2. Fungsi Tombol AI (Bebas Blank Screen)
+  // ── Nilai Essay AI ──
   function jalankanAIGrading() {
     if (!globalQuizId) {
-      alert("ID Ujian belum dimuat! Silakan tunggu sebentar.");
+      alert('ID Ujian belum dimuat! Silakan tunggu sebentar.');
       return;
     }
 
-    if(!confirm("Mulai menilai Essay dengan AI?\n\nPERINGATAN: Proses ini membutuhkan waktu (sekitar 4 detik per soal per mahasiswa) agar API AI tidak diblokir Google. Jangan tutup tab ini selama memproses!")) return;
+    if (!confirm(
+      'Mulai menilai Essay dengan AI?\n\n'
+      + 'PERINGATAN: Proses ini membutuhkan waktu (sekitar 4 detik per soal per mahasiswa) '
+      + 'agar API AI tidak diblokir Google. Jangan tutup tab ini selama memproses!'
+    )) return;
 
-    var btn = document.getElementById("btnGradeAI");
-    btn.innerText = "⏳ Sedang Menilai (Tunggu Hingga Selesai)...";
-    btn.disabled = true;
-    btn.style.opacity = "0.6";
+    var btn = document.getElementById('btnGradeAI');
+    btn.innerText  = '⏳ Sedang Menilai (Tunggu Hingga Selesai)...';
+    btn.disabled   = true;
+    btn.style.opacity = '0.6';
 
-    google.script.run.withSuccessHandler(function(res) {
-      btn.innerText = "🤖 Nilai Essay dengan AI";
-      btn.disabled = false;
-      btn.style.opacity = "1";
-      
-      alert(res.message);
-      
-      // SOLUSI BLANK: Tarik ulang data secara instan tanpa me-reload browser!
-      document.getElementById("tableBody").innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--foam);">🔄 Memperbarui nilai di tabel...</td></tr>';
-      
-      google.script.run.withSuccessHandler(renderDashboard).getCbtAnalytics(globalQuizId, globalCourseId);
-      
-    }).withFailureHandler(function(e) {
-      alert("Terjadi kesalahan: " + e.message);
-      btn.innerText = "🤖 Nilai Essay dengan AI";
-      btn.disabled = false;
-      btn.style.opacity = "1";
-    }).prosesPenilaianEssayMasal(globalQuizId); 
+    google.script.run
+      .withSuccessHandler(function(res) {
+        btn.innerText     = '🤖 Nilai Essay dengan AI';
+        btn.disabled      = false;
+        btn.style.opacity = '1';
+
+        alert(res.message);
+
+        document.getElementById('tableBody').innerHTML =
+          '<tr><td colspan="5" style="text-align:center; color:var(--foam);">🔄 Memperbarui nilai di tabel...</td></tr>';
+
+        google.script.run
+          .withSuccessHandler(renderDashboard)
+          .getCbtAnalytics(globalQuizId, globalCourseId);
+      })
+      .withFailureHandler(function(e) {
+        alert('Terjadi kesalahan: ' + e.message);
+        btn.innerText     = '🤖 Nilai Essay dengan AI';
+        btn.disabled      = false;
+        btn.style.opacity = '1';
+      })
+      .prosesPenilaianEssayMasal(globalQuizId);
+  }
+
+  // ── Modal Submit Nilai ──
+  function bukaModalSubmitNilai() {
+    document.getElementById('modalProgressText').innerText =
+      document.getElementById('dashProgress').innerText;
+    document.getElementById('inputJenisNilaiCbt').value = '';
+    document.getElementById('feedbackSubmitNilai').style.display = 'none';
+    document.getElementById('overlaySubmitNilai').style.display  = 'flex';
+  }
+
+  function tutupModalSubmitNilai() {
+    document.getElementById('overlaySubmitNilai').style.display = 'none';
+  }
+
+  function submitNilaiKeGrades() {
+    if (!globalQuizId) {
+      alert('ID Ujian belum dimuat. Tunggu sebentar lalu coba lagi.');
+      return;
+    }
+
+    var jenisNilai = document.getElementById('inputJenisNilaiCbt').value.trim();
+    if (!jenisNilai) {
+      alert('Isi Nama Jenis Penilaian terlebih dahulu!');
+      return;
+    }
+
+    if (!confirm(
+      'Submit nilai "' + jenisNilai + '" ke LMS?\n\n'
+      + '• Nilai akan tampil di tab Manajemen Nilai panel kelas dosen\n'
+      + '• Jika sudah pernah disubmit, nilai lama akan DITIMPA'
+    )) return;
+
+    var btn         = document.getElementById('btnSubmitNilaiCbt');
+    var feedback    = document.getElementById('feedbackSubmitNilai');
+    var feedbackTxt = document.getElementById('feedbackSubmitText');
+
+    btn.innerText = '⏳ Mengirim...';
+    btn.disabled  = true;
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        btn.innerText = '📤 Submit Nilai';
+        btn.disabled  = false;
+        feedback.style.display = 'block';
+
+        if (res.success) {
+          feedback.style.borderColor = 'rgba(52,201,138,0.3)';
+          feedback.style.background  = 'rgba(52,201,138,0.07)';
+          feedbackTxt.style.color    = '#34c98a';
+          feedbackTxt.innerHTML      = res.message;
+          document.getElementById('inputJenisNilaiCbt').value = '';
+        } else {
+          feedback.style.borderColor = 'rgba(242,109,81,0.3)';
+          feedback.style.background  = 'rgba(242,109,81,0.07)';
+          feedbackTxt.style.color    = '#f26d51';
+          feedbackTxt.innerHTML      = '❌ ' + res.message;
+        }
+      })
+      .withFailureHandler(function(e) {
+        btn.innerText = '📤 Submit Nilai';
+        btn.disabled  = false;
+        feedback.style.display     = 'block';
+        feedback.style.borderColor = 'rgba(242,109,81,0.3)';
+        feedback.style.background  = 'rgba(242,109,81,0.07)';
+        feedbackTxt.style.color    = '#f26d51';
+        feedbackTxt.innerHTML      = '❌ Gagal terhubung: ' + e.message;
+      })
+      .submitNilaiCbtKeGrades(globalQuizId, globalCourseId, jenisNilai);
   }
 </script>
+
 </body>
 </html>
