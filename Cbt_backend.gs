@@ -1,6 +1,6 @@
 // File: cbt_backend.gs
 
-var GEMINI_API_KEY = "API Gemini AI";
+var GEMINI_API_KEY = "GEMINI API AI";
 
 // 1. Mengambil soal untuk ditampilkan ke mahasiswa (Kunci jawaban dihilangkan demi keamanan)
 function getCbtQuestions(quizId) {
@@ -30,45 +30,49 @@ function submitCbtExam(quizId, userId, answersObj) {
   
   var totalScore = 0;
   var maxScore = 0;
-  var feedbackEssay = {};
 
-  // Looping semua soal ujian ini untuk mencocokkan jawaban
   for (var i = 1; i < dataSoal.length; i++) {
     if (String(dataSoal[i][1]).trim() === String(quizId).trim()) {
-      var qId = dataSoal[i][0];
-      var type = dataSoal[i][2];
-      var questionText = dataSoal[i][3];
-      var correctAnswer = String(dataSoal[i][5]).trim(); // Kunci jawaban
+      var qId   = dataSoal[i][0];
+      var type  = dataSoal[i][2];
+      var correctAnswer = String(dataSoal[i][5]).trim();
       var maxPoint = parseFloat(dataSoal[i][6]) || 0;
       maxScore += maxPoint;
       
       var userAnswer = answersObj[qId] || "";
-
-      // PENILAIAN PILIHAN GANDA (PG) SAJA SECARA REAL-TIME
       if (type === "PG") {
         if (String(userAnswer).trim().toLowerCase() === correctAnswer.toLowerCase()) {
           totalScore += maxPoint;
         }
-      } 
-      // PENILAIAN ESSAY DITUNDA
-      else if (type === "ESSAY") {
-        // Jangan panggil Gemini di sini. Biarkan skor sementara 0 atau null.
-        // Kita hanya menyimpan jawaban mentahnya saja di database
       }
     }
   }
 
-  // Kalkulasi nilai akhir ke skala 100 jika diperlukan
   var finalGrade = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
   finalGrade = Math.round(finalGrade * 100) / 100;
 
-  // Simpan ke database CBT_SUBMISSIONS
+  // ✅ FIX: Ekstrak violations SEBELUM di-stringify, lalu hapus dari objek jawaban
+  var jumlahPelanggaran = parseInt(answersObj._violations) || 0;
+  delete answersObj._violations;
+
   var sheetSubmit = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("CBT_SUBMISSIONS");
   if (!sheetSubmit) {
     sheetSubmit = SpreadsheetApp.getActiveSpreadsheet().insertSheet("CBT_SUBMISSIONS");
-    sheetSubmit.appendRow(["submit_id", "quiz_id", "user_id", "answers_json", "total_score", "timestamp"]);
+    // ✅ FIX: Header lengkap 8 kolom
+    sheetSubmit.appendRow(["submit_id","quiz_id","user_id","answers_json","total_score","timestamp","violations","essay_feedback"]);
   }
-  sheetSubmit.appendRow(["CBT-SUB-" + new Date().getTime(), quizId, userId, JSON.stringify(answersObj), finalGrade, new Date()]);
+
+  // ✅ FIX: Simpan violations di kolom ke-7 (G), essay_feedback kolom ke-8 (H) kosong dulu
+  sheetSubmit.appendRow([
+    "CBT-SUB-" + new Date().getTime(),
+    quizId,
+    userId,
+    JSON.stringify(answersObj),
+    finalGrade,
+    new Date(),
+    jumlahPelanggaran,   // kolom G — ANGKA
+    ""                   // kolom H — diisi AI nanti
+  ]);
   
   return { success: true, score: finalGrade, message: "Ujian berhasil diselesaikan!" };
 }
@@ -78,8 +82,7 @@ function submitCbtExam(quizId, userId, answersObj) {
 // ==========================================
 function nilaiEssayDenganGemini(soal, rubrik, jawabanMhs, maxPoin) {
   // 1. TEMPELKAN API KEY BARU ANDA DI SINI
-  // Pastikan Anda sudah menghapus API Key yang lama di Google AI Studio!
-  var apiKey = "API GEMINI AI"; 
+  var apiKey = "GEMINI API AI"; 
   
   // 2. Endpoint Gemini 2.5 Flash
   var url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey;
@@ -189,105 +192,294 @@ function setupCBTDatabase() {
   }
 }
 
-// Fungsi untuk menyimpan soal baru dari Dashboard Dosen
-function saveCbtQuestion(data) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("CBT_QUESTIONS");
-  if (!sheet) {
-    return { success: false, message: "Sheet CBT_QUESTIONS belum ada! Jalankan setupCBTDatabase terlebih dahulu." };
+// Ambil daftar quiz berdasarkan courseId (untuk dropdown)
+function getQuizzesForCourse(courseId) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var safeCourseId = String(courseId).trim();
+  var quizMap = {}; // { quizId: title } — pakai Map untuk deduplikasi otomatis
+
+  // ── SUMBER 1: Scan COURSE_QUIZZES ──
+  // Sheet ini menyimpan kuis yang ditambahkan via "Tambah Kuis/Tugas"
+  // Cari baris yang course_id-nya cocok DAN URL-nya mengandung CBT quizId
+  var cqSheet = ss.getSheetByName("COURSE_QUIZZES");
+  if (cqSheet) {
+    var cqData = cqSheet.getDataRange().getValues();
+    
+    for (var i = 1; i < cqData.length; i++) {
+      var row = cqData[i];
+      // Cek semua kolom karena urutan kolom bisa beda-beda
+      var rowStr = row.join("|||");
+      
+      // Baris ini harus milik kelas yang sedang aktif
+      var isMilikKelasIni = row.some(function(cell) {
+        return String(cell).trim() === safeCourseId;
+      });
+      if (!isMilikKelasIni) continue;
+
+      // Cari kolom URL yang mengandung CBT quizId
+      for (var c = 0; c < row.length; c++) {
+        var cellVal = String(row[c]);
+        if (cellVal.indexOf("quizId=") > -1) {
+          // Ekstrak quizId dari URL: ?page=cbt&quizId=KUIS-xxx
+          var match = cellVal.match(/quizId=([^&\s]+)/);
+          if (match && match[1]) {
+            var extractedId = match[1].trim();
+            // Ambil judul dari kolom lain (biasanya kolom title ada di row)
+            var judulKolom = "";
+            for (var t = 0; t < row.length; t++) {
+              var v = String(row[t]).trim();
+              if (v && v !== safeCourseId && v.indexOf("http") === -1 
+                  && v.indexOf("quizId") === -1 && v !== extractedId) {
+                judulKolom = v;
+                break;
+              }
+            }
+            quizMap[extractedId] = judulKolom || extractedId;
+          }
+        }
+      }
+    }
   }
 
-  // Generate ID Soal yang unik
-  var questionId = "Q-" + new Date().getTime();
+  // ── SUMBER 2: Scan CBT_QUESTIONS langsung ──
+  // Fallback untuk quiz lama yang tidak terdaftar di COURSE_QUIZZES
+  // Strategi: ambil SEMUA quiz_id unik dari CBT_QUESTIONS,
+  // lalu filter hanya yang ada di COURSE_QUIZZES milik kelas ini
+  // ATAU tampilkan semua jika tidak ada di COURSE_QUIZZES sama sekali
+  var qSheet = ss.getSheetByName("CBT_QUESTIONS");
+  if (qSheet) {
+    var qData = qSheet.getDataRange().getValues();
+    
+    // Kumpulkan semua quiz_id unik dari CBT_QUESTIONS
+    var semuaQuizId = {};
+    for (var j = 1; j < qData.length; j++) {
+      var qId = String(qData[j][1]).trim(); // Kolom B = quiz_id
+      if (qId) semuaQuizId[qId] = true;
+    }
 
-  // Memasukkan baris baru: [question_id, quiz_id, type, text, options, correct_answer, points]
-  sheet.appendRow([
-    questionId,
-    data.quizId,
-    data.type,
-    data.text,
-    JSON.stringify(data.options || []), // Diubah jadi JSON String agar rapi di sel Sheets
-    data.correctAnswer,
-    data.points
-  ]);
+    // Untuk setiap quiz_id, cek apakah terdaftar di COURSE_QUIZZES
+    // Jika iya → sudah masuk via Sumber 1
+    // Jika tidak → coba cek apakah ada di CBT_SUBMISSIONS milik kelas ini
+    Object.keys(semuaQuizId).forEach(function(qId) {
+      if (quizMap[qId]) return; // Sudah ada dari Sumber 1, skip
 
-  return { success: true, message: "Soal berhasil ditambahkan!" };
+      // Cek di CBT_SUBMISSIONS: apakah quiz ini pernah dikerjakan mahasiswa di kelas ini?
+      // Cara: cek apakah user_id dari submission ini terdaftar di ENROLLED_USERS kelas ini
+      var subSheet = ss.getSheetByName("CBT_SUBMISSIONS");
+      if (subSheet) {
+        var subData = subSheet.getDataRange().getValues();
+        var enrolledSheet = ss.getSheetByName("ENROLLED_USERS");
+        
+        // Kumpulkan user_id yang terdaftar di kelas ini
+        var enrolledIds = {};
+        if (enrolledSheet) {
+          var eData = enrolledSheet.getDataRange().getValues();
+          for (var e = 1; e < eData.length; e++) {
+            var col1 = String(eData[e][1]).trim();
+            var col2 = String(eData[e][2]).trim();
+            if (col1 === safeCourseId) enrolledIds[col2] = true;
+            else if (col2 === safeCourseId) enrolledIds[col1] = true;
+          }
+        }
+
+        for (var s = 1; s < subData.length; s++) {
+          if (String(subData[s][1]).trim() === qId) {
+            var submittingUser = String(subData[s][2]).trim();
+            if (enrolledIds[submittingUser]) {
+              // Quiz ini pernah dikerjakan mahasiswa di kelas ini
+              quizMap[qId] = qId; // Gunakan ID sebagai judul fallback
+              break;
+            }
+          }
+        }
+      }
+
+      // Fallback terakhir: jika quiz ini ada di CBT_SETTINGS, masukkan juga
+      // (untuk quiz yang belum pernah dikerjakan siapapun tapi sudah disetting)
+      var settingsSheet = ss.getSheetByName("CBT_SETTINGS");
+      if (settingsSheet && !quizMap[qId]) {
+        var settData = settingsSheet.getDataRange().getValues();
+        for (var st = 1; st < settData.length; st++) {
+          if (String(settData[st][0]).trim() === qId) {
+            quizMap[qId] = qId;
+            break;
+          }
+        }
+      }
+    });
+  }
+
+  // Konversi Map ke Array untuk dikembalikan ke frontend
+  return Object.keys(quizMap).map(function(id) {
+    return { quizId: id, title: quizMap[id] !== id ? quizMap[id] : "" };
+  });
 }
 
-// 1. Menyimpan pengaturan deadline dari dosen
-function saveCbtSettings(quizId, deadlineStr) {
+// Update saveCbtQuestion — auto-register ke COURSE_QUIZZES jika ID baru
+function saveCbtQuestion(data) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("CBT_QUESTIONS");
+  if (!sheet) return { success: false, message: "Sheet CBT_QUESTIONS belum ada!" };
+
+  var questionId = "Q-" + new Date().getTime();
+  sheet.appendRow([
+    questionId, data.quizId, data.type, data.text,
+    JSON.stringify(data.options || []), data.correctAnswer, data.points
+  ]);
+
+  // ✅ Auto-register quiz ke COURSE_QUIZZES jika belum ada
+  if (data.courseId) {
+    var cqSheet = ss.getSheetByName("COURSE_QUIZZES");
+    if (cqSheet) {
+      var cqData = cqSheet.getDataRange().getValues();
+      var sudahAda = false;
+      for (var i = 1; i < cqData.length; i++) {
+        if (String(cqData[i][0]).trim() === String(data.quizId).trim() &&
+            String(cqData[i][1]).trim() === String(data.courseId).trim()) {
+          sudahAda = true; break;
+        }
+      }
+      if (!sudahAda) {
+        cqSheet.appendRow([data.quizId, data.courseId, "Kuis CBT", new Date()]);
+      }
+    }
+  }
+
+  return { success: true, message: "Soal berhasil ditambahkan ke " + data.quizId + "!" };
+}
+
+// Update saveCbtSettings — tambah parameter durationMinutes
+function saveCbtSettings(quizId, deadlineStr, durationMinutes) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName("CBT_SETTINGS");
   if (!sheet) {
     sheet = ss.insertSheet("CBT_SETTINGS");
-    sheet.appendRow(["quiz_id", "deadline"]);
+    // ✅ Schema baru: 3 kolom
+    sheet.appendRow(["quiz_id", "deadline", "duration_minutes"]);
   }
-  
+
   var data = sheet.getDataRange().getValues();
   for (var i = 1; i < data.length; i++) {
-    if (data[i][0] === quizId) {
-      sheet.getRange(i + 1, 2).setValue(deadlineStr);
-      return { success: true, message: "Deadline diperbarui!" };
+    if (String(data[i][0]).trim() === String(quizId).trim()) {
+      sheet.getRange(i + 1, 2).setValue(deadlineStr || "");
+      sheet.getRange(i + 1, 3).setValue(durationMinutes || 0);
+      return { success: true, message: "Pengaturan waktu kuis " + quizId + " diperbarui!" };
     }
   }
-  sheet.appendRow([quizId, deadlineStr]);
-  return { success: true, message: "Deadline disimpan!" };
+  sheet.appendRow([quizId, deadlineStr || "", durationMinutes || 0]);
+  return { success: true, message: "Pengaturan waktu kuis " + quizId + " disimpan!" };
+}
+
+// Fungsi baru: Catat waktu mulai mahasiswa & kembalikan sisa durasi
+function startCbtSession(quizId, userId) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  // Ambil durasi dari settings
+  var durasiMenit = 0;
+  var setSheet = ss.getSheetByName("CBT_SETTINGS");
+  if (setSheet) {
+    var setData = setSheet.getDataRange().getValues();
+    for (var i = 1; i < setData.length; i++) {
+      if (String(setData[i][0]).trim() === String(quizId).trim()) {
+        durasiMenit = parseInt(setData[i][2]) || 0;
+        break;
+      }
+    }
+  }
+
+  // Cek apakah sesi sudah ada (reconnect — jangan reset timer!)
+  var sessSheet = ss.getSheetByName("CBT_SESSIONS");
+  if (!sessSheet) {
+    sessSheet = ss.insertSheet("CBT_SESSIONS");
+    sessSheet.appendRow(["session_id", "quiz_id", "user_id", "start_time"]);
+  }
+
+  var sessData = sessSheet.getDataRange().getValues();
+  var startTime = null;
+
+  for (var i = 1; i < sessData.length; i++) {
+    if (String(sessData[i][1]).trim() === String(quizId).trim() &&
+        String(sessData[i][2]).trim() === String(userId).trim()) {
+      startTime = new Date(sessData[i][3]).getTime(); // Sesi lama ditemukan
+      break;
+    }
+  }
+
+  // Jika belum ada sesi, buat baru
+  if (!startTime) {
+    startTime = new Date().getTime();
+    sessSheet.appendRow(["SESS-" + startTime, quizId, userId, new Date(startTime)]);
+  }
+
+  // Hitung sisa waktu
+  var now = new Date().getTime();
+  var sisaMs = durasiMenit > 0
+    ? (startTime + durasiMenit * 60 * 1000) - now
+    : -1; // -1 = tidak ada batas durasi
+
+  return {
+    startTime:      startTime,
+    durationMs:     durasiMenit * 60 * 1000,
+    remainingMs:    sisaMs,
+    hasDuration:    durasiMenit > 0
+  };
 }
 
 // 2. Validasi akses mahasiswa (Double Submit & Deadline)
 function validateCbtAccess(quizId, userId) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  
-  // Cek Double Submit
+
+  // Cek double submit
   var subSheet = ss.getSheetByName("CBT_SUBMISSIONS");
   if (subSheet) {
     var subData = subSheet.getDataRange().getValues();
     for (var i = 1; i < subData.length; i++) {
-      if (subData[i][1] === quizId && String(subData[i][2]) === String(userId)) {
+      if (String(subData[i][1]).trim() === String(quizId).trim() &&
+          String(subData[i][2]).trim() === String(userId).trim()) {
         return { allowed: false, reason: "submitted", score: subData[i][4] };
       }
     }
   }
-  
-  // Cek Deadline
+
+  var deadline = null, durasiMenit = 0;
   var setSheet = ss.getSheetByName("CBT_SETTINGS");
   if (setSheet) {
     var setData = setSheet.getDataRange().getValues();
     for (var i = 1; i < setData.length; i++) {
-      if (setData[i][0] === quizId) {
-        var deadlineStr = setData[i][1];
-        if (deadlineStr) {
-          var deadlineTime = new Date(deadlineStr).getTime();
-          var nowTime = new Date().getTime();
-          if (nowTime > deadlineTime) {
-            return { allowed: false, reason: "deadline" };
-          }
-        }
+      if (String(setData[i][0]).trim() === String(quizId).trim()) {
+        deadline     = setData[i][1] ? new Date(setData[i][1]).getTime() : null;
+        durasiMenit  = parseInt(setData[i][2]) || 0;
         break;
       }
     }
   }
+
+  // Cek deadline
+  if (deadline && new Date().getTime() > deadline) {
+    return { allowed: false, reason: "deadline" };
+  }
+
+  // ✅ Cek apakah sesi durasi sudah habis
+  if (durasiMenit > 0) {
+    var sessSheet = ss.getSheetByName("CBT_SESSIONS");
+    if (sessSheet) {
+      var sessData = sessSheet.getDataRange().getValues();
+      for (var i = 1; i < sessData.length; i++) {
+        if (String(sessData[i][1]).trim() === String(quizId).trim() &&
+            String(sessData[i][2]).trim() === String(userId).trim()) {
+          var startTime  = new Date(sessData[i][3]).getTime();
+          var expireTime = startTime + durasiMenit * 60 * 1000;
+          if (new Date().getTime() > expireTime) {
+            return { allowed: false, reason: "timeout" };
+          }
+          break;
+        }
+      }
+    }
+  }
+
   return { allowed: true };
 }
-
-// 3. Modifikasi fungsi submitCbtExam (Tambahkan penangkap violations)
-// CATATAN: Cari fungsi submitCbtExam Anda yang lama, lalu GANTI bagian paling bawahnya (sebelum 'return') menjadi seperti ini:
-/* ... kode penilaian Gemini & PG sebelumnya ...
-  var finalGrade = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
-  finalGrade = Math.round(finalGrade * 100) / 100;
-
-  var jumlahPelanggaran = answersObj._violations || 0; // Menangkap jumlah kecurangan
-  delete answersObj._violations;
-
-  var sheetSubmit = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("CBT_SUBMISSIONS");
-  if (!sheetSubmit) {
-    sheetSubmit = SpreadsheetApp.getActiveSpreadsheet().insertSheet("CBT_SUBMISSIONS");
-    sheetSubmit.appendRow(["submit_id", "quiz_id", "user_id", "answers_json", "total_score", "timestamp", "violations"]);
-  }
-  // Simpan data beserta jumlah pelanggaran di kolom ke-7
-  sheetSubmit.appendRow(["CBT-SUB-" + new Date().getTime(), quizId, userId, JSON.stringify(answersObj), finalGrade, new Date(), jumlahPelanggaran]);
-  
-  return { success: true, score: finalGrade, message: "Ujian berhasil diselesaikan!" };
-*/
 
 // Merekap Data untuk Dashboard Dosen (Revisi Tipe Data)
 function getCbtAnalytics(quizId, courseIdParams) {
@@ -471,11 +663,196 @@ function prosesPenilaianEssayMasal(quizId) {
       // 5. Simpan ke Spreadsheet
       sheetSubmit.getRange(row, 4).setValue(JSON.stringify(answersObj)); // Update JSON jawaban
       sheetSubmit.getRange(row, 5).setValue(finalSkor100);               // Update Skor Akhir
-      sheetSubmit.getRange(row, 7).setValue(kumpulanAlasanAI);           // Simpan Alasan ke Kolom 7 (G)
+      sheetSubmit.getRange(row, 8).setValue(kumpulanAlasanAI);           // Simpan Alasan ke Kolom 8 (H)
       
       jumlahDiproses++;
     }
   }
 
   return { success: true, message: "Selesai! " + jumlahDiproses + " mahasiswa telah berhasil dinilai Essay-nya oleh AI." };
+}
+
+// Helper: ambil semua CBT settings sebagai Map {quizId: {deadline, duration}}
+function getCbtSettingsMap() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("CBT_SETTINGS");
+  var map = {};
+  if (!sheet) return map;
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    var qId = String(data[i][0]).trim();
+    if (!qId) continue;
+    map[qId] = {
+      deadline:      data[i][1] ? String(data[i][1]) : "",
+      durationMenit: parseInt(data[i][2]) || 0
+    };
+  }
+  return map;
+}
+
+// Wrapper: ambil kuis milik kelas + enrich dengan info deadline & durasi CBT
+// Dipanggil dari frontend MENGGANTIKAN getCourseQuizzes untuk view mahasiswa
+function getCourseQuizzesWithCbtInfo(courseId) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var safeCourseId = String(courseId).trim();
+
+  // ── 1. Baca sheet QUIZ (schema: quiz_id | course_id | title | url_form) ──
+  var quizSheet = ss.getSheetByName("QUIZ");
+  if (!quizSheet) return [];
+
+  var quizData = quizSheet.getDataRange().getValues();
+  var quizzes  = [];
+
+  // Baca juga riwayat akses mahasiswa dari QUIZ_TRACK
+  // schema QUIZ_TRACK: track_id | user_id | quiz_id | timestamp
+  var trackMap = {}; // { quiz_id: true } untuk userId aktif
+  // userId tidak tersedia di backend, jadi kita skip dikerjakan-flag di sini
+  // (flag dikerjakan tetap dihandle oleh getCourseQuizzes lama via QUIZ_TRACK)
+
+  for (var i = 1; i < quizData.length; i++) {
+    if (String(quizData[i][1]).trim() !== safeCourseId) continue;
+
+    quizzes.push({
+      quiz_id:    String(quizData[i][0]).trim(),
+      course_id:  safeCourseId,
+      title:      String(quizData[i][2]).trim(),
+      url_form:   String(quizData[i][3]).trim(),
+      dikerjakan: false, // akan di-enrich oleh frontend via QUIZ_TRACK jika perlu
+      cbt_deadline:       "",
+      cbt_duration_menit: 0
+    });
+  }
+
+  // ── 2. Enrich dengan CBT_SETTINGS ──
+  var cbtSettings = getCbtSettingsMap(); // fungsi ini sudah ada di cbt_backend.gs
+
+  for (var j = 0; j < quizzes.length; j++) {
+    var urlForm = quizzes[j].url_form;
+    if (urlForm.indexOf("quizId=") === -1) continue; // bukan CBT, skip
+
+    var match = urlForm.match(/quizId=([^&\s]+)/);
+    if (!match || !match[1]) continue;
+
+    var cbtQuizId = match[1].trim();
+    var setting   = cbtSettings[cbtQuizId];
+    if (!setting) continue;
+
+    quizzes[j].cbt_deadline       = setting.deadline;
+    quizzes[j].cbt_duration_menit = setting.durationMenit;
+  }
+
+  return quizzes;
+}
+
+// ==========================================
+// SUBMIT NILAI CBT KE SHEET NILAI (SINKRON DENGAN IMPOR NILAI)
+// ==========================================
+function submitNilaiCbtKeGrades(quizId, courseIdParam, jenisNilai) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var safeQuizId = String(quizId).trim();
+
+  // ── 1. Cari course_id dari sheet QUIZ ──
+  // Schema QUIZ: quiz_id(0) | course_id(1) | title(2) | url_form(3)
+  var safeCourseId = courseIdParam ? String(courseIdParam).trim() : null;
+
+  if (!safeCourseId) {
+    var quizSheet = ss.getSheetByName("QUIZ");
+    if (quizSheet) {
+      var quizData = quizSheet.getDataRange().getValues();
+      for (var i = 1; i < quizData.length; i++) {
+        var urlForm = String(quizData[i][3]).trim();
+        if (urlForm.indexOf("quizId=" + safeQuizId) > -1) {
+          safeCourseId = String(quizData[i][1]).trim();
+          break;
+        }
+      }
+    }
+  }
+
+  if (!safeCourseId) {
+    return {
+      success: false,
+      message: "Gagal mendeteksi ID Kelas. Pastikan kuis sudah terdaftar di sheet QUIZ."
+    };
+  }
+
+  // ── 2. Ambil semua submission dari CBT_SUBMISSIONS ──
+  // Schema: submit_id(0) | quiz_id(1) | user_id(2) | answers_json(3) |
+  //         total_score(4) | timestamp(5) | pelanggaran(6) | Penilaian_essay_ai(7)
+  var subSheet = ss.getSheetByName("CBT_SUBMISSIONS");
+  if (!subSheet) {
+    return { success: false, message: "Sheet CBT_SUBMISSIONS tidak ditemukan." };
+  }
+
+  var subData = subSheet.getDataRange().getValues();
+
+  // Deduplikasi: jika 1 mahasiswa submit lebih dari 1x, ambil baris TERAKHIR
+  var submissionsMap = {}; // { user_id: total_score }
+  for (var s = 1; s < subData.length; s++) {
+    if (String(subData[s][1]).trim() !== safeQuizId) continue;
+    var uid   = String(subData[s][2]).trim();
+    var score = parseFloat(subData[s][4]) || 0;
+    submissionsMap[uid] = score; // Overwrite → otomatis ambil yang terakhir
+  }
+
+  if (Object.keys(submissionsMap).length === 0) {
+    return {
+      success: false,
+      message: "Belum ada mahasiswa yang mengumpulkan ujian ini."
+    };
+  }
+
+  // ── 3. Upsert ke sheet NILAI ──
+  // Schema NILAI: course_id(0) | user_id(1) | jenis_nilai(2) | nilai(3)
+  var nilaiSheet = ss.getSheetByName("NILAI");
+  if (!nilaiSheet) {
+    nilaiSheet = ss.insertSheet("NILAI");
+    nilaiSheet.appendRow(["course_id", "user_id", "jenis_nilai", "nilai"]);
+    nilaiSheet.getRange("A1:D1").setFontWeight("bold");
+  }
+
+  var nilaiData      = nilaiSheet.getDataRange().getValues();
+  var barisExisting  = {}; // { user_id: nomor_baris_1based }
+
+  // Scan baris yang sudah ada dengan kombinasi course+user+jenis yang sama
+  for (var n = 1; n < nilaiData.length; n++) {
+    var nCourse = String(nilaiData[n][0]).trim();
+    var nUser   = String(nilaiData[n][1]).trim();
+    var nJenis  = String(nilaiData[n][2]).trim();
+    if (nCourse === safeCourseId && nJenis === jenisNilai) {
+      barisExisting[nUser] = n + 1; // Simpan nomor baris (1-based untuk getRange)
+    }
+  }
+
+  var jumlahBaru       = 0;
+  var jumlahDiperbarui = 0;
+
+  Object.keys(submissionsMap).forEach(function(uid) {
+    var nilaiAkhir = submissionsMap[uid];
+
+    if (barisExisting[uid]) {
+      // UPDATE baris yang sudah ada — hanya kolom nilai (kolom D = kolom 4)
+      nilaiSheet.getRange(barisExisting[uid], 4).setValue(nilaiAkhir);
+      jumlahDiperbarui++;
+    } else {
+      // INSERT baris baru
+      nilaiSheet.appendRow([safeCourseId, uid, jenisNilai, nilaiAkhir]);
+      jumlahBaru++;
+    }
+  });
+
+  // ── 4. Invalidasi cache agar perubahan langsung terlihat di LMS ──
+  invalidateCourseCache(safeCourseId);
+
+  // Invalidasi cache personal setiap mahasiswa yang nilainya berubah
+  Object.keys(submissionsMap).forEach(function(uid) {
+    cacheRemove('paket_personal_' + safeCourseId + '_' + uid);
+  });
+
+  var pesan = "✅ Berhasil! ";
+  if (jumlahBaru > 0)       pesan += jumlahBaru + " nilai baru ditambahkan. ";
+  if (jumlahDiperbarui > 0) pesan += jumlahDiperbarui + " nilai diperbarui. ";
+  pesan += "(Kelas: " + safeCourseId + " | Jenis: " + jenisNilai + ")";
+
+  return { success: true, message: pesan };
 }
