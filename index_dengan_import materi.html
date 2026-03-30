@@ -287,7 +287,7 @@
     </div>
     <button class="btn btn-ocean btn-full" onclick="attemptLogin()">🌊 Masuk ke Sistem</button>
     <div id="message" style="font-size:13px;color:var(--coral);text-align:center;margin-top:10px;min-height:18px;"></div>
-    <p style="font-size:11px;color:#2a4a5a;text-align:center;margin-top:20px;">Dibuat oleh: <strong style="color:#3a6a85;">Andy Rasyadi, S.Pi., M.Si.</strong></p>
+    <p style="font-size:11px;color:#2a4a5a;text-align:center;margin-top:20px;">☕ Developed by: <strong style="color:#3a6a85;">Andy Rasyadi, S.Pi., M.Si.</strong></p>
   </div>
 </div>
 
@@ -313,7 +313,7 @@
     <div id="loadingCourses" style="color:#3a6a85;font-size:14px;padding:10px 0;">Memuat data kelas…</div>
     <div id="courseList" class="grid gap-4" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr));"></div>
   </main>
-  <footer><span class="footer-wave">🌊 🐟 🌊</span><br>Dibuat oleh: <strong>Andy Rasyadi, S.Pi., M.Si.</strong></footer>
+  <footer><span class="footer-wave">🌊 🐟 🌊</span><br>☕ Developed by: <strong>Andy Rasyadi, S.Pi., M.Si.</strong></footer>
 </div>
 
 <!-- VIEW: MAHASISWA — RUANG KELAS -->
@@ -359,7 +359,7 @@
     <button class="btn btn-teal btn-full" onclick="lihatNilaiAkhirMahasiswa()">📊 Lihat Rincian Nilai Akhir Saya</button>
     </div>
   </main>
-  <footer>Dibuat oleh: <strong>Andy Rasyadi, S.Pi., M.Si.</strong></footer>
+  <footer>☕ Developed by: <strong>Andy Rasyadi, S.Pi., M.Si.</strong></footer>
 </div>
 
 <!-- VIEW: DOSEN — DASHBOARD -->
@@ -402,7 +402,7 @@
     <div id="loadingDosenCourses" style="color:#3a6a85;font-size:14px;">Memuat kelas…</div>
     <div id="dosenCourseList" class="grid gap-4" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr));"></div>
   </main>
-  <footer>Dibuat oleh: <strong>Andy Rasyadi, S.Pi., M.Si.</strong></footer>
+  <footer>☕ Developed by: <strong>Andy Rasyadi, S.Pi., M.Si.</strong></footer>
 </div>
 
 <!-- VIEW: DOSEN — PANEL KELAS (TABS) -->
@@ -525,29 +525,47 @@
       </div>
 
       <div class="accordion-item">
-        <button class="accordion-header open" onclick="toggleAccordion(this)">
-          <span>📝 Manajemen Kuis / Tugas</span><span class="arrow">▼</span>
-        </button>
-        <div class="accordion-body open">
-          <div class="grid gap-3 two-col mb-4" style="grid-template-columns:1fr 1fr;">
-            <div>
-              <label class="form-label">Judul Kuis / Tugas</label>
-              <input type="text" id="newQuizTitle" class="form-input" placeholder="Contoh: Kuis Pertemuan 1">
-            </div>
-            <div>
-              <label class="form-label">Link GForms / Wayground</label>
-              <input type="text" id="newQuizUrl" class="form-input" placeholder="https://forms.google.com/...">
-            </div>
-          </div>
-          <button class="btn btn-amber btn-sm" id="btnTambahKuis" onclick="tambahKuisKelas()">+ Tambah Kuis / Tugas</button>
-          <div class="tbl-wrap mt-4">
-            <table>
-              <thead><tr><th>Judul Kuis / Tugas</th><th style="width:80px;text-align:center;">Link</th><th style="width:90px;text-align:center;">Aksi</th></tr></thead>
-              <tbody id="kuisDosenBody"><tr><td colspan="3" style="text-align:center;color:#3a6a85;">Memuat data…</td></tr></tbody>
-            </table>
-          </div>
+  <button class="accordion-header open" onclick="toggleAccordion(this)">
+    <span>📝 Manajemen Kuis / Tugas & CBT</span><span class="arrow">▼</span>
+  </button>
+  <div class="accordion-body open">
+    
+    <div class="grid gap-3 two-col mb-4" style="grid-template-columns:1fr 1fr;">
+      <div>
+        <label class="form-label">Judul Kuis / Tugas</label>
+        <input type="text" id="newQuizTitle" class="form-input" placeholder="Contoh: Kuis Pertemuan 1">
+      </div>
+      <div>
+        <label class="form-label">Link GForms / URL CBT</label>
+        <div style="display: flex; gap: 5px;">
+          <input type="text" id="newQuizUrl" class="form-input" placeholder="https://forms... atau ?page=cbt&quizId=..." style="flex: 1;">
+          <button class="btn btn-emerald btn-sm" onclick="generateCbtLink()" title="Buat Link CBT Otomatis" style="padding: 0 10px; white-space: nowrap;">💡 Buat CBT</button>
         </div>
       </div>
+    </div>
+    
+    <div style="display: flex; gap: 10px;">
+      <button class="btn btn-amber btn-sm" id="btnTambahKuis" onclick="tambahKuisKelas()">+ Tambah Kuis / Tugas</button>
+      <button class="btn btn-blue btn-sm" onclick="bukaModalCbt(activeCourseId)" style="background-color: #1565a8; color: white;">⚙️ Kelola Soal CBT</button>
+    </div>
+    
+    <div class="tbl-wrap mt-4">
+      <table>
+        <thead>
+          <tr>
+            <th>Judul Kuis / Tugas</th>
+            <th style="width:80px;text-align:center;">Link</th>
+            <th style="width:90px;text-align:center;">Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="kuisDosenBody">
+          <tr><td colspan="3" style="text-align:center;color:#3a6a85;">Memuat data…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+  </div>
+</div>
 
       <div class="accordion-item">
         <button class="accordion-header open" onclick="toggleAccordion(this)">
@@ -708,7 +726,7 @@
     </div><!-- /tabMahasiswa -->
 
   </main>
-  <footer>Dibuat oleh: <strong>Andy Rasyadi, S.Pi., M.Si.</strong></footer>
+  <footer>☕ Developed by: <strong>Andy Rasyadi, S.Pi., M.Si.</strong></footer>
 </div>
 
 <!-- BUBBLES -->
@@ -735,6 +753,179 @@
 
 <!-- APP LOGIC -->
 <script>
+// ==========================================
+// LOGIKA FITUR CBT (PASTIKAN ADA DI DALAM TAG <script>)
+// ==========================================
+    
+    function generateCbtLink() {
+      // Ubah tombol jadi loading sebentar
+      var btn = event.target || document.querySelector('button[title="Buat Link CBT Otomatis"]');
+      if(btn) btn.innerText = "Memproses...";
+      
+      // Meminta Link Web App Asli dari backend
+      google.script.run.withSuccessHandler(function(url) {
+        if(btn) btn.innerText = "💡 Buat CBT";
+        
+        var uniqueId = "KUIS-" + new Date().getTime();
+        
+        // Gabungkan URL Web App dengan parameter kuis
+        // Jika karena suatu hal 'url' kosong, kita minta dosen mengedit manual
+        var finalUrl = url ? (url + "?page=cbt&quizId=" + uniqueId) : ("https://script.google.com/macros/s/.../exec?page=cbt&quizId=" + uniqueId);
+        
+        document.getElementById('newQuizUrl').value = finalUrl;
+        
+        var cbtQuizIdInput = document.getElementById('cbtQuizId');
+        if(cbtQuizIdInput) { cbtQuizIdInput.value = uniqueId; }
+        
+        alert("Link CBT berhasil dibuat!\n\nID Kuis Anda: " + uniqueId + "\n\nSilakan klik '+ Tambah Kuis / Tugas', lalu klik '⚙️ Kelola Soal CBT' untuk memasukkan soal.");
+      }).getScriptUrl();
+    }
+
+    // Variabel global — pastikan ini sudah ada di konteks kelas yang sedang dibuka
+// (sesuaikan dengan nama variabel global courseId di index.html Anda)
+var _cbtActiveCourseId = null;
+
+// Panggil fungsi ini saat tombol buka modal CBT diklik
+// Ganti pemanggilan lama: onclick="bukaModalCbt()"  
+// Menjadi: onclick="bukaModalCbt(currentCourseId)" ← sesuaikan nama variabel global
+function bukaModalCbt(courseId) {
+  _cbtActiveCourseId = courseId || null;
+  document.getElementById('overlayCbt').style.display = 'flex';
+
+  var select = document.getElementById('cbtQuizIdSelect');
+  select.innerHTML = '<option value="">⏳ Memuat daftar kuis...</option>';
+  document.getElementById('cbtQuizIdNew').style.display = 'none';
+  document.getElementById('cbtQuizIdHint').style.display = 'none';
+
+  if (!courseId) {
+    select.innerHTML = '<option value="">❌ Tidak ada kelas aktif. Buka kelas dulu!</option>';
+    return;
+  }
+
+  google.script.run
+    .withSuccessHandler(function(quizzes) {
+      // Bangun opsi dropdown
+      var opts = '<option value="">-- Pilih atau buat kuis baru --</option>';
+      if (quizzes.length > 0) {
+        opts += '<optgroup label="Kuis yang sudah ada:">';
+        quizzes.forEach(function(q) {
+          opts += '<option value="' + q.quizId + '">' + q.quizId;
+          if (q.title) opts += ' · ' + q.title;
+          opts += '</option>';
+        });
+        opts += '</optgroup>';
+      }
+      opts += '<option value="__NEW__">➕ Buat ID Kuis Baru...</option>';
+      select.innerHTML = opts;
+    })
+    .withFailureHandler(function(e) {
+      select.innerHTML = '<option value="">❌ Gagal memuat: ' + e.message + '</option>';
+    })
+    .getQuizzesForCourse(courseId);
+}
+
+function handleQuizIdSelect() {
+  var val = document.getElementById('cbtQuizIdSelect').value;
+  var inputBaru = document.getElementById('cbtQuizIdNew');
+  var hint = document.getElementById('cbtQuizIdHint');
+  
+  if (val === '__NEW__') {
+    // Generate ID otomatis sebagai default, bisa diedit
+    var autoId = 'KUIS-' + new Date().getTime();
+    inputBaru.value = autoId;
+    inputBaru.style.display = 'block';
+    hint.style.display = 'block';
+  } else {
+    inputBaru.style.display = 'none';
+    hint.style.display = 'none';
+  }
+}
+
+// Helper: ambil Quiz ID yang aktif (dari dropdown atau input manual)
+function getActiveCbtQuizId() {
+  var sel = document.getElementById('cbtQuizIdSelect').value;
+  if (sel === '__NEW__') {
+    return document.getElementById('cbtQuizIdNew').value.trim();
+  }
+  return sel;
+}
+
+// Update simpanSoalCbt() agar pakai getActiveCbtQuizId()
+function simpanSoalCbt() {
+  var quizId = getActiveCbtQuizId();
+  if (!quizId) { alert('Pilih atau buat ID Kuis terlebih dahulu!'); return; }
+
+  var type = document.getElementById('cbtType').value;
+  var rawOptions = document.getElementById('cbtOptionsInput').value;
+  var options = type === 'PG'
+    ? rawOptions.split('\n').map(function(o){ return o.trim(); }).filter(Boolean)
+    : [];
+
+  var data = {
+    quizId:         quizId,
+    courseId:       _cbtActiveCourseId, // ← dikirim ke backend untuk auto-register
+    type:           type,
+    text:           document.getElementById('cbtText').value.trim(),
+    options:        options,
+    correctAnswer:  document.getElementById('cbtCorrectAnswer').value.trim(),
+    points:         parseFloat(document.getElementById('cbtPoints').value) || 10
+  };
+
+  if (!data.text) { alert('Pertanyaan soal tidak boleh kosong!'); return; }
+
+  var btn = document.getElementById('btnSimpanCbt');
+  btn.disabled = true; btn.innerText = '⏳ Menyimpan...';
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      btn.disabled = false; btn.innerText = '💾 Simpan Soal';
+      alert(res.message);
+    })
+    .withFailureHandler(function(e) {
+      btn.disabled = false; btn.innerText = '💾 Simpan Soal';
+      alert('Gagal: ' + e.message);
+    })
+    .saveCbtQuestion(data);
+}
+
+function simpanPengaturanWaktuCbt() {
+  var quizId   = getActiveCbtQuizId();
+  var deadline = document.getElementById('cbtDeadline').value;
+  var duration = document.getElementById('cbtDuration').value;
+
+  if (!quizId)   { alert('Pilih ID Kuis terlebih dahulu!'); return; }
+  if (!deadline && !duration) { alert('Isi minimal salah satu: Deadline atau Durasi!'); return; }
+
+  // ✅ FIX TIMEZONE: Tambahkan offset WITA (+08:00) secara eksplisit
+  // Tanpa ini, GAS menginterpretasi input sebagai WIB (UTC+7) → meleset 1 jam
+  var deadlineWITA = deadline ? deadline + ':00+08:00' : '';
+
+  var btn = document.getElementById('btnSimpanDeadline');
+  btn.disabled = true; btn.innerText = '⏳ Menyimpan...';
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      btn.disabled = false; btn.innerText = '⏳ Simpan Pengaturan Waktu';
+      alert(res.message);
+    })
+    .withFailureHandler(function(e) {
+      btn.disabled = false; btn.innerText = '⏳ Simpan Pengaturan Waktu';
+      alert('Gagal: ' + e.message);
+    })
+    // Kirim deadlineWITA (dengan timezone eksplisit), bukan deadline mentah
+    .saveCbtSettings(quizId, deadlineWITA, parseInt(duration) || 0);
+}
+
+    function tutupModalCbt() {
+      document.getElementById('overlayCbt').style.display = 'none';
+    }
+
+    function toggleCbtOptions() {
+      var type = document.getElementById('cbtType').value;
+      if (type === 'PG') { document.getElementById('areaPG').style.display = 'block'; } 
+      else { document.getElementById('areaPG').style.display = 'none'; }
+    }
+
   var currentUserInfo = null;
   var activeCourseId   = null;
   var activeCourseName = null;
@@ -1088,26 +1279,91 @@ window.alert = function(pesan) {
   }
 
   function renderQuizzes(quizzes) {
-    document.getElementById('loadingQuizzes').style.display='none';
-    var list=document.getElementById('quizList');
-    if (!quizzes||!quizzes.length){list.innerHTML='<p style="color:#3a6a85;">Belum ada kuis / tugas.</p>';return;}
-    list.innerHTML=quizzes.map(function(q){
-      var btnId='btn_quiz_'+q.quiz_id;
-      var isDone=q.dikerjakan;
-      var btnCls=isDone?'btn-teal':'btn-amber';
-      var btnTxt=isDone?'✅ Sudah Dikerjakan (Buka Lagi)':'📝 Kerjakan Kuis / Tugas';
-      return '<div class="glass rounded-2xl p-5" style="border:1px solid var(--border);">'
-        +'<h4 style="font-size:14px;font-weight:600;color:var(--foam);margin-bottom:14px;">'+q.title+'</h4>'
-        +'<button id="'+btnId+'" class="btn '+btnCls+' btn-full btn-sm" onclick="bukaKuis(\''+q.quiz_id+'\',\''+q.url_form+'\',\''+btnId+'\')">'+btnTxt+'</button>'
-        +'</div>';
+    document.getElementById('loadingQuizzes').style.display = 'none';
+    var list = document.getElementById('quizList');
+
+    if (!quizzes || !quizzes.length) {
+      list.innerHTML = '<p style="color:#3a6a85;">Belum ada kuis / tugas.</p>';
+      return;
+    }
+
+  list.innerHTML = quizzes.map(function(q) {
+    var btnId  = 'btn_quiz_' + q.quiz_id;
+    var isDone = q.dikerjakan;
+    var btnCls = isDone ? 'btn-teal' : 'btn-amber';
+    var btnTxt = isDone ? '✅ Sudah Dikerjakan (Buka Lagi)' : '📝 Kerjakan Kuis / Tugas';
+
+    // ── Blok info waktu CBT ──
+    // Hanya muncul jika kuis ini adalah CBT (url mengandung page=cbt)
+    var infoWaktuHtml = '';
+    var isCbt = q.url_form && q.url_form.indexOf('page=cbt') > -1;
+
+    if (isCbt) {
+      var infoItems = [];
+
+      // Info Deadline
+      if (q.cbt_deadline) {
+        var now        = new Date().getTime();
+        var dlTime     = new Date(q.cbt_deadline).getTime();
+        var lewat      = !isNaN(dlTime) && now > dlTime;
+        var dlLabel    = lewat
+          ? '<span style="color:var(--coral);">🔒 Ditutup: ' + formatDeadlineWITA(q.cbt_deadline) + '</span>'
+          : '<span style="color:var(--mint);">📅 Deadline: ' + formatDeadlineWITA(q.cbt_deadline) + '</span>';
+        infoItems.push(dlLabel);
+      }
+
+      // Info Durasi
+      if (q.cbt_duration_menit && q.cbt_duration_menit > 0) {
+        infoItems.push(
+          '<span style="color:var(--amber);">⏱️ Durasi: <b>'
+          + q.cbt_duration_menit
+          + ' menit</b> sejak klik mulai</span>'
+        );
+      }
+
+      if (infoItems.length > 0) {
+        infoWaktuHtml =
+          '<div style="background:rgba(33,150,211,0.08); border:1px solid rgba(33,150,211,0.2);'
+          + 'border-radius:8px; padding:8px 12px; margin-bottom:12px;'
+          + 'font-size:12px; line-height:1.9;">'
+          + infoItems.join('<br>')
+          + '</div>';
+      }
+    }
+
+    return '<div class="glass rounded-2xl p-5" style="border:1px solid var(--border);">'
+      + '<h4 style="font-size:14px;font-weight:600;color:var(--foam);margin-bottom:10px;">'
+      + q.title + '</h4>'
+      + infoWaktuHtml
+      + '<button id="' + btnId + '" class="btn ' + btnCls + ' btn-full btn-sm"'
+      + ' onclick="bukaKuis(\'' + q.quiz_id + '\',\'' + q.url_form + '\',\'' + btnId + '\')">'
+      + btnTxt
+      + '</button>'
+      + '</div>';
+
     }).join('');
   }
 
   function bukaKuis(quizId, urlForm, btnId) {
-    google.script.run.logQuizAccess(currentUserInfo.userId, quizId);
-    var btn=document.getElementById(btnId);
-    if(btn){btn.className='btn btn-teal btn-full btn-sm';btn.innerText='✅ Sudah Dikerjakan (Buka Lagi)';}
-    window.open(urlForm,'_blank');
+    // 1. Catat ke database secara background
+    google.script.run.logQuizAccess(currentUserInfo.userId, quizId); 
+    
+    // 2. Langsung ubah tombol di layar secara instan (real-time UX)
+    var btn = document.getElementById(btnId);
+    if (btn) {
+       btn.className = "btn-teal btn-full btn-sm"; 
+       btn.innerText = "✅ Sudah Dikerjakan (Buka Lagi)";
+    }
+    
+    // 3. BYPASS IFRAME STORAGE: Sisipkan Token Sesi ke URL jika ini CBT
+    if (urlForm.indexOf('page=cbt') > -1) {
+        // Menggunakan btoa() untuk membungkus data profil mahasiswa menjadi teks acak
+        var tokenSesi = btoa(JSON.stringify(currentUserInfo));
+        urlForm += '&token=' + tokenSesi;
+    }
+    
+    // 4. Buka link kuis di tab baru
+    window.open(urlForm, '_blank'); 
   }
 
   function formatDeadlineWITA(deadlineStr) {
@@ -1386,13 +1642,49 @@ function _tampilkanErrorAnalitik(pesanHtml) {
   function renderManajemenKuis(quizzes){
     var tbody=document.getElementById('kuisDosenBody');tbody.innerHTML='';
     if(!quizzes||!quizzes.length){tbody.innerHTML='<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Belum ada kuis / tugas</td></tr>';return;}
+    
     quizzes.forEach(function(q){
+      var aksiBuka = "";
+      if (q.url_form.indexOf('?page=cbt') > -1) {
+         var extractedQuizId = q.url_form.split('quizId=')[1];
+         // Tombol ini memanggil fungsi bukaDashboardCbtTab()
+         aksiBuka = '<button class="btn btn-teal btn-sm" onclick="bukaDashboardCbtTab(\'' + extractedQuizId + '\')">📊 Dashboard CBT</button>';
+      } else {
+         aksiBuka = '<a href="'+q.url_form+'" target="_blank" style="color:var(--amber);text-decoration:none;font-size:12px;">🔗 Buka GForms</a>';
+      }
+
       tbody.innerHTML+='<tr>'
         +'<td style="font-weight:500;color:#c0dbe8;">'+q.title+'</td>'
-        +'<td style="text-align:center;"><a href="'+q.url_form+'" target="_blank" style="color:var(--amber);text-decoration:none;font-size:12px;">🔗 Buka</a></td>'
+        +'<td style="text-align:center;">' + aksiBuka + '</td>'
         +'<td style="text-align:center;"><button class="btn btn-coral btn-sm" onclick="konfirmasiHapusKuis(\''+q.quiz_id+'\',\''+q.title+'\')">Hapus</button></td>'
         +'</tr>';
     });
+  }
+
+  // Mengirim perintah simpan deadline ke server
+  function simpanDeadlineCbt() {
+    var qId = document.getElementById('cbtQuizId').value.trim();
+    var dl = document.getElementById('cbtDeadline').value;
+    if (!qId) { alert("Isi ID Kuis / Tugas di atas terlebih dahulu!"); return; }
+    
+    var btn = document.getElementById('btnSimpanDeadline');
+    btn.innerText = "Menyimpan..."; btn.disabled = true;
+    google.script.run.withSuccessHandler(function(r) {
+       btn.innerText = "⏳ Set Deadline"; btn.disabled = false;
+       alert(r.message);
+    }).saveCbtSettings(qId, dl);
+  }
+
+  // Membuka tab Dashboard CBT baru
+  function bukaDashboardCbtTab(quizId) {
+    var btn = event.target; var originalText = btn.innerText;
+    btn.innerText = "Membuka Tab..."; btn.disabled = true;
+
+    google.script.run.withSuccessHandler(function(url) {
+      btn.innerText = originalText; btn.disabled = false;
+      var finalUrl = url + "?page=cbt_dashboard&quizId=" + quizId;
+      window.open(finalUrl, '_blank'); 
+    }).getScriptUrl();
   }
 
   // ── LESSON DOSEN ──
@@ -2578,6 +2870,103 @@ function refreshDataKelas() {
     <div style="display:flex;gap:10px;">
       <button id="btnConfirmNo" class="btn btn-dark" style="flex:1;">Batal</button>
       <button id="btnConfirmYes" class="btn btn-coral" style="flex:1;">Ya, Lanjutkan</button>
+    </div>
+  </div>
+</div>
+
+<div id="overlayCbt" class="modal-overlay" style="display:none;" onclick="if(event.target===this)tutupModalCbt()">
+  <div class="modal-card" style="max-width: 550px; max-height: 90vh; overflow-y: auto;">
+    <h3 class="modal-title">⚙️ Tambah Soal Ujian Baru (CBT)</h3>
+    
+    <!-- GANTI bagian "ID Kuis / Tugas" yang lama dengan ini -->
+  <div style="margin-bottom:15px;">
+    <label class="form-label">ID Kuis / Tugas:</label>
+    <select id="cbtQuizIdSelect" class="form-input" style="padding:10px 14px;" onchange="handleQuizIdSelect()">
+    <option value="">-- Buka dulu kelas yang ingin dibuat kuisnya --</option>
+    </select>
+    <!-- Input manual, muncul hanya jika pilih "Buat Baru" -->
+    <input type="text" id="cbtQuizIdNew" class="form-input" 
+         placeholder="Contoh: KUIS-2024001" 
+         style="display:none; margin-top:8px;">
+    <p id="cbtQuizIdHint" style="font-size:11px; color:#5a8fa8; margin-top:5px; display:none;">
+      ID baru akan otomatis terdaftar di kelas aktif saat soal disimpan.
+    </p>
+  </div>
+  
+    <div style="margin-bottom:15px;">
+        <label class="form-label">Tipe Soal:</label>
+        <select id="cbtType" onchange="toggleCbtOptions()" class="form-input" style="padding: 10px 14px;">
+            <option value="PG">Pilihan Ganda (PG)</option>
+            <option value="ESSAY">Essay (Penilaian Otomatis AI)</option>
+        </select>
+    </div>
+  
+    <div style="margin-bottom:15px;">
+        <label class="form-label">Pertanyaan Soal:</label>
+        <textarea id="cbtText" rows="3" class="form-input" placeholder="Tuliskan soal di sini..." style="resize: vertical;"></textarea>
+    </div>
+  
+    <div id="areaPG" style="margin-bottom:15px; padding:15px; background:rgba(33,150,211,0.08); border:1px solid rgba(33,150,211,0.2); border-radius:10px;">
+        <label class="form-label" style="color:var(--foam);">Pilihan Jawaban (PG):</label>
+        <p style="color:#5a8fa8; font-size: 11px; margin-top:0; margin-bottom: 8px;">Tulis setiap pilihan jawaban di <b>baris baru (Tekan Enter)</b>.</p>
+        <textarea id="cbtOptionsInput" rows="4" class="form-input" placeholder="A. Jakarta&#10;B. Bandung&#10;C. Surabaya" style="resize: vertical;"></textarea>
+    </div>
+  
+    <div style="margin-bottom:15px;">
+        <label class="form-label">Kunci Jawaban / Patokan Rubrik:</label>
+        <textarea id="cbtCorrectAnswer" rows="2" class="form-input" placeholder="Tulis jawaban benar secara persis" style="resize: vertical;"></textarea>
+        <p style="color:var(--coral); margin-top:6px; margin-bottom:0; font-size:11px; font-style: italic;">
+          *PG: Samakan dengan salah satu opsi.<br>*Essay: Tulis rubrik panduan untuk AI.
+        </p>
+    </div>
+  
+    <div style="margin-bottom:20px;">
+        <label class="form-label">Bobot Poin Soal Ini:</label>
+        <input type="number" id="cbtPoints" value="10" class="form-input">
+    </div>
+
+    <div style="margin-bottom:20px; border-top:1px dashed var(--border); padding-top:15px;">
+  <label class="form-label" style="color:var(--amber);">⏱️ Pengaturan Waktu Ujian:</label>
+  
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px;">
+    <div>
+      <label class="form-label" style="font-size:11px; color:#8ab8cc;">
+        🔒 Batas Akses (Deadline):
+      </label>
+      <input type="datetime-local" id="cbtDeadline" class="form-input">
+      <p style="font-size:10px; color:#5a8fa8; margin-top:4px;">
+        Ujian tidak bisa dibuka setelah waktu ini.
+      </p>
+    </div>
+    <div>
+      <label class="form-label" style="font-size:11px; color:#8ab8cc;">
+        ⏳ Durasi Pengerjaan (menit):
+      </label>
+      <input type="number" id="cbtDuration" class="form-input" 
+             placeholder="Cth: 30" min="1" max="300">
+      <p style="font-size:10px; color:#5a8fa8; margin-top:4px;">
+        Dihitung sejak mahasiswa klik mulai.
+      </p>
+    </div>
+  </div>
+
+  <div style="background:rgba(232,168,58,0.08); border:1px solid rgba(232,168,58,0.2); 
+              border-radius:8px; padding:10px; margin-top:10px;">
+    <p style="font-size:11px; color:var(--amber); margin:0;">
+      💡 Contoh: Deadline = besok jam 23:59, Durasi = 30 menit.<br>
+      Mahasiswa bebas mulai kapan saja sebelum deadline, tapi hanya punya 30 menit sejak klik mulai.
+    </p>
+  </div>
+
+  <button onclick="simpanPengaturanWaktuCbt()" id="btnSimpanDeadline" 
+          class="btn btn-amber" style="width:100%; margin-top:12px;">
+    ⏳ Simpan Pengaturan Waktu
+  </button>
+</div>
+  
+    <div style="display:flex; gap:10px;">
+      <button onclick="simpanSoalCbt()" id="btnSimpanCbt" class="btn btn-ocean" style="flex:1;">💾 Simpan Soal</button>
+      <button onclick="tutupModalCbt()" class="btn btn-dark">Tutup</button>
     </div>
   </div>
 </div>
