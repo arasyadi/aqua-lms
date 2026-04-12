@@ -2,9 +2,9 @@
 // Semua operasi database telah dimigrasi ke Firebase.
 // Fungsi fbGet, fbPut, fbPatch, fbDelete tersedia di firebase_backend.gs
 
-var GEMINI_API_KEY     = "AIzaSyB8aBUwgbhENIJHq_RrbCkb0xy7pddLQyQ";
-var TELEGRAM_BOT_TOKEN = "8757046554:AAFLeXkFT11c5N7pqtDZl0KSC8aXlSBN1PQ";
-var TELEGRAM_CHAT_ID   = "655277172";
+var GEMINI_API_KEY     = "API GEMINI";
+var TELEGRAM_BOT_TOKEN = "BOT TOKEN";
+var TELEGRAM_CHAT_ID   = "ID";
 
 // ============================================================
 // 1. Mengambil soal untuk ditampilkan ke mahasiswa
@@ -562,7 +562,7 @@ function validasiDanGunakanToken(tokenInput) {
 // Fungsi ini tidak mengakses database — tidak ada perubahan
 // ============================================================
 function nilaiEssayDenganGemini(soal, rubrik, jawabanMhs, maxPoin) {
-  var apiKey = AIzaSyB8aBUwgbhENIJHq_RrbCkb0xy7pddLQyQ;
+  var apiKey = API GEMINI;
   var url    = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey;
 
   var promptText =
