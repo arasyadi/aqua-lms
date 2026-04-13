@@ -1,0 +1,3139 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AquaLearn LMS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Lora:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --deep:   #060f1e;
+      --navy:   #0b1f3a;
+      --ocean:  #0d3d6b;
+      --sea:    #1565a8;
+      --wave:   #2196d3;
+      --foam:   #5cc8f0;
+      --coral:  #f26d51;
+      --amber:  #e8a83a;
+      --mint:   #34c98a;
+      --glass:  rgba(13,61,107,0.35);
+      --border: rgba(92,200,240,0.18);
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Sora', sans-serif;
+      background-color: var(--deep);
+      color: #d6edf8;
+      min-height: 100vh;
+      overflow-x: hidden;
+      margin: 0;        /* ← tambah ini */
+      padding: 0;       /* ← tambah ini */
+    }
+    #ocean-bg {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background:
+        radial-gradient(ellipse 70% 55% at 15% 85%, rgba(13,61,107,0.5) 0%, transparent 65%),
+        radial-gradient(ellipse 55% 40% at 85% 15%, rgba(33,150,211,0.12) 0%, transparent 60%),
+        radial-gradient(ellipse 80% 60% at 50% 100%, rgba(11,31,58,0.9) 0%, transparent 75%),
+        linear-gradient(180deg, #060f1e 0%, #0b1f3a 100%);
+    }
+    .bubble {
+      position: absolute; /* ← ganti dari fixed ke absolute */
+      border-radius: 50%; pointer-events: none;
+      /* hapus z-index dari sini, dikontrol oleh container */
+      background: radial-gradient(circle at 30% 30%, rgba(92,200,240,0.15), rgba(33,150,211,0.03));
+      border: 1px solid rgba(92,200,240,0.1);
+      animation: rise linear infinite;
+    }
+    @keyframes rise {
+      0%   { transform: translateY(105vh) scale(0.85); opacity: 0; }
+      8%   { opacity: 0.8; }
+      92%  { opacity: 0.4; }
+      100% { transform: translateY(-8vh) scale(1.08); opacity: 0; }
+    }
+    .page { position: relative; z-index: 1; }
+    .glass {
+      background: var(--glass);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+    .glass-solid {
+      background: rgba(11,31,58,0.92);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(20px);
+    }
+    .topbar {
+      position: sticky; top: 0; z-index: 50;
+      height: 60px;
+      background: rgba(6,15,30,0.88);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(24px);
+      display: flex; align-items: center; padding: 0 24px; gap: 12px;
+    }
+    .topbar-brand {
+      font-family: 'Lora', serif; font-size: 18px; font-weight: 700;
+      background: linear-gradient(90deg, var(--foam), var(--amber));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .topbar-sub { font-size: 11px; color: #5a8fa8; letter-spacing: 1.5px; text-transform: uppercase; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      font-family: 'Sora', sans-serif; font-weight: 600; font-size: 13px;
+      padding: 9px 18px; border-radius: 10px; border: none; cursor: pointer;
+      transition: all .2s ease; letter-spacing: 0.2px; white-space: nowrap;
+    }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none !important; }
+    .btn-ocean  { background: linear-gradient(135deg, var(--sea), var(--wave)); color: #fff; box-shadow: 0 4px 14px rgba(33,150,211,0.3); }
+    .btn-ocean:hover:not(:disabled)  { filter: brightness(1.12); transform: translateY(-1px); }
+    .btn-teal   { background: linear-gradient(135deg, #0d7a6b, var(--mint)); color: #fff; box-shadow: 0 4px 14px rgba(52,201,138,0.25); }
+    .btn-teal:hover:not(:disabled)   { filter: brightness(1.1); transform: translateY(-1px); }
+    .btn-amber  { background: linear-gradient(135deg, #b8761a, var(--amber)); color: #fff; box-shadow: 0 4px 14px rgba(232,168,58,0.25); }
+    .btn-amber:hover:not(:disabled)  { filter: brightness(1.1); transform: translateY(-1px); }
+    .btn-coral  { background: linear-gradient(135deg, #c0472e, var(--coral)); color: #fff; }
+    .btn-coral:hover:not(:disabled)  { filter: brightness(1.1); transform: translateY(-1px); }
+    .btn-ghost  { background: rgba(92,200,240,0.1); color: var(--foam); border: 1px solid rgba(92,200,240,0.28); }
+    .btn-ghost:hover:not(:disabled)  { background: rgba(92,200,240,0.2); }
+    .btn-dark   { background: rgba(6,15,30,0.7); color: #8ab8cc; border: 1px solid rgba(92,200,240,0.2); }
+    .btn-dark:hover:not(:disabled)   { background: rgba(13,61,107,0.5); color: var(--foam); }
+    .btn-sm     { padding: 6px 12px; font-size: 12px; border-radius: 8px; }
+    .btn-full   { width: 100%; }
+    .form-input {
+      font-family: 'Sora', sans-serif; font-size: 13px;
+      background: rgba(6,15,30,0.6); color: #d6edf8;
+      border: 1px solid rgba(92,200,240,0.22); border-radius: 10px;
+      padding: 10px 14px; width: 100%; transition: border-color .2s, box-shadow .2s;
+    }
+    .form-input:focus { outline: none; border-color: var(--wave); box-shadow: 0 0 0 3px rgba(33,150,211,0.18); }
+    .form-input::placeholder { color: #3a6a85; }
+    .form-input:disabled { opacity: 0.45; cursor: not-allowed; }
+    .form-label { font-size: 12px; font-weight: 600; color: #5a9bb8; letter-spacing: 0.5px; margin-bottom: 5px; display: block; text-transform: uppercase; }
+    .tbl-wrap { overflow-y: auto; max-height: 280px; border-radius: 12px; border: 1px solid var(--border); }
+    .tbl-wrap::-webkit-scrollbar { width: 4px; }
+    .tbl-wrap::-webkit-scrollbar-thumb { background: rgba(92,200,240,0.25); border-radius: 4px; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { position: sticky; top: 0; z-index: 5; background: rgba(13,61,107,0.95); color: var(--foam); padding: 11px 14px; font-size: 12px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tbody td { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid rgba(92,200,240,0.08); color: #c0dbe8; vertical-align: middle; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: rgba(33,150,211,0.07); }
+    .rank-gold   td { background: rgba(232,168,58,0.12)  !important; color: var(--amber); }
+    .rank-silver td { background: rgba(180,195,210,0.10) !important; color: #b8cdd8; }
+    .rank-bronze td { background: rgba(180,100,50,0.12)  !important; color: #c48050; }
+    .badge { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 0.4px; }
+    .badge-blue { background: rgba(33,150,211,0.18); color: var(--foam); border: 1px solid rgba(33,150,211,0.3); }
+    .badge-mint { background: rgba(52,201,138,0.18); color: var(--mint); border: 1px solid rgba(52,201,138,0.3); }
+    .badge-amber{ background: rgba(232,168,58,0.18); color: var(--amber);border: 1px solid rgba(232,168,58,0.3); }
+    .prog-track { background: rgba(33,150,211,0.12); border-radius: 99px; height: 7px; overflow: hidden; margin: 10px 0 4px; }
+    .prog-fill  { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--sea), var(--foam)); box-shadow: 0 0 8px rgba(92,200,240,0.4); transition: width .6s ease; }
+    .panel-tabs { display: flex; gap: 4px; background: rgba(6,15,30,0.6); border: 1px solid var(--border); border-radius: 14px; padding: 5px; }
+    .tab-btn {
+      flex: 1; padding: 10px 16px; border-radius: 10px; border: none; cursor: pointer;
+      font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 600;
+      transition: all .22s; color: #5a8fa8; background: transparent;
+    }
+    .tab-btn.active { background: linear-gradient(135deg, var(--ocean), var(--sea)); color: #fff; box-shadow: 0 4px 14px rgba(13,61,107,0.6); }
+    .tab-btn:hover:not(.active) { background: rgba(33,150,211,0.12); color: var(--foam); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; animation: fadeUp .28s ease; }
+    .accordion-item { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 12px; }
+    .accordion-header {
+      width: 100%; display: flex; align-items: center; justify-content: space-between;
+      padding: 15px 20px; background: rgba(13,61,107,0.35); border: none; cursor: pointer;
+      font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 600; color: var(--foam);
+      transition: background .2s;
+    }
+    .accordion-header:hover { background: rgba(13,61,107,0.6); }
+    .accordion-header .arrow { transition: transform .25s; font-size: 12px; color: #5a8fa8; }
+    .accordion-header.open .arrow { transform: rotate(180deg); }
+    .accordion-body { display: none; padding: 20px; background: rgba(6,15,30,0.3); border-top: 1px solid var(--border); }
+    .accordion-body.open { display: block; animation: fadeUp .22s ease; }
+    .section-head { font-family: 'Lora', serif; font-size: 16px; color: var(--foam); display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+    .alert-danger { background: rgba(180,52,31,0.15); border: 1px solid rgba(242,109,81,0.3); border-left: 4px solid var(--coral); border-radius: 12px; padding: 16px 18px; }
+    .alert-success{ background: rgba(52,201,138,0.1); border: 1px solid rgba(52,201,138,0.25); border-left: 4px solid var(--mint); border-radius: 12px; padding: 16px 18px; }
+    .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .login-card { width: 100%; max-width: 380px; border-radius: 24px; padding: 40px 36px; }
+    .fish-anim { display: inline-block; animation: sway 2.8s ease-in-out infinite; }
+    @keyframes sway { 0%,100% { transform: rotate(-6deg) scale(1); } 50% { transform: rotate(6deg) scale(1.08); } }
+    .course-card { border-radius: 16px; padding: 22px; transition: transform .2s, box-shadow .2s, border-color .2s; }
+    .course-card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(33,150,211,0.15); border-color: rgba(92,200,240,0.4) !important; }
+    .hero-card { border-radius: 20px; padding: 28px; position: relative; overflow: hidden; }
+    .hero-card::after { content: '🐋 🐠 🐟 🦈'; position: absolute; right: 20px; bottom: 8px; font-size: 32px; opacity: 0.1; letter-spacing: 6px; pointer-events: none; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fadeUp .32s ease; }
+    @media (max-width: 640px) {
+      .topbar { padding: 0 14px; }
+      .two-col { grid-template-columns: 1fr !important; }
+      .panel-tabs { flex-direction: column; }
+    }
+    .check-list { max-height: 170px; overflow-y: auto; }
+    .check-list::-webkit-scrollbar { width: 3px; }
+    .check-list::-webkit-scrollbar-thumb { background: rgba(92,200,240,0.2); border-radius: 4px; }
+    .check-item { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; cursor: pointer; transition: background .15s; font-size: 13px; color: #c0dbe8; }
+    .check-item:hover { background: rgba(33,150,211,0.1); }
+    .check-item input[type=checkbox] { accent-color: var(--wave); width: 15px; height: 15px; cursor: pointer; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(6,15,30,0.3); }
+    ::-webkit-scrollbar-thumb { background: rgba(92,200,240,0.2); border-radius: 4px; }
+    .stat-card { border-radius: 14px; padding: 18px; display: flex; align-items: center; gap: 14px; }
+    .stat-icon { font-size: 28px; width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; border-radius: 12px; flex-shrink: 0; }
+    footer { border-top: 1px solid var(--border); padding: 20px; text-align: center; font-size: 12px; color: #3a6a85; margin-top: 40px; }
+    footer strong { color: #5a8fa8; }
+
+    /* ── EXPORT MODAL ── */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(6,15,30,0.85); backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-card {
+      width: 100%; max-width: 460px; border-radius: 20px; padding: 32px 28px;
+      background: rgba(11,31,58,0.97); border: 1px solid var(--border);
+      animation: fadeUp .25s ease;
+    }
+    .modal-title {
+      font-family: 'Lora', serif; font-size: 18px; color: var(--foam);
+      margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--border);
+    }
+
+    /* ── Custom Toast V2 ── */
+    .c-toast {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 12px 16px; border-radius: 12px; pointer-events: all;
+      min-width: 260px; max-width: 320px;
+      font-family: 'Sora', sans-serif;
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      animation: toast-slide-in 0.3s cubic-bezier(0.175,0.885,0.32,1.275);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    .c-toast.hide { opacity: 0; transform: translateX(20px); }
+    .c-toast-success { background: rgba(52,201,138,0.15); border: 1px solid rgba(52,201,138,0.35); }
+    .c-toast-error   { background: rgba(242,109,81,0.15);  border: 1px solid rgba(242,109,81,0.35);  }
+    .c-toast-warning { background: rgba(232,168,58,0.15);  border: 1px solid rgba(232,168,58,0.35);  }
+    .c-toast-info    { background: rgba(92,200,240,0.12);  border: 1px solid rgba(92,200,240,0.3);   }
+    .c-toast-icon  { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+    .c-toast-title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+    .c-toast-msg   { font-size: 12px; opacity: 0.85; line-height: 1.4; }
+    .c-toast-success .c-toast-title { color: #34c98a; }
+    .c-toast-success .c-toast-msg   { color: #34c98a; }
+    .c-toast-error   .c-toast-title { color: #f26d51; }
+    .c-toast-error   .c-toast-msg   { color: #f26d51; }
+    .c-toast-warning .c-toast-title { color: #e8a83a; }
+    .c-toast-warning .c-toast-msg   { color: #e8a83a; }
+    .c-toast-info    .c-toast-title { color: #5cc8f0; }
+    .c-toast-info    .c-toast-msg   { color: #5cc8f0; }
+
+    @keyframes toast-slide-in {
+      from { opacity: 0; transform: translateX(30px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+  
+/* ── Tailwind replacements (CDN dihapus, class dipertahankan) ── */
+.flex            { display: flex; }
+.flex-col        { flex-direction: column; }
+.flex-wrap       { flex-wrap: wrap; }
+.grid            { display: grid; }
+.items-center    { align-items: center; }
+.items-baseline  { align-items: baseline; }
+.justify-center  { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.ml-auto         { margin-left: auto; }
+.text-center     { text-align: center; }
+.text-2xl        { font-size: 1.5rem; }
+.text-5xl        { font-size: 3rem; }
+.overflow-hidden { overflow: hidden; }
+.w-full          { width: 100%; }
+.gap-3           { gap: 0.75rem; }
+.gap-4           { gap: 1rem; }
+.space-y-3 > * + * { margin-top: 0.75rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-3 { margin-bottom: 0.75rem; }
+.mb-4 { margin-bottom: 1rem; }
+.mb-6 { margin-bottom: 1.5rem; }
+.mb-8 { margin-bottom: 2rem; }
+.mt-3 { margin-top: 0.75rem; }
+.mt-4 { margin-top: 1rem; }
+.mt-5 { margin-top: 1.25rem; }
+.mt-8 { margin-top: 2rem; }
+.p-2  { padding: 0.5rem; }
+.p-4  { padding: 1rem; }
+.p-5  { padding: 1.25rem; }
+.rounded-xl  { border-radius: 0.75rem; }
+.rounded-2xl { border-radius: 1rem; }
+
+</style>
+</head>
+<body>
+
+<div id="ocean-bg"></div>
+
+<!-- VIEW: LOGIN -->
+<div id="loginView" class="page login-wrap">
+  <div class="login-card glass-solid fade-in">
+    <div class="text-center mb-6">
+      <div class="fish-anim text-5xl mb-3">🐟</div>
+      <h1 style="font-family:'Lora',serif;font-size:26px;background:linear-gradient(90deg,var(--foam),var(--amber));-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:700;">AquaLearn LMS</h1>
+      <p style="font-size:11px;color:#3a6a85;letter-spacing:2px;text-transform:uppercase;margin-top:4px;">Fakultas Kelautan dan Perikanan Universitas Udayana</p>
+    </div>
+    <div class="space-y-3 mb-4">
+      <div>
+        <label class="form-label">Username / NIM</label>
+        <input type="text" id="username" class="form-input" placeholder="Masukkan username atau NIM">
+      </div>
+      <div>
+        <label class="form-label">Password</label>
+        <input type="password" id="password" class="form-input" placeholder="Masukkan password" onkeydown="if(event.key==='Enter')attemptLogin()">
+      </div>
+    </div>
+    <button class="btn btn-ocean btn-full" onclick="attemptLogin()">🌊 Masuk ke Sistem</button>
+    <div id="message" style="font-size:13px;color:var(--coral);text-align:center;margin-top:10px;min-height:18px;"></div>
+    <p style="font-size:11px;color:#2a4a5a;text-align:center;margin-top:20px;">☕ Developed by: <strong style="color:#3a6a85;">Andy Rasyadi, S.Pi., M.Si.</strong></p>
+  </div>
+</div>
+
+<!-- VIEW: MAHASISWA — DASHBOARD -->
+<div id="dashboardView" class="page" style="display:none;">
+  <nav class="topbar">
+    <span class="text-2xl">🐠</span>
+    <div>
+      <div class="topbar-brand">AquaLearn LMS</div>
+      <div class="topbar-sub">Mahasiswa</div>
+    </div>
+    <div class="ml-auto flex items-center gap-3">
+      <span id="mhs-name-badge" class="badge badge-blue" style="font-size:12px;"></span>
+      <button class="btn btn-coral btn-sm" onclick="logout()">Keluar</button>
+    </div>
+  </nav>
+  <main class="page" style="max-width:960px;margin:0 auto;padding:28px 20px 60px;">
+    <div class="hero-card glass fade-in" style="margin-bottom:28px;">
+      <h2 id="welcomeTextMahasiswa" style="font-family:'Lora',serif;font-size:22px;color:var(--foam);">Selamat Datang</h2>
+      <p style="color:#5a8fa8;font-size:14px;margin-top:4px;">Pilih mata kuliah untuk mulai belajar 🌊</p>
+    </div>
+    <h3 class="section-head">📚 Mata Kuliah Anda</h3>
+    <div id="loadingCourses" style="color:#3a6a85;font-size:14px;padding:10px 0;">Memuat data kelas…</div>
+    <div id="courseList" class="grid gap-4" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr));"></div>
+  </main>
+  <footer><span class="footer-wave">🌊 🐟 🌊</span><br>☕ Developed by: <strong>Andy Rasyadi, S.Pi., M.Si.</strong></footer>
+</div>
+
+<!-- VIEW: MAHASISWA — RUANG KELAS -->
+<div id="courseRoomView" class="page" style="display:none;">
+  <nav class="topbar">
+    <span class="text-2xl">📘</span>
+    <div>
+      <div class="topbar-brand" id="courseTitle-nav">Ruang Kelas</div>
+      <div class="topbar-sub">Mahasiswa</div>
+    </div>
+    <div class="ml-auto flex items-center gap-3">
+      <button class="btn btn-ghost btn-sm" onclick="kembaliKeDashboard()">← Dashboard</button>
+      <button class="btn btn-coral btn-sm" onclick="logout()">Keluar</button>
+    </div>
+  </nav>
+  <main class="page" style="max-width:960px;margin:0 auto;padding:28px 20px 60px;">
+    <div class="hero-card glass fade-in" style="margin-bottom:28px;">
+      <h2 id="courseTitle" style="font-family:'Lora',serif;font-size:20px;color:var(--foam);">Mata Kuliah</h2>
+      <p style="color:#5a8fa8;font-size:13px;margin-top:4px;">Ruang Belajar Digital</p>
+    </div>
+    <h3 class="section-head">📅 Kalender Pertemuan</h3>
+    <div id="loadingJadwal" style="color:#3a6a85;font-size:14px;">Memuat jadwal perkuliahan...</div>
+    <div id="jadwalList" class="grid gap-3 mb-6" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr));"></div>
+
+    <h3 class="section-head">📘 Materi Pembelajaran</h3>
+    <div id="loadingMaterials" style="color:#3a6a85;font-size:14px;">Memuat materi…</div>
+    <div id="materialList" class="grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));margin-bottom:32px;"></div>
+    <h3 class="section-head">📝 Evaluasi / Kuis</h3>
+    <div id="loadingQuizzes" style="color:#3a6a85;font-size:14px;">Memuat kuis…</div>
+    <div id="quizList" class="grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));margin-bottom:32px;"></div>
+    <h3 class="section-head">💡 Lesson Learn (Presensi Reflektif)</h3>
+    <div id="loadingLessons" style="color:#3a6a85;font-size:14px;">Memuat tugas refleksi…</div>
+    <div id="lessonList" class="flex flex-col gap-4"></div>
+    <h3 class="section-head mt-8">📊 Rekapitulasi Nilai</h3>
+    <div id="loadingNilai" style="color:#3a6a85;font-size:14px;">Memuat nilai...</div>
+    <div class="tbl-wrap mb-8">
+      <table>
+        <thead><tr><th>Jenis Penilaian</th><th style="text-align:center; width:120px;">Nilai</th></tr></thead>
+        <tbody id="nilaiList"><tr><td colspan="2" style="text-align:center;color:#3a6a85;">Memuat...</td></tr></tbody>
+      </table>
+    </div>
+    <div id="areaTombolNilaiAkhir" style="text-align:center; margin-top:15px; display:none;">
+    <button class="btn btn-teal btn-full" onclick="lihatNilaiAkhirMahasiswa()">📊 Lihat Rincian Nilai Akhir Saya</button>
+    </div>
+  </main>
+  <footer>☕ Developed by: <strong>Andy Rasyadi, S.Pi., M.Si.</strong></footer>
+</div>
+
+<!-- VIEW: DOSEN — DASHBOARD -->
+<div id="lecturerDashboardView" class="page" style="display:none;">
+  <nav class="topbar">
+    <span class="text-2xl">🎓</span>
+    <div>
+      <div class="topbar-brand">AquaLearn LMS</div>
+      <div class="topbar-sub">Panel Dosen</div>
+    </div>
+    <div class="ml-auto flex items-center gap-3">
+      <span id="dosen-name-badge" class="badge badge-amber" style="font-size:12px;"></span>
+      <button class="btn btn-coral btn-sm" onclick="logout()">Keluar</button>
+    </div>
+  </nav>
+  <main class="page" style="max-width:960px;margin:0 auto;padding:28px 20px 60px;">
+    <div class="hero-card glass fade-in" style="margin-bottom:28px;">
+      <h2 id="welcomeTextDosen" style="font-family:'Lora',serif;font-size:22px;color:var(--foam);">Selamat Datang</h2>
+      <p style="color:#5a8fa8;font-size:14px;margin-top:4px;">Kelola kelas dan pantau perkembangan mahasiswa Anda.</p>
+    </div>
+    <div class="glass rounded-2xl p-5 mb-6" style="border:2px dashed rgba(92,200,240,0.25);">
+      <h3 class="section-head" style="margin-bottom:14px;">⚙️ Buat Kelas Baru</h3>
+      <div class="grid gap-3" style="grid-template-columns: 1fr 1fr 2fr;">
+        <div>
+          <label class="form-label">Kode Mata Kuliah</label>
+          <input type="text" id="newCourseId" class="form-input" placeholder="Contoh: BIO101">
+        </div>
+        <div>
+          <label class="form-label">Kelas</label>
+          <input type="text" id="newCourseClass" class="form-input" placeholder="Contoh: A, B, dll">
+        </div>
+        <div>
+          <label class="form-label">Nama Mata Kuliah</label>
+          <input type="text" id="newCourseName" class="form-input" placeholder="Contoh: Biologi Laut">
+        </div>
+      </div>
+      <button class="btn btn-ocean mt-3" id="btnTambahKelas" onclick="tambahKelas()">+ Buat Kelas</button>
+    </div>
+    <h3 class="section-head">🐟 Kelas yang Anda Ampu</h3>
+    <div id="loadingDosenCourses" style="color:#3a6a85;font-size:14px;">Memuat kelas…</div>
+    <div id="dosenCourseList" class="grid gap-4" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr));"></div>
+  </main>
+  <footer>☕ Developed by: <strong>Andy Rasyadi, S.Pi., M.Si.</strong></footer>
+</div>
+
+<!-- VIEW: DOSEN — PANEL KELAS (TABS) -->
+<div id="lecturerAnalyticsView" class="page" style="display:none;">
+  <nav class="topbar">
+    <span class="text-2xl">🎓</span>
+    <div>
+      <div class="topbar-brand" id="analyticsCourseTitle-nav">Panel Kelas</div>
+      <div class="topbar-sub">Dosen</div>
+    </div>
+    <div class="ml-auto flex items-center gap-3">
+      <button id="btnRefreshData" class="btn btn-ghost btn-sm" onclick="refreshDataKelas()" title="Tarik data terbaru langsung dari Spreadsheet" style="color: #4dd0e1; font-weight: 500;">🔄 Refresh Data</button>
+      <button class="btn btn-ghost btn-sm" onclick="kembaliKeDashboardDosen()">← Daftar Kelas</button>
+      <button class="btn btn-coral btn-sm" onclick="logout()">Keluar</button>
+    </div>
+  </nav>
+  <main class="page" style="max-width:960px;margin:0 auto;padding:28px 20px 60px;">
+    <div class="hero-card glass fade-in" style="margin-bottom:28px;">
+      <h2 id="analyticsCourseTitle" style="font-family:'Lora',serif;font-size:20px;color:var(--foam);">Panel Kelas</h2>
+      <p style="color:#5a8fa8;font-size:13px;margin-top:4px;">Kelola konten & pantau aktivitas mahasiswa</p>
+    </div>
+    <div class="panel-tabs mb-6">
+      <button class="tab-btn active" onclick="switchTab('tabPembelajaran', this)" id="tabBtnPembelajaran">
+        📚 Manajemen Pembelajaran
+      </button>
+      <button class="tab-btn" onclick="switchTab('tabMahasiswa', this)" id="tabBtnMahasiswa">
+        👥 Manajemen Mahasiswa
+      </button>
+    </div>
+
+    <!-- TAB 1: MANAJEMEN PEMBELAJARAN -->
+    <div id="tabPembelajaran" class="tab-panel active">
+
+      <div class="glass rounded-xl p-4 mb-4" style="border:1px dashed var(--foam); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div>
+          <h4 style="color:var(--foam); font-size:14px; font-weight:600; margin-bottom:4px;">📥 Impor Konten Cepat</h4>
+          <p style="color:#5a8fa8; font-size:12px; margin:0;">Salin Materi, Kuis, dan Lesson Learn dari kelas Anda yang lain secara instan.</p>
+        </div>
+        <button class="btn btn-ocean btn-sm" onclick="bukaModalImport()">Mulai Impor</button>
+      </div>
+
+      <!-- ACCORDION: Kalender Pertemuan (BARU) -->
+      <div class="accordion-item">
+        <button class="accordion-header open" onclick="toggleAccordion(this)">
+          <span>📅 Manajemen Kalender Pertemuan</span>
+          <span class="arrow">▼</span>
+        </button>
+        <div class="accordion-body open">
+          <div class="grid gap-3 two-col mb-4" style="grid-template-columns: 1fr 1fr;">
+            <div style="grid-column: span 2;">
+              <label class="form-label">Topik / Nama Pertemuan</label>
+              <input type="text" id="inputPertemuan" class="form-input" placeholder="Contoh: Pertemuan 1 - Kontrak Kuliah">
+            </div>
+            <div>
+              <label class="form-label">Tanggal</label>
+              <input type="date" id="inputTanggal" class="form-input">
+            </div>
+            <div>
+              <label class="form-label">Waktu (Jam)</label>
+              <input type="time" id="inputWaktu" class="form-input">
+            </div>
+            <div>
+              <label class="form-label">Mode Perkuliahan</label>
+              <select id="inputMode" class="form-input" style="padding: 9px 14px;" onchange="ubahPlaceholderLokasi()">
+                <option value="Luring">Luring (Tatap Muka)</option>
+                <option value="Daring">Daring (Zoom Meeting)</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label">Lokasi / Link Zoom</label>
+              <input type="text" id="inputLokasi" class="form-input" placeholder="Contoh: Ruang Kelas 101">
+            </div>
+          </div>
+          <button class="btn btn-ocean btn-sm" id="btnSimpanJadwal" onclick="simpanJadwal()">+ Simpan Jadwal</button>
+          <div class="tbl-wrap mt-4">
+            <table style="table-layout:fixed;width:100%;">
+              <colgroup>
+                <col style="width:auto;">
+                <col style="width:130px;">
+                <col style="width:90px;">
+                <col style="width:130px;">
+                <col style="width:80px;">
+              </colgroup>
+              <thead><tr>
+                <th>Pertemuan</th>
+                <th>Waktu</th>
+                <th style="text-align:center;">Mode</th>
+                <th>Lokasi / Link</th>
+                <th style="text-align:center;">Aksi</th>
+              </tr></thead>
+              <tbody id="jadwalDosenBody"><tr><td colspan="5" style="text-align:center;color:#3a6a85;">Memuat jadwal…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <button class="accordion-header open" onclick="toggleAccordion(this)">
+          <span>📘 Manajemen Materi</span><span class="arrow">▼</span>
+        </button>
+        <div class="accordion-body open">
+          <div class="grid gap-3 two-col mb-4" style="grid-template-columns:1fr 1fr;">
+            <div>
+              <label class="form-label">Judul Materi</label>
+              <input type="text" id="newMatTitle" class="form-input" placeholder="Contoh: Modul 1 — Ekologi Laut">
+            </div>
+            <div>
+              <label class="form-label">Link Google Drive / URL</label>
+              <input type="text" id="newMatUrl" class="form-input" placeholder="https://drive.google.com/...">
+            </div>
+          </div>
+          <button class="btn btn-ocean btn-sm" id="btnTambahMateri" onclick="tambahMateriKelas()">+ Tambah Materi</button>
+          <div class="tbl-wrap mt-4">
+            <table>
+              <thead><tr><th>Judul Materi</th><th style="width:80px;text-align:center;">Link</th><th style="width:90px;text-align:center;">Aksi</th></tr></thead>
+              <tbody id="materiDosenBody"><tr><td colspan="3" style="text-align:center;color:#3a6a85;">Memuat data…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+  <button class="accordion-header open" onclick="toggleAccordion(this)">
+    <span>📝 Manajemen Kuis / Tugas & CBT</span><span class="arrow">▼</span>
+  </button>
+  <div class="accordion-body open">
+    
+    <div class="grid gap-3 two-col mb-4" style="grid-template-columns:1fr 1fr;">
+      <div>
+        <label class="form-label">Judul Kuis / Tugas</label>
+        <input type="text" id="newQuizTitle" class="form-input" placeholder="Contoh: Kuis Pertemuan 1">
+      </div>
+      <div>
+        <label class="form-label">Link GForms / URL CBT</label>
+        <div style="display: flex; gap: 5px;">
+          <input type="text" id="newQuizUrl" class="form-input" placeholder="https://forms... atau ?page=cbt&quizId=..." style="flex: 1;">
+          <button class="btn btn-emerald btn-sm" onclick="generateCbtLink()" title="Buat Link CBT Otomatis" style="padding: 0 10px; white-space: nowrap;">💡 Buat CBT</button>
+        </div>
+      </div>
+    </div>
+    
+    <div style="display: flex; gap: 10px;">
+      <button class="btn btn-amber btn-sm" id="btnTambahKuis" onclick="tambahKuisKelas()">+ Tambah Kuis / Tugas</button>
+      <button class="btn btn-blue btn-sm" onclick="bukaModalCbt(activeCourseId)" style="background-color: #1565a8; color: white;">⚙️ Kelola Soal CBT</button>
+    </div>
+    
+    <div class="tbl-wrap mt-4">
+      <table>
+        <thead>
+          <tr>
+            <th>Judul Kuis / Tugas</th>
+            <th style="width:80px;text-align:center;">Link</th>
+            <th style="width:90px;text-align:center;">Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="kuisDosenBody">
+          <tr><td colspan="3" style="text-align:center;color:#3a6a85;">Memuat data…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+  </div>
+</div>
+
+      <div class="accordion-item">
+        <button class="accordion-header open" onclick="toggleAccordion(this)">
+          <span>💡 Manajemen Lesson Learn</span><span class="arrow">▼</span>
+        </button>
+        <div class="accordion-body open">
+          <div class="grid gap-3 two-col mb-4" style="grid-template-columns:1fr auto;">
+            <div>
+              <label class="form-label">Pertanyaan / Topik Refleksi</label>
+              <input type="text" id="newLessonTopic" class="form-input" placeholder="Contoh: Apa yang kamu pelajari hari ini?">
+            </div>
+            <div>
+              <label class="form-label">Deadline</label>
+              <input type="date" id="newLessonDate" class="form-input">
+            </div>
+          </div>
+          <button class="btn btn-teal btn-sm" id="btnTambahLesson" onclick="tambahLessonKelas()">+ Tambah Lesson Learn</button>
+          <div class="tbl-wrap mt-4">
+            <table>
+              <thead><tr><th>Topik Presensi</th><th>Deadline</th><th>Aksi</th></tr></thead>
+              <tbody id="lessonDosenBody"><tr><td colspan="3" style="text-align:center;color:#3a6a85;">Memuat data…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div><!-- /tabPembelajaran -->
+
+    <!-- TAB 2: MANAJEMEN MAHASISWA -->
+    <div id="tabMahasiswa" class="tab-panel">
+
+      <!-- ACCORDION: Manajemen Nilai (BARU) -->
+      <div class="accordion-item mb-4">
+        <button class="accordion-header open" onclick="toggleAccordion(this)">
+          <span>📊 Manajemen Nilai Mahasiswa</span>
+          <span class="arrow">▼</span>
+        </button>
+        <div class="accordion-body open">
+          <div class="grid gap-3 two-col mb-4" style="grid-template-columns: 1fr 1fr 1fr;">
+            <div>
+              <label class="form-label">Pilih Mahasiswa</label>
+              <select id="inputNilaiUser" class="form-input" style="padding: 9px 14px;">
+                <option value="">-- Pilih Mahasiswa --</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label">Jenis Penilaian</label>
+              <input type="text" id="inputJenisNilai" class="form-input" placeholder="Contoh: Tugas 1, UTS">
+            </div>
+            <div>
+              <label class="form-label">Skor / Nilai</label>
+              <input type="number" id="inputAngkaNilai" class="form-input" placeholder="Contoh: 85">
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+              <button class="btn btn-teal btn-sm" id="btnSimpanNilai" onclick="simpanNilaiKelas()">+ Simpan Nilai</button>
+              <button class="btn btn-ocean btn-sm" onclick="bukaModalImportNilai()">📤 Impor Nilai</button>
+              <button class="btn btn-amber btn-sm" onclick="bukaModalExport()">📥 Download Rekapitulasi Nilai</button>
+              <button class="btn btn-ocean btn-sm" onclick="bukaModalPengaturanNilai()">⚙️ Pengaturan Nilai Akhir</button>
+          </div>
+          <div class="tbl-wrap mt-4">
+            <table style="table-layout:fixed;width:100%;">
+              <colgroup>
+                <col style="width:115px;">
+                <col style="width:auto;">
+                <col style="width:165px;">
+                <col style="width:75px;">
+                <col style="width:85px;">
+              </colgroup>
+              <thead><tr>
+                <th style="text-align:center;">NIM</th>
+                <th>Nama Mahasiswa</th>
+                <th>Jenis Penilaian</th>
+                <th style="text-align:center;">Nilai</th>
+                <th style="text-align:center;">Aksi</th>
+              </tr></thead>
+              <tbody id="nilaiDosenBody"><tr><td colspan="5" style="text-align:center;color:#3a6a85;">Memuat data nilai…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACCORDION: Daftar Mahasiswa -->
+      <div class="accordion-item mb-4">
+        <button class="accordion-header open" onclick="toggleAccordion(this)">
+          <span>🎓 Daftar Mahasiswa Kelas</span><span class="arrow">▼</span>
+        </button>
+        <div class="accordion-body open">
+          <p style="font-size:13px;color:#5a8fa8;margin-bottom:12px;">Centang mahasiswa yang ingin didaftarkan ke kelas ini:</p>
+          <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+            <input type="text" id="searchStudent" class="form-input" placeholder="🔍 Cari NIM / Nama (Contoh: 25)..." onkeyup="filterStudents()">
+            <button class="btn btn-ghost" style="white-space: nowrap;" onclick="selectAllFiltered()">☑️ Pilih Semua</button>
+          </div>
+          <div id="studentCheckboxList" class="check-list glass rounded-xl p-2 mb-3" style="border:1px solid var(--border);">
+            <p style="color:#3a6a85;font-size:13px;padding:8px;">Memuat data…</p>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+            <button class="btn btn-ocean btn-sm" id="btnTambahMhs" onclick="masukkanMahasiswaBatch()">+ Masukkan Mahasiswa Terpilih</button>
+            <button class="btn btn-teal btn-sm" onclick="document.getElementById('inputExcelMhs').click()">📂 Import dari Excel SIMAK</button>
+            <input type="file" id="inputExcelMhs" accept=".xlsx,.xls" style="display:none;" onchange="prosesImportExcelMhs(this)">
+            <button class="btn btn-coral btn-sm" onclick="resetPerangkatBatch()">🔓 Reset Perangkat Mahasiswa</button>
+          </div>
+
+      <!-- Preview hasil baca Excel sebelum dieksekusi -->
+          <div id="previewImportMhs" style="display:none;margin-bottom:16px;">
+            <div style="background:rgba(52,201,138,0.08);border:1px solid rgba(52,201,138,0.25);border-left:4px solid var(--mint);border-radius:12px;padding:16px 18px;">
+              <p style="font-size:13px;color:var(--mint);font-weight:600;margin-bottom:8px;">📋 Preview NIM dari file Excel:</p>
+              <p style="font-size:12px;color:#5a8fa8;margin-bottom:10px;">
+                Ditemukan <b id="previewJumlahNim" style="color:var(--foam);">0</b> NIM.
+              <span id="previewKeteranganNim" style="color:#8ab8cc;"></span>
+              </p>
+          <div id="previewNimList" style="max-height:120px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;"></div>
+          <div style="display:flex;gap:10px;">
+            <button class="btn btn-teal btn-sm" id="btnKonfirmasiImportMhs" onclick="konfirmasiImportMahasiswaExcel()">✅ Daftarkan Semua ke Kelas Ini</button>
+            <button class="btn btn-dark btn-sm" onclick="batalImportMhs()">Batal</button>
+          </div>
+        </div>
+      </div>
+
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th style="width:130px;text-align:center;">NIM / ID</th><th>Nama Mahasiswa</th><th style="width:100px;text-align:center;">Aksi</th></tr></thead>
+              <tbody id="enrolledBody"><tr><td colspan="3" style="text-align:center;color:#3a6a85;">Memuat data…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACCORDION: Ranking -->
+      <div class="accordion-item mb-4">
+        <button class="accordion-header open" onclick="toggleAccordion(this)">
+          <span>🏆 Ranking Aktivitas Mahasiswa</span><span class="arrow">▼</span>
+        </button>
+        <div class="accordion-body open">
+          <div id="loadingRanking" style="color:#3a6a85;font-size:13px;padding:6px 0;">Memuat data analitik…</div>
+          <div class="tbl-wrap" id="rankingContainer" style="display:none;">
+            <table>
+              <thead><tr><th style="width:80px;text-align:center;">Rank</th><th>Nama Mahasiswa</th><th style="width:110px;text-align:center;">Total Skor</th></tr></thead>
+              <tbody id="rankingBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACCORDION: Tidak Aktif -->
+      <div class="accordion-item">
+        <button class="accordion-header open" onclick="toggleAccordion(this)">
+          <span>⚠️ Mahasiswa Tidak Aktif</span><span class="arrow">▼</span>
+        </button>
+        <div class="accordion-body open">
+          <div class="alert-danger">
+            <p style="font-size:13px;color:#e89080;margin-bottom:8px;">Mahasiswa terdaftar yang <strong>belum melakukan aktivitas apapun</strong> (Skor = 0):</p>
+            <div id="loadingInactive" style="color:#8a6a65;font-size:13px;">Mendeteksi…</div>
+            <ul id="inactiveList" style="padding-left:18px;font-size:13px;color:#e8b0a0;margin-top:4px;"></ul>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /tabMahasiswa -->
+
+  </main>
+  <footer>☕ Developed by: <strong>Andy Rasyadi, S.Pi., M.Si.</strong></footer>
+</div>
+
+<!-- BUBBLES -->
+<script>
+(function(){
+  // Buat dedicated layer dengan stacking context sendiri
+  var layer = document.createElement('div');
+  layer.style.cssText = 'position:fixed;inset:0;z-index:3;pointer-events:none;overflow:hidden;';
+  document.body.appendChild(layer);
+
+  var cfg=[
+    {s:55,l:4, d:19,del:0 },{s:80,l:13,d:26,del:4 },{s:38,l:22,d:17,del:8 },
+    {s:110,l:32,d:32,del:2 },{s:28,l:44,d:15,del:11},{s:70,l:56,d:24,del:6 },
+    {s:48,l:67,d:20,del:15},{s:92,l:76,d:28,del:9 },{s:32,l:85,d:16,del:3 },{s:62,l:94,d:22,del:13}
+  ];
+  cfg.forEach(function(c){
+    var el=document.createElement('div');el.className='bubble';
+    el.style.cssText='width:'+c.s+'px;height:'+c.s+'px;left:'+c.l+'%;animation-duration:'+c.d+'s;animation-delay:-'+c.del+'s;';
+    layer.appendChild(el); // ← append ke layer, bukan body
+  });
+})();
+
+</script>
+
+<!-- APP LOGIC -->
+<script>
+// ==========================================
+// LOGIKA FITUR CBT (PASTIKAN ADA DI DALAM TAG <script>)
+// ==========================================
+    
+    function generateCbtLink() {
+      // Ubah tombol jadi loading sebentar
+      var btn = event.target || document.querySelector('button[title="Buat Link CBT Otomatis"]');
+      if(btn) btn.innerText = "Memproses...";
+      
+      // Meminta Link Web App Asli dari backend
+      google.script.run.withSuccessHandler(function(url) {
+        if(btn) btn.innerText = "💡 Buat CBT";
+        
+        var uniqueId = "KUIS-" + new Date().getTime();
+        
+        // Gabungkan URL Web App dengan parameter kuis
+        // Jika karena suatu hal 'url' kosong, kita minta dosen mengedit manual
+        var finalUrl = url ? (url + "?page=cbt&quizId=" + uniqueId) : ("https://script.google.com/macros/s/.../exec?page=cbt&quizId=" + uniqueId);
+        
+        document.getElementById('newQuizUrl').value = finalUrl;
+        
+        var cbtQuizIdInput = document.getElementById('cbtQuizId');
+        if(cbtQuizIdInput) { cbtQuizIdInput.value = uniqueId; }
+        
+        alert("Link CBT berhasil dibuat!\n\nID Kuis Anda: " + uniqueId + "\n\nSilakan klik '+ Tambah Kuis / Tugas', lalu klik '⚙️ Kelola Soal CBT' untuk memasukkan soal.");
+      }).getScriptUrl();
+    }
+
+    // Variabel global — pastikan ini sudah ada di konteks kelas yang sedang dibuka
+// (sesuaikan dengan nama variabel global courseId di index.html Anda)
+var _cbtActiveCourseId = null;
+
+// Panggil fungsi ini saat tombol buka modal CBT diklik
+// Ganti pemanggilan lama: onclick="bukaModalCbt()"  
+// Menjadi: onclick="bukaModalCbt(currentCourseId)" ← sesuaikan nama variabel global
+function bukaModalCbt(courseId) {
+  _cbtActiveCourseId = courseId || null;
+  document.getElementById('overlayCbt').style.display = 'flex';
+
+  var select = document.getElementById('cbtQuizIdSelect');
+  select.innerHTML = '<option value="">⏳ Memuat daftar kuis...</option>';
+  document.getElementById('cbtQuizIdNew').style.display = 'none';
+  document.getElementById('cbtQuizIdHint').style.display = 'none';
+
+  if (!courseId) {
+    select.innerHTML = '<option value="">❌ Tidak ada kelas aktif. Buka kelas dulu!</option>';
+    return;
+  }
+
+  google.script.run
+    .withSuccessHandler(function(quizzes) {
+      // Bangun opsi dropdown
+      var opts = '<option value="">-- Pilih atau buat kuis baru --</option>';
+      if (quizzes.length > 0) {
+        opts += '<optgroup label="Kuis yang sudah ada:">';
+        quizzes.forEach(function(q) {
+          opts += '<option value="' + q.quizId + '">' + q.quizId;
+          if (q.title) opts += ' · ' + q.title;
+          opts += '</option>';
+        });
+        opts += '</optgroup>';
+      }
+      opts += '<option value="__NEW__">➕ Buat ID Kuis Baru...</option>';
+      select.innerHTML = opts;
+    })
+    .withFailureHandler(function(e) {
+      select.innerHTML = '<option value="">❌ Gagal memuat: ' + e.message + '</option>';
+    })
+    .getQuizzesForCourse(courseId);
+}
+
+function handleQuizIdSelect() {
+  var val = document.getElementById('cbtQuizIdSelect').value;
+  var inputBaru = document.getElementById('cbtQuizIdNew');
+  var hint = document.getElementById('cbtQuizIdHint');
+  
+  if (val === '__NEW__') {
+    // Generate ID otomatis sebagai default, bisa diedit
+    var autoId = 'KUIS-' + new Date().getTime();
+    inputBaru.value = autoId;
+    inputBaru.style.display = 'block';
+    hint.style.display = 'block';
+  } else {
+    inputBaru.style.display = 'none';
+    hint.style.display = 'none';
+  }
+}
+
+// Helper: ambil Quiz ID yang aktif (dari dropdown atau input manual)
+function getActiveCbtQuizId() {
+  var sel = document.getElementById('cbtQuizIdSelect').value;
+  if (sel === '__NEW__') {
+    return document.getElementById('cbtQuizIdNew').value.trim();
+  }
+  return sel;
+}
+
+function simpanSoalCbt() {
+  var quizId = getActiveCbtQuizId();
+  if (!quizId) { alert('Pilih atau buat ID Kuis terlebih dahulu!'); return; }
+
+  var type = document.getElementById('cbtType').value;
+  var rawOptions = document.getElementById('cbtOptionsInput').value;
+  var options = type === 'PG'
+    ? rawOptions.split('\n').map(function(o){ return o.trim(); }).filter(Boolean)
+    : [];
+
+  var data = {
+    quizId:        quizId,
+    courseId:      _cbtActiveCourseId,
+    type:          type,
+    text:          document.getElementById('cbtText').value.trim(),
+    options:       options,
+    correctAnswer: document.getElementById('cbtCorrectAnswer').value.trim(),
+    points:        parseFloat(document.getElementById('cbtPoints').value) || 10,
+    imageUrl:      document.getElementById('cbtImageUrl').value.trim()   // ← hilang
+  };
+
+  if (!data.text) { alert('Pertanyaan soal tidak boleh kosong!'); return; }
+
+  var btn = document.getElementById('btnSimpanCbt');
+  btn.disabled = true; btn.innerText = '⏳ Menyimpan...';
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      btn.disabled = false; btn.innerText = '💾 Simpan Soal';
+      alert(res.message); // Munculkan notifikasi sukses
+      
+      // ─── TAMBAHAN: MENGOSONGKAN FORM SETELAH BERHASIL ───
+      document.getElementById('cbtText').value = '';
+      document.getElementById('cbtOptionsInput').value = '';
+      document.getElementById('cbtCorrectAnswer').value = '';
+      document.getElementById('cbtImageUrl').value = '';
+      document.getElementById('cbtImagePreview').style.display = 'none';
+      
+      // Fokuskan kursor kembali ke kotak Pertanyaan agar dosen bisa langsung mengetik soal berikutnya
+      document.getElementById('cbtText').focus();
+      // ──────────────────────────────────────────────────
+    })
+    .withFailureHandler(function(e) {
+      btn.disabled = false; btn.innerText = '💾 Simpan Soal';
+      alert('Gagal: ' + e.message);
+    })
+    .saveCbtQuestion(data);
+}
+
+function simpanPengaturanWaktuCbt() {
+  var quizId   = getActiveCbtQuizId();
+  var deadline = document.getElementById('cbtDeadline').value;
+  var duration = document.getElementById('cbtDuration').value;
+
+  if (!quizId)   { alert('Pilih ID Kuis terlebih dahulu!'); return; }
+  if (!deadline && !duration) { alert('Isi minimal salah satu: Deadline atau Durasi!'); return; }
+
+  // ✅ FIX TIMEZONE: Tambahkan offset WITA (+08:00) secara eksplisit
+  // Tanpa ini, GAS menginterpretasi input sebagai WIB (UTC+7) → meleset 1 jam
+  var deadlineWITA = deadline ? deadline + ':00+08:00' : '';
+
+  var btn = document.getElementById('btnSimpanDeadline');
+  btn.disabled = true; btn.innerText = '⏳ Menyimpan...';
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      btn.disabled = false; btn.innerText = '⏳ Simpan Pengaturan Waktu';
+      alert(res.message);
+    })
+    .withFailureHandler(function(e) {
+      btn.disabled = false; btn.innerText = '⏳ Simpan Pengaturan Waktu';
+      alert('Gagal: ' + e.message);
+    })
+    // Kirim deadlineWITA (dengan timezone eksplisit), bukan deadline mentah
+    .saveCbtSettings(quizId, deadlineWITA, parseInt(duration) || 0);
+}
+
+    function tutupModalCbt() {
+      document.getElementById('overlayCbt').style.display = 'none';
+    }
+
+    function toggleCbtOptions() {
+      var type = document.getElementById('cbtType').value;
+      if (type === 'PG') { document.getElementById('areaPG').style.display = 'block'; } 
+      else { document.getElementById('areaPG').style.display = 'none'; }
+    }
+
+  var currentUserInfo = null;
+  var activeCourseId   = null;
+  var activeCourseName = null;
+
+  var ALL_VIEWS = ['loginView','dashboardView','courseRoomView','lecturerDashboardView','lecturerAnalyticsView'];
+  function showView(id) {
+    ALL_VIEWS.forEach(function(v){ document.getElementById(v).style.display='none'; });
+    var el = document.getElementById(id);
+    el.style.display = 'block';
+    el.classList.remove('fade-in');
+    void el.offsetWidth;
+    el.classList.add('fade-in');
+  }
+
+// ==========================================
+// FUNGSI HELPER: PENGGANTI ALERT & CONFIRM V2
+// ==========================================
+
+function showToast(message, type) {
+  var cfg = {
+    success: { icon: '✅', title: 'Berhasil',    cls: 'c-toast-success', dur: 3000 },
+    error:   { icon: '❌', title: 'Gagal',       cls: 'c-toast-error',   dur: 5000 },
+    warning: { icon: '⚠️', title: 'Perhatian',   cls: 'c-toast-warning', dur: 5000 },
+    info:    { icon: 'ℹ️', title: 'Info',         cls: 'c-toast-info',    dur: 4000 }
+  };
+  var c = cfg[type] || cfg['info'];
+
+  // Pisahkan emoji prefix dari pesan jika ada
+  var cleanMsg = message.replace(/^[✅❌⚠️ℹ️🔒📋]+\s*/u, '').trim();
+
+  var container = document.getElementById('toastContainer');
+  var el = document.createElement('div');
+  el.className = 'c-toast ' + c.cls;
+  el.innerHTML = '<span class="c-toast-icon">' + c.icon + '</span>'
+    + '<div><div class="c-toast-title">' + c.title + '</div>'
+    + '<div class="c-toast-msg">' + cleanMsg + '</div></div>';
+  container.appendChild(el);
+
+  // Animasi hilang otomatis
+  setTimeout(function() {
+    el.classList.add('hide');
+    setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 350);
+  }, c.dur);
+}
+
+function showConfirm(message, onConfirmCallback, options) {
+  var opt = options || {};
+  var overlay = document.getElementById('customConfirmOverlay');
+  
+  // Setel teks dan desain sesuai opsi (atau pakai default)
+  document.getElementById('confirmMessage').innerText = message;
+  document.getElementById('confirmTitle').innerText   = opt.title  || 'Konfirmasi';
+  document.getElementById('confirmIcon').innerText    = opt.icon   || '⚠️';
+  document.getElementById('btnConfirmYes').innerText  = opt.btnYes || 'Ya, Lanjutkan';
+  document.getElementById('btnConfirmYes').className  = 'btn ' + (opt.btnYesCls || 'btn-coral');
+
+  overlay.style.display = 'flex';
+
+  // Jika tombol batal diklik
+  document.getElementById('btnConfirmNo').onclick = function() {
+    overlay.style.display = 'none';
+  };
+  
+  // Jika tombol Ya diklik
+  document.getElementById('btnConfirmYes').onclick = function() {
+    overlay.style.display = 'none';
+    if (typeof onConfirmCallback === 'function') onConfirmCallback();
+  };
+}
+
+// ==========================================
+// BAJAK ALERT BAWAAN BROWSER
+// ==========================================
+window.alert = function(pesan) {
+  showToast(pesan, 'warning');
+};
+
+  function switchTab(panelId, btnEl) {
+    document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+    document.getElementById(panelId).classList.add('active');
+    btnEl.classList.add('active');
+  }
+
+  function toggleAccordion(headerEl) {
+    headerEl.classList.toggle('open');
+    var body = headerEl.nextElementSibling;
+    if (headerEl.classList.contains('open')) {
+      body.classList.add('open');
+    } else {
+      body.classList.remove('open');
+    }
+  }
+
+  function attemptLogin() {
+    var user = document.getElementById('username').value.trim();
+    var pass = document.getElementById('password').value;
+    if (!user || !pass) { document.getElementById('message').innerText = 'Username & password wajib diisi.'; return; }
+    document.getElementById('message').innerText = 'Memproses…';
+    google.script.run.withSuccessHandler(handleLoginResponse).checkLogin(user, pass);
+  }
+
+  function handleLoginResponse(response) {
+    if (response.success) {
+      
+      // ─── 1. CEK JIKA YANG LOGIN ADALAH MAHASISWA ───
+      if (response.role === 'Mahasiswa') {
+        
+        document.getElementById('message').innerText = 'Memverifikasi keamanan perangkat... 🔒';
+        
+        var userIdInput = document.getElementById('username').value.trim();
+        var tokenHP = dapatkanDeviceToken(); // Memanggil fungsi pembuat token yang kita buat sebelumnya
+
+        // Kirim token ke server untuk dicocokkan
+        google.script.run.withSuccessHandler(function(cekDevice) {
+          
+          if (!cekDevice.success) {
+            // ❌ GAGAL: Perangkat berbeda (indikasi joki)
+            document.getElementById('message').innerText = "Akses Ditolak: Perangkat tidak dikenali.";
+            alert(cekDevice.message); // Munculkan peringatan ke mahasiswa
+            return; // Hentikan proses, jangan biarkan masuk dashboard
+          } 
+          else {
+            // ✅ SUKSES: Perangkat sama ATAU baru pertama kali login
+            if (cekDevice.isNewBind) {
+               alert("✅ Perangkat (Browser) ini sekarang telah ditautkan secara permanen dengan akun Anda. Jangan gunakan mode Samaran (Incognito) atau menghapus Cache Browser.");
+            }
+            
+            // Lanjutkan proses login normal
+            document.getElementById('message').innerText = 'Berhasil masuk...';
+            currentUserInfo = response;
+            localStorage.setItem('lms_session', JSON.stringify(response));
+            applySession(response);
+          }
+          
+        }).verifikasiDeviceBinding(userIdInput, tokenHP);
+
+      } 
+      // ─── 2. JIKA YANG LOGIN ADALAH DOSEN (BEBAS DEVICE) ───
+      else {
+        currentUserInfo = response;
+        localStorage.setItem('lms_session', JSON.stringify(response));
+        applySession(response);
+      }
+
+    } else {
+      // Jika password atau username salah dari awal
+      document.getElementById('message').innerText = response.message;
+    }
+  }
+
+  function applySession(info) {
+    if (info.role === 'Mahasiswa') {
+      document.getElementById('welcomeTextMahasiswa').innerText = 'Halo, ' + info.name + ' 👋';
+      document.getElementById('mhs-name-badge').innerText = info.name;
+      showView('dashboardView');
+      memuatDashboard();
+    } else if (info.role === 'Dosen') {
+      document.getElementById('welcomeTextDosen').innerText = 'Halo, ' + info.name;
+      document.getElementById('dosen-name-badge').innerText = info.name;
+      showView('lecturerDashboardView');
+      memuatDashboardDosen();
+    }
+  }
+
+  // Fungsi pembuat Token Deskriptif (Mendeteksi OS & Browser)
+  function dapatkanDeviceToken() {
+    var token = localStorage.getItem('aqua_lms_device_token');
+    
+    // Jika belum punya kunci, kita buatkan yang baru dan deskriptif
+    if (!token) {
+      var ua = navigator.userAgent.toLowerCase();
+      var os = "unknown";
+      var browser = "unknown";
+
+      // 1. Deteksi Sistem Operasi (OS)
+      if (ua.indexOf("android") > -1) os = "android";
+      else if (ua.indexOf("iphone") > -1) os = "iphone";
+      else if (ua.indexOf("ipad") > -1) os = "ipad";
+      else if (ua.indexOf("windows") > -1) os = "windows";
+      else if (ua.indexOf("mac") > -1) os = "macintosh";
+      else if (ua.indexOf("linux") > -1) os = "linux";
+
+      // 2. Deteksi Nama Browser
+      // Urutan pengecekan ini penting karena beberapa browser memakai 'mesin' yang sama
+      if (ua.indexOf("edg") > -1) browser = "edge";
+      else if (ua.indexOf("opr") > -1 || ua.indexOf("opera") > -1) browser = "opera";
+      else if (ua.indexOf("chrome") > -1) browser = "chrome";
+      else if (ua.indexOf("safari") > -1 && ua.indexOf("chrome") === -1) browser = "safari";
+      else if (ua.indexOf("firefox") > -1) browser = "firefox";
+
+      // 3. Gabungkan OS, Browser, dan Kode Unik (Waktu + Acak)
+      var kodeUnik = Math.random().toString(36).substr(2, 5);
+      
+      // Hasilnya akan seperti: android_chrome_x7y9z
+      token = os + '_' + browser + '_' + kodeUnik;
+      
+      localStorage.setItem('aqua_lms_device_token', token);
+    }
+    
+    return token;
+  }
+
+  function checkSession() {
+    var saved = localStorage.getItem('lms_session');
+    if (saved) {
+      try {
+        currentUserInfo = JSON.parse(saved);
+        applySession(currentUserInfo);
+      } catch(e) {
+        localStorage.removeItem('lms_session');
+      }
+    }
+  }
+  window.addEventListener('load', function() {
+    checkSession();
+
+    var imgUrlEl = document.getElementById('cbtImageUrl');
+    if (imgUrlEl) {
+      var debounce;
+      imgUrlEl.addEventListener('input', function() {
+        clearTimeout(debounce);
+        var url     = this.value.trim();
+        var wrapper = document.getElementById('cbtImagePreview');
+        var img     = document.getElementById('cbtPreviewImg');
+        var errMsg  = document.getElementById('cbtPreviewErr');
+
+        if (!url) { wrapper.style.display = 'none'; return; }
+
+        debounce = setTimeout(function() {
+          img.src = url;
+          wrapper.style.display = 'block';
+          errMsg.style.display  = 'none';
+          img.onload  = function() { errMsg.style.display = 'none'; };
+          img.onerror = function() { errMsg.style.display = 'block'; };
+        }, 600);
+      });
+    }
+  });
+
+  function logout() {
+    localStorage.removeItem('lms_session');
+    currentUserInfo = null; activeCourseId = null; activeCourseName = null;
+    ALL_VIEWS.filter(function(v){ return v!=='loginView'; }).forEach(function(v){ document.getElementById(v).style.display='none'; });
+    document.getElementById('loginView').style.display = 'flex';
+    document.getElementById('username').value = '';
+    document.getElementById('password').value = '';
+    document.getElementById('message').innerText = '';
+  }
+
+  // ==========================================
+  // FITUR DOSEN: RESET DEVICE MAHASISWA (BATCH)
+  // ==========================================
+  function resetPerangkatBatch() {
+    // 1. Cari semua checkbox yang dicentang di dalam area Daftar Mahasiswa
+    var checkboxes = document.querySelectorAll('#studentCheckboxList input[type="checkbox"]:checked');
+    var selectedNims = [];
+    
+    // 2. Kumpulkan NIM dari checkbox yang dicentang
+    for (var i = 0; i < checkboxes.length; i++) {
+      selectedNims.push(checkboxes[i].value); // Mengambil value (NIM) dari checkbox
+    }
+
+    // 3. Validasi jika dosen belum mencentang siapapun
+    if (selectedNims.length === 0) {
+      alert("Silakan centang minimal satu mahasiswa terlebih dahulu!");
+      return;
+    }
+
+    // 4. Konfirmasi tindakan
+    if (confirm("Anda yakin ingin mereset pengikatan perangkat untuk " + selectedNims.length + " mahasiswa terpilih?\n\nSetelah direset, mahasiswa dapat login kembali menggunakan perangkat atau browser baru.")) {
+      
+      // 5. Kirim kumpulan NIM tersebut ke server (Backend)
+      google.script.run.withSuccessHandler(function(response) {
+        
+        if (response.success) {
+          alert(response.message);
+          // Opsional: Hilangkan centang setelah berhasil direset
+          for (var j = 0; j < checkboxes.length; j++) {
+            checkboxes[j].checked = false;
+          }
+        } else {
+          alert("❌ " + response.message);
+        }
+        
+      }).withFailureHandler(function(err) {
+        alert("❌ Gagal terhubung ke server. Coba lagi.");
+      }).resetDeviceBindingBatch(selectedNims); // <-- Memanggil fungsi baru di server
+    }
+  }
+
+  // ════════ MAHASISWA ════════
+  function memuatDashboard() {
+    document.getElementById('loadingCourses').style.display='block';
+    document.getElementById('courseList').innerHTML='';
+    google.script.run.withSuccessHandler(renderCourses).getStudentCourses(currentUserInfo.userId);
+  }
+
+  function renderCourses(courses) {
+    document.getElementById('loadingCourses').style.display='none';
+    var list = document.getElementById('courseList');
+    if (!courses || !courses.length) { list.innerHTML='<p style="color:#3a6a85;">Anda belum terdaftar di mata kuliah apapun.</p>'; return; }
+    list.innerHTML = courses.map(function(c){
+      return '<div class="course-card glass" style="border:1px solid var(--border);">'
+        +'<h3 style="font-family:\'Lora\',serif;font-size:16px;color:var(--foam);margin-bottom:6px;">'+c.course_name+'</h3>'
+        +'<span class="badge badge-blue" style="margin-bottom:12px;display:inline-flex;">'+c.course_id+'</span>'
+        +'<div class="prog-track"><div class="prog-fill" style="width:'+c.progress+'%;"></div></div>'
+        +'<p style="font-size:12px;color:var(--foam);text-align:right;font-weight:600;margin-bottom:14px;">'+c.progress+'% Selesai</p>'
+        +'<button class="btn btn-ocean btn-full" onclick="masukKelas(\''+c.course_id+'\',\''+c.course_name+'\')">🌊 Masuk Kelas</button>'
+        +'</div>';
+    }).join('');
+  }
+
+  function masukKelas(courseId, courseName) {
+    // --- TAMBAHKAN 2 BARIS INI DI SINI ---
+    activeCourseId = courseId; 
+    activeCourseName = courseName;
+    // -------------------------------------
+
+    // 1. Tampilkan halaman ruang kelas
+    document.getElementById("dashboardView").style.display = "none"; 
+    document.getElementById("courseRoomView").style.display = "block"; 
+    
+    // 2. Set judul kelas
+    if(document.getElementById("courseTitle")) document.getElementById("courseTitle").innerText = courseName;
+    if(document.getElementById("courseTitle-nav")) document.getElementById("courseTitle-nav").innerText = courseName;
+    
+    // 3. Tampilkan tulisan Loading untuk semuanya
+    if(document.getElementById("loadingMaterials")) document.getElementById("loadingMaterials").style.display = "block";
+    if(document.getElementById("loadingQuizzes")) document.getElementById("loadingQuizzes").style.display = "block";
+    if(document.getElementById("loadingLessons")) document.getElementById("loadingLessons").style.display = "block";
+    if(document.getElementById("loadingNilai")) document.getElementById("loadingNilai").style.display = "block";
+    if(document.getElementById("loadingJadwal")) document.getElementById("loadingJadwal").style.display = "block";
+    
+    // Bersihkan isi sebelumnya agar bersih saat loading
+    if(document.getElementById("materialList")) document.getElementById("materialList").innerHTML = ""; 
+    if(document.getElementById("quizList")) document.getElementById("quizList").innerHTML = ""; 
+    if(document.getElementById("lessonList")) document.getElementById("lessonList").innerHTML = "";
+    if(document.getElementById("nilaiList")) document.getElementById("nilaiList").innerHTML = "";
+    if(document.getElementById("jadwalList")) document.getElementById("jadwalList").innerHTML = "";
+    
+    // 4. SATU KALI PANGGILAN SAJA
+    google.script.run
+      .withSuccessHandler(function(paket) {
+        window.lokalGradeConfig = paket.gradeConfig;
+        window.lokalNilaiMhs = paket.nilai;
+
+        renderMaterials(paket.materials);
+        renderQuizzes(paket.quizzes);
+        renderLessons(paket.lessons);
+        renderNilai(paket.nilai);
+        renderJadwalMahasiswa(paket.jadwal);
+      })
+      .withFailureHandler(function(err) {
+        alert("Gagal memuat ruang kelas. Coba refresh halaman.");
+      })
+      .getPaketDataRuangKelas(courseId, currentUserInfo.userId);
+  }
+
+  function renderMaterials(materials) {
+    document.getElementById('loadingMaterials').style.display='none';
+    var list=document.getElementById('materialList');
+    if (!materials||!materials.length){list.innerHTML='<p style="color:#3a6a85;">Belum ada materi.</p>';return;}
+    list.innerHTML=materials.map(function(m){
+      return '<div class="glass rounded-2xl p-5" style="border:1px solid var(--border);">'
+        +'<h4 style="font-size:14px;font-weight:600;color:var(--foam);margin-bottom:14px;">'+m.title+'</h4>'
+        +'<button class="btn btn-ocean btn-full btn-sm" onclick="bukaMateri(\''+m.material_id+'\',\''+m.url_drive+'\')">📖 Buka Materi</button>'
+        +'</div>';
+    }).join('');
+  }
+
+  function bukaMateri(materialId, urlDrive) {
+    google.script.run.logMaterialAccess(currentUserInfo.userId, materialId);
+    window.open(urlDrive,'_blank');
+  }
+
+  function renderQuizzes(quizzes) {
+    document.getElementById('loadingQuizzes').style.display = 'none';
+    var list = document.getElementById('quizList');
+
+    if (!quizzes || !quizzes.length) {
+      list.innerHTML = '<p style="color:#3a6a85;">Belum ada kuis / tugas.</p>';
+      return;
+    }
+
+  list.innerHTML = quizzes.map(function(q) {
+    var btnId  = 'btn_quiz_' + q.quiz_id;
+    var isDone = q.dikerjakan;
+    var btnCls = isDone ? 'btn-teal' : 'btn-amber';
+    var btnTxt = isDone ? '✅ Sudah Dikerjakan (Buka Lagi)' : '📝 Kerjakan Kuis / Tugas';
+
+    // ── Blok info waktu CBT ──
+    // Hanya muncul jika kuis ini adalah CBT (url mengandung page=cbt)
+    var infoWaktuHtml = '';
+    var isCbt = q.url_form && q.url_form.indexOf('page=cbt') > -1;
+
+    if (isCbt) {
+      var infoItems = [];
+
+      // Info Deadline
+      if (q.cbt_deadline) {
+        var now        = new Date().getTime();
+        var dlTime     = new Date(q.cbt_deadline).getTime();
+        var lewat      = !isNaN(dlTime) && now > dlTime;
+        var dlLabel    = lewat
+          ? '<span style="color:var(--coral);">🔒 Ditutup: ' + formatDeadlineWITA(q.cbt_deadline) + '</span>'
+          : '<span style="color:var(--mint);">📅 Deadline: ' + formatDeadlineWITA(q.cbt_deadline) + '</span>';
+        infoItems.push(dlLabel);
+      }
+
+      // Info Durasi
+      if (q.cbt_duration_menit && q.cbt_duration_menit > 0) {
+        infoItems.push(
+          '<span style="color:var(--amber);">⏱️ Durasi: <b>'
+          + q.cbt_duration_menit
+          + ' menit</b> sejak klik mulai</span>'
+        );
+      }
+
+      if (infoItems.length > 0) {
+        infoWaktuHtml =
+          '<div style="background:rgba(33,150,211,0.08); border:1px solid rgba(33,150,211,0.2);'
+          + 'border-radius:8px; padding:8px 12px; margin-bottom:12px;'
+          + 'font-size:12px; line-height:1.9;">'
+          + infoItems.join('<br>')
+          + '</div>';
+      }
+    }
+
+    return '<div class="glass rounded-2xl p-5" style="border:1px solid var(--border);">'
+      + '<h4 style="font-size:14px;font-weight:600;color:var(--foam);margin-bottom:10px;">'
+      + q.title + '</h4>'
+      + infoWaktuHtml
+      + '<button id="' + btnId + '" class="btn ' + btnCls + ' btn-full btn-sm"'
+      + ' onclick="bukaKuis(\'' + q.quiz_id + '\',\'' + q.url_form + '\',\'' + btnId + '\')">'
+      + btnTxt
+      + '</button>'
+      + '</div>';
+
+    }).join('');
+  }
+
+  function bukaKuis(quizId, urlForm, btnId) {
+    // 1. Catat ke database LMS (Log akses)
+    google.script.run.logQuizAccess(currentUserInfo.userId, quizId); 
+    
+    // 2. Ubah tampilan tombol agar mahasiswa tahu sistem sedang memproses
+    var btn = document.getElementById(btnId);
+    if (btn) {
+       btn.className = "btn-teal btn-full btn-sm"; 
+       btn.innerText = "⏳ Menyiapkan Sesi Aman...";
+       btn.disabled = true;
+    }
+    
+    // Jika bukan link CBT (hanya Gforms biasa), langsung buka saja
+    if (urlForm.indexOf('page=cbt') === -1) {
+       window.open(urlForm, '_blank');
+       if(btn) { btn.innerText = "✅ Sudah Dikerjakan (Buka Lagi)"; btn.disabled = false; }
+       return;
+    }
+
+    // --- SISTEM KEAMANAN BARU (ONE-TIME TOKEN) ---
+    // Buka tab kosong SEKARANG JUGA untuk mem-bypass pemblokir pop-up (Popup Blocker)
+    var tabBaru = window.open('', '_blank');
+    tabBaru.document.write('<body style="background:#060f1e; color:#5cc8f0; font-family:sans-serif; text-align:center; padding-top:20vh;"><h2>🔐 Menyiapkan sesi ujian aman...</h2><p>Mohon tunggu sebentar.</p></body>');
+
+    // Minta token rahasia ke server
+    google.script.run
+      .withSuccessHandler(function(tokenRahasisa) {
+          // Jika token berhasil dibuat, tempelkan token tersebut dan arahkan tab kosong tadi ke link CBT
+          var finalUrl = urlForm + '&session_token=' + tokenRahasisa;
+          tabBaru.location.href = finalUrl;
+          
+          if(btn) { btn.innerText = "✅ Sudah Dikerjakan (Buka Lagi)"; btn.disabled = false; }
+      })
+      .withFailureHandler(function(err) {
+          tabBaru.close(); // Tutup tab jika gagal
+          alert("Gagal membuat sesi aman CBT: " + err.message);
+          if(btn) { btn.innerText = "📝 Kerjakan Kuis / Tugas"; btn.disabled = false; }
+      })
+      .buatTokenSesiCbt(currentUserInfo); // Kirim profil mahasiswa ke backend
+  }
+
+  function formatDeadlineWITA(deadlineStr) {
+    var hariIndo  = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+    var bulanIndo = ['Januari','Februari','Maret','April','Mei','Juni',
+                   'Juli','Agustus','September','Oktober','November','Desember'];
+
+    var d = null;
+
+    // ── Format ISO dengan timezone: 2026-04-06T10:45:00+08:00 ──
+    // new Date() sudah bisa parse ini secara native
+    if (String(deadlineStr).indexOf('T') > -1) {
+      d = new Date(deadlineStr);
+    }
+    // ── Format DD-MM-YYYY (input manual dosen tanpa jam) ──
+    else if (String(deadlineStr).indexOf('-') > -1) {
+      var parts = String(deadlineStr).split('-');
+      if (parts[0].length <= 2) {
+        // DD-MM-YYYY → set jam 23:59 WITA sebagai default
+        d = new Date(
+          parseInt(parts[2], 10),
+          parseInt(parts[1], 10) - 1,
+          parseInt(parts[0], 10),
+          23, 59, 0
+        );
+      } else {
+        // YYYY-MM-DD
+        d = new Date(deadlineStr);
+      }
+    } else {
+      d = new Date(deadlineStr);
+    }
+
+    if (!d || isNaN(d.getTime())) return deadlineStr;
+
+    // ✅ FIX: Tampilkan jam aktual, bukan hardcode "jam 24.00"
+    // Konversi ke WITA (UTC+8) secara eksplisit
+    var offsetWITA   = 8 * 60; // menit
+    var utcMs        = d.getTime() + (d.getTimezoneOffset() * 60 * 1000);
+    var witaDate     = new Date(utcMs + offsetWITA * 60 * 1000);
+
+    var jam   = witaDate.getHours();
+    var menit = witaDate.getMinutes();
+
+    // Jika jam 23:59 → tampilkan "jam 24.00" (gaya lama untuk deadline harian)
+    var jamStr = (jam === 23 && menit === 59)
+      ? 'jam 24.00 WITA'
+      : 'jam ' + String(jam).padStart(2, '0') + '.' + String(menit).padStart(2, '0') + ' WITA';
+
+    return hariIndo[witaDate.getDay()] + ', '
+      + witaDate.getDate() + ' '
+      + bulanIndo[witaDate.getMonth()] + ' '
+      + witaDate.getFullYear()
+      + ' ' + jamStr;
+  }
+
+  function renderLessons(lessons) {
+    document.getElementById('loadingLessons').style.display='none';
+    var list=document.getElementById('lessonList');
+    if (!lessons||!lessons.length){list.innerHTML='<p style="color:#3a6a85;">Belum ada tugas refleksi.</p>';return;}
+    var now=new Date().getTime();
+    list.innerHTML=lessons.map(function(l){
+      var id=l.assign_id||'L-UNKNOWN';
+      var locked=(l.deadline_ms&&now>l.deadline_ms);
+      var labelColor=locked?'var(--coral)':'#5a8fa8';
+      var labelTxt = locked ? '🔒 Terkunci — Melewati batas ' + formatDeadlineWITA(l.deadline) : '📅 Deadline: ' + formatDeadlineWITA(l.deadline);
+      var btnTxt=locked?'🔒 Waktu Habis':'✉️ Kirim Refleksi & Presensi';
+      var btnCls=locked?'btn-dark':'btn-ocean';
+      var dis=locked?'disabled':'';
+      return '<div class="glass rounded-2xl p-5" style="border:1px solid var(--border);">'
+        +'<h4 style="font-size:15px;font-weight:600;color:var(--foam);margin-bottom:4px;">'+(l.topic||'Tuliskan refleksi Anda.')+'</h4>'
+        +'<p style="font-size:12px;color:'+labelColor+';font-weight:600;margin-bottom:12px;">'+labelTxt+'</p>'
+        +'<textarea id="insight_'+id+'" rows="4" class="form-input mb-3" placeholder="Tuliskan insight Anda di sini untuk presensi…" '+dis+'></textarea>'
+        +'<button class="btn '+btnCls+' btn-full" id="btn_'+id+'" onclick="kirimLesson(\''+id+'\')" '+dis+'>'+btnTxt+'</button>'
+        +'<div id="msg_'+id+'" style="font-size:13px;color:var(--mint);font-weight:600;margin-top:8px;"></div>'
+        +'</div>';
+    }).join('');
+  }
+
+  function renderNilai(nilaiData) {
+    document.getElementById('loadingNilai').style.display = 'none';
+    var tbody = document.getElementById('nilaiList');
+    if (!nilaiData || nilaiData.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#3a6a85;">Belum ada nilai yang diinputkan oleh dosen.</td></tr>';
+      return;
+    }
+    var html = '';
+    nilaiData.forEach(function(item) {
+      html += '<tr>'
+            + '<td style="color:#c0dbe8;font-weight:500;">' + item.jenis_nilai + '</td>'
+            // Tambahkan text-align:center pada baris td di bawah ini
+            + '<td style="text-align:center;"><span class="badge badge-mint" style="font-size:13px; font-weight:700;">' + item.nilai + '</span></td>'
+            + '</tr>';
+    });
+    tbody.innerHTML = html;
+  }
+
+  function kirimLesson(assignId) {
+    var txt=document.getElementById('insight_'+assignId).value;
+    if(!txt.trim()){alert('Harap tuliskan insight Anda terlebih dahulu!');return;}
+    var btn=document.getElementById('btn_'+assignId);
+    btn.innerText='Mengirim…';btn.disabled=true;
+    google.script.run.withSuccessHandler(function(){
+      document.getElementById('msg_'+assignId).innerText='✅ Berhasil dikirim! Anda tercatat Hadir.';
+      btn.style.display='none';
+      document.getElementById('insight_'+assignId).disabled=true;
+    }).submitLesson(assignId, currentUserInfo.userId, txt);
+  }
+
+  function kembaliKeDashboard() {
+    showView('dashboardView');
+    memuatDashboard();
+  }
+
+  // ════════ DOSEN ════════
+  function memuatDashboardDosen() {
+    document.getElementById('loadingDosenCourses').style.display='block';
+    document.getElementById('dosenCourseList').innerHTML='';
+    google.script.run.withSuccessHandler(renderDosenCourses).getLecturerCourses(currentUserInfo.userId);
+  }
+
+  function renderDosenCourses(courses) {
+    document.getElementById('loadingDosenCourses').style.display='none';
+    var list=document.getElementById('dosenCourseList');
+    if (!courses||!courses.length){list.innerHTML='<p style="color:#3a6a85;">Anda belum mengajar mata kuliah apapun.</p>';return;}
+    list.innerHTML=courses.map(function(c){
+      return '<div class="course-card glass" style="border:1px solid var(--border);">'
+        +'<h3 style="font-family:\'Lora\',serif;font-size:16px;color:var(--foam);margin-bottom:4px;">'+c.course_name+'</h3>'
+        +'<span class="badge badge-blue" style="margin-bottom:16px;display:inline-flex;">'+c.course_id+'</span>'
+        +'<button class="btn btn-ocean btn-full mb-2" onclick="bukaAnalitikKelas(\''+c.course_id+'\',\''+c.course_name+'\')">📊 Buka Panel Kelas</button>'
+        +'<button class="btn btn-coral btn-full btn-sm" onclick="konfirmasiHapusKelas(\''+c.course_id+'\',\''+c.course_name+'\')">🗑️ Hapus Kelas</button>'
+        +'</div>';
+    }).join('');
+  }
+
+  function tambahKelas() {
+    var idBase = document.getElementById('newCourseId').value.trim();
+    var kelas  = document.getElementById('newCourseClass').value.trim();
+    var nmBase = document.getElementById('newCourseName').value.trim();
+
+    if(!idBase || !kelas || !nmBase){
+      alert('Kode, Kelas, & Nama Kelas harus diisi semua!');
+      return;
+    }
+
+    // Trik di balik layar: Gabungkan kode dan kelas agar unik di database
+    var uniqueCourseId = idBase + "-" + kelas; // Hasil: BIO101-A
+    var combinedName = nmBase + " (Kelas " + kelas + ")"; // Hasil: Biologi Laut (Kelas A)
+
+    var btn = document.getElementById('btnTambahKelas');
+    btn.innerText = 'Menyimpan…';
+    btn.disabled = true;
+
+    google.script.run.withSuccessHandler(function(r){
+      btn.innerText = '+ Buat Kelas';
+      btn.disabled = false;
+      if(r.success){
+        document.getElementById('newCourseId').value = '';
+        document.getElementById('newCourseClass').value = '';
+        document.getElementById('newCourseName').value = '';
+        memuatDashboardDosen();
+      } else {
+        alert('❌ ' + r.message);
+      }
+    }).tambahMataKuliah(uniqueCourseId, combinedName, currentUserInfo.userId);
+  }
+
+  function konfirmasiHapusKelas(courseId, courseName) {
+    if(confirm('PERINGATAN!\n\nHapus kelas "'+courseName+'"?\nData tidak dapat dikembalikan.')){
+      google.script.run.withSuccessHandler(function(r){
+        if(r.success) memuatDashboardDosen(); else alert('❌ '+r.message);
+      }).hapusMataKuliah(courseId, currentUserInfo.userId);
+    }
+  }
+
+  function bukaAnalitikKelas(courseId, courseName) {
+  activeCourseId  = courseId;
+  activeCourseName = courseName;
+
+  // ── 1. Tampilkan view & set judul ──
+  showView('lecturerAnalyticsView');
+  switchTab('tabPembelajaran', document.getElementById('tabBtnPembelajaran'));
+  document.getElementById('analyticsCourseTitle').innerText     = courseName;
+  document.getElementById('analyticsCourseTitle-nav').innerText = courseName;
+
+  // ── 2. Reset semua tabel ke state "Memuat…" ──
+  ['materiDosenBody', 'kuisDosenBody', 'lessonDosenBody', 'enrolledBody'].forEach(function(id) {
+    document.getElementById(id).innerHTML =
+      '<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Memuat…</td></tr>';
+  });
+  document.getElementById('nilaiDosenBody').innerHTML =
+    '<tr><td colspan="5" style="text-align:center;color:#3a6a85;">Memuat…</td></tr>';
+  document.getElementById('jadwalDosenBody') &&
+    (document.getElementById('jadwalDosenBody').innerHTML =
+      '<tr><td colspan="4" style="text-align:center;color:#3a6a85;">Memuat…</td></tr>');
+
+  document.getElementById('rankingContainer').style.display  = 'none';
+  document.getElementById('loadingRanking').style.display    = 'block';
+  document.getElementById('loadingInactive').style.display   = 'block';
+  document.getElementById('inactiveList').innerHTML          = '';
+  document.getElementById('studentCheckboxList').innerHTML   =
+    '<p style="color:#3a6a85;font-size:13px;padding:8px;">Memuat…</p>';
+
+  // ── 3. SATU panggilan GAS menggantikan 8 panggilan terpisah ──
+  google.script.run
+    .withSuccessHandler(function(paket) {
+      if (!paket) {
+        _tampilkanErrorAnalitik('Server mengembalikan data kosong.');
+        return;
+      }
+      renderManajemenMateri(paket.materials);
+      renderManajemenKuis(paket.quizzes);
+      renderManajemenLesson(paket.lessons);
+      renderManajemenMahasiswa(paket.students);
+      renderRankings(paket.rankings);
+      renderInactive(paket.inactive);
+      renderTabelNilaiDosen(paket.nilai);
+      renderTabelJadwalDosen(paket.jadwal);
+    })
+    .withFailureHandler(function(err) {
+      _tampilkanErrorAnalitik('Gagal memuat data kelas. Coba refresh halaman.<br><small>' + err.message + '</small>');
+    })
+    .getPaketDataAnalitikKelas(courseId);
+}
+
+// Helper error — tampilkan pesan di semua tabel sekaligus
+function _tampilkanErrorAnalitik(pesanHtml) {
+  ['materiDosenBody', 'kuisDosenBody', 'lessonDosenBody', 'enrolledBody'].forEach(function(id) {
+    document.getElementById(id).innerHTML =
+      '<tr><td colspan="3" style="text-align:center;color:var(--coral);">' + pesanHtml + '</td></tr>';
+  });
+  document.getElementById('nilaiDosenBody').innerHTML =
+    '<tr><td colspan="5" style="text-align:center;color:var(--coral);">' + pesanHtml + '</td></tr>';
+  document.getElementById('loadingRanking').innerHTML  = '<span style="color:var(--coral);">' + pesanHtml + '</span>';
+  document.getElementById('loadingInactive').innerHTML = '<span style="color:var(--coral);">' + pesanHtml + '</span>';
+}
+
+  function kembaliKeDashboardDosen() {
+    activeCourseId=null; activeCourseName=null;
+    showView('lecturerDashboardView');
+  }
+
+  // ── MATERI DOSEN ──
+  function tambahMateriKelas() {
+    var title=document.getElementById('newMatTitle').value.trim();
+    var url=document.getElementById('newMatUrl').value.trim();
+    if(!title||!url){alert('Judul Materi dan Link wajib diisi!');return;}
+    var btn=document.getElementById('btnTambahMateri');
+    btn.innerText='Menyimpan…';btn.disabled=true;
+    google.script.run.withSuccessHandler(function(r){
+      btn.innerText='+ Tambah Materi';btn.disabled=false;
+      if(r.success){document.getElementById('newMatTitle').value='';document.getElementById('newMatUrl').value='';google.script.run.withSuccessHandler(renderManajemenMateri).getCourseMaterials(activeCourseId);}
+      else{alert('❌ '+r.message);}
+    }).tambahMateri(activeCourseId,title,url);
+  }
+
+  function konfirmasiHapusMateri(materialId,title){
+    if(confirm('Hapus materi "'+title+'" beserta riwayat baca mahasiswa?')){
+      google.script.run.withSuccessHandler(function(r){
+        if(r.success){google.script.run.withSuccessHandler(renderManajemenMateri).getCourseMaterials(activeCourseId);google.script.run.withSuccessHandler(renderRankings).getStudentRankings(activeCourseId);}
+        else{alert('❌ '+r.message);}
+      }).hapusMateri(materialId);
+    }
+  }
+
+  function renderManajemenMateri(materials){
+    var tbody=document.getElementById('materiDosenBody');tbody.innerHTML='';
+    if(!materials||!materials.length){tbody.innerHTML='<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Belum ada materi</td></tr>';return;}
+    materials.forEach(function(m){
+      tbody.innerHTML+='<tr>'
+        +'<td style="font-weight:500;color:#c0dbe8;">'+m.title+'</td>'
+        +'<td style="text-align:center;"><a href="'+m.url_drive+'" target="_blank" style="color:var(--foam);text-decoration:none;font-size:12px;">🔗 Buka</a></td>'
+        +'<td style="text-align:center;"><button class="btn btn-coral btn-sm" onclick="konfirmasiHapusMateri(\''+m.material_id+'\',\''+m.title+'\')">Hapus</button></td>'
+        +'</tr>';
+    });
+  }
+
+  // ── KUIS DOSEN ──
+  function tambahKuisKelas(){
+    var title=document.getElementById('newQuizTitle').value.trim();
+    var url=document.getElementById('newQuizUrl').value.trim();
+    if(!title||!url){alert('Judul Kuis / Tugas dan Link wajib diisi!');return;}
+    var btn=document.getElementById('btnTambahKuis');
+    btn.innerText='Menyimpan…';btn.disabled=true;
+    google.script.run.withSuccessHandler(function(r){
+      btn.innerText='+ Tambah Kuis / Tugas';btn.disabled=false;
+      if(r.success){document.getElementById('newQuizTitle').value='';document.getElementById('newQuizUrl').value='';google.script.run.withSuccessHandler(renderManajemenKuis).getCourseQuizzes(activeCourseId);}
+      else{alert('❌ '+r.message);}
+    }).tambahKuis(activeCourseId,title,url);
+  }
+
+  function konfirmasiHapusKuis(quizId,title){
+    if(confirm('Hapus kuis "'+title+'" beserta riwayat mahasiswa?')){
+      google.script.run.withSuccessHandler(function(r){
+        if(r.success){google.script.run.withSuccessHandler(renderManajemenKuis).getCourseQuizzes(activeCourseId);google.script.run.withSuccessHandler(renderRankings).getStudentRankings(activeCourseId);}
+        else{alert('❌ '+r.message);}
+      }).hapusKuis(quizId);
+    }
+  }
+
+  function renderManajemenKuis(quizzes){
+    var tbody=document.getElementById('kuisDosenBody');tbody.innerHTML='';
+    if(!quizzes||!quizzes.length){tbody.innerHTML='<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Belum ada kuis / tugas</td></tr>';return;}
+    
+    quizzes.forEach(function(q){
+      var aksiBuka = "";
+      if (q.url_form.indexOf('?page=cbt') > -1) {
+         var extractedQuizId = q.url_form.split('quizId=')[1];
+         // Tombol ini memanggil fungsi bukaDashboardCbtTab()
+         aksiBuka = '<button class="btn btn-teal btn-sm" onclick="bukaDashboardCbtTab(\'' + extractedQuizId + '\')">📊 Dashboard CBT</button>';
+      } else {
+         aksiBuka = '<a href="'+q.url_form+'" target="_blank" style="color:var(--amber);text-decoration:none;font-size:12px;">🔗 Buka GForms</a>';
+      }
+
+      tbody.innerHTML+='<tr>'
+        +'<td style="font-weight:500;color:#c0dbe8;">'+q.title+'</td>'
+        +'<td style="text-align:center;">' + aksiBuka + '</td>'
+        +'<td style="text-align:center;"><button class="btn btn-coral btn-sm" onclick="konfirmasiHapusKuis(\''+q.quiz_id+'\',\''+q.title+'\')">Hapus</button></td>'
+        +'</tr>';
+    });
+  }
+
+  // Mengirim perintah simpan deadline ke server
+  function simpanDeadlineCbt() {
+    var qId = document.getElementById('cbtQuizId').value.trim();
+    var dl = document.getElementById('cbtDeadline').value;
+    if (!qId) { alert("Isi ID Kuis / Tugas di atas terlebih dahulu!"); return; }
+    
+    var btn = document.getElementById('btnSimpanDeadline');
+    btn.innerText = "Menyimpan..."; btn.disabled = true;
+    google.script.run.withSuccessHandler(function(r) {
+       btn.innerText = "⏳ Set Deadline"; btn.disabled = false;
+       alert(r.message);
+    }).saveCbtSettings(qId, dl);
+  }
+
+  // Membuka tab Dashboard CBT baru
+  function bukaDashboardCbtTab(quizId) {
+    var btn = event.target;
+    var originalText = btn.innerText;
+    btn.innerText = "Membuka Tab...";
+    btn.disabled = true;
+
+    google.script.run.withSuccessHandler(function(url) {
+      btn.innerText = originalText;
+      btn.disabled  = false;
+
+      // ✅ FIX: Sertakan activeCourseId di URL agar dashboard tahu konteks kelasnya
+      var finalUrl = url
+        + "?page=cbt_dashboard"
+        + "&quizId="    + quizId
+        + "&courseId="  + activeCourseId; // ← baris ini yang hilang
+      window.open(finalUrl, '_blank');
+    }).getScriptUrl();
+  }
+
+  // ── LESSON DOSEN ──
+  function tambahLessonKelas(){
+    var topic=document.getElementById('newLessonTopic').value.trim();
+    var rawDate=document.getElementById('newLessonDate').value;
+    if(!topic||!rawDate){alert('Topik dan Tanggal Deadline wajib diisi!');return;}
+    var parts=rawDate.split('-');var formattedDate=parts[2]+'-'+parts[1]+'-'+parts[0];
+    var btn=document.getElementById('btnTambahLesson');
+    btn.innerText='Menyimpan…';btn.disabled=true;
+    google.script.run.withSuccessHandler(function(r){
+      btn.innerText='+ Tambah Lesson Learn';btn.disabled=false;
+      if(r.success){document.getElementById('newLessonTopic').value='';document.getElementById('newLessonDate').value='';google.script.run.withSuccessHandler(renderManajemenLesson).getCourseLessons(activeCourseId);}
+      else{alert('❌ '+r.message);}
+    }).tambahLesson(activeCourseId,topic,formattedDate);
+  }
+
+  function konfirmasiHapusLesson(assignId,topic){
+    if(confirm('Hapus presensi "'+topic+'" beserta jawaban seluruh mahasiswa?')){
+      google.script.run.withSuccessHandler(function(r){
+        if(r.success){google.script.run.withSuccessHandler(renderManajemenLesson).getCourseLessons(activeCourseId);google.script.run.withSuccessHandler(renderRankings).getStudentRankings(activeCourseId);}
+        else{alert('❌ '+r.message);}
+      }).hapusLesson(assignId);
+    }
+  }
+
+  function renderManajemenLesson(lessons){
+    var tbody=document.getElementById('lessonDosenBody');tbody.innerHTML='';
+    if(!lessons||!lessons.length){tbody.innerHTML='<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Belum ada tugas presensi</td></tr>';return;}
+    lessons.forEach(function(l){
+      tbody.innerHTML+='<tr>'
+        +'<td style="font-weight:500;color:#c0dbe8;">'+l.topic+'</td>'
+        +'<td><span class="badge badge-mint">'+formatDeadlineWITA(l.deadline)+'</span></td>'
+        +'<td><button class="btn btn-coral btn-sm" onclick="konfirmasiHapusLesson(\''+l.assign_id+'\',\''+l.topic+'\')">Hapus</button></td>'
+        +'</tr>';
+    });
+  }
+
+  // ── MAHASISWA MANAGEMENT ──
+  function filterStudents() {
+    var input = document.getElementById("searchStudent").value.toLowerCase();
+    var items = document.getElementsByClassName("check-item");
+    for (var i = 0; i < items.length; i++) {
+      var text = items[i].innerText.toLowerCase();
+      items[i].style.display = text.includes(input) ? "flex" : "none";
+    }
+  }
+
+  function selectAllFiltered() {
+    var items = document.getElementsByClassName("check-item");
+    var visibleCheckboxes = [];
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].style.display !== "none") {
+        var cb = items[i].querySelector('.mhs-checkbox');
+        if (cb) visibleCheckboxes.push(cb);
+      }
+    }
+    var allChecked = visibleCheckboxes.length > 0 && visibleCheckboxes.every(function(cb){ return cb.checked; });
+    visibleCheckboxes.forEach(function(cb){ cb.checked = !allChecked; });
+  }
+
+  function masukkanMahasiswaBatch(){
+    var checked=document.querySelectorAll('.mhs-checkbox:checked');
+    var ids=[];
+    for(var i=0;i<checked.length;i++){ids.push(checked[i].value);}
+    if(!ids.length){alert('Harap centang minimal satu mahasiswa!');return;}
+    var btn=document.getElementById('btnTambahMhs');
+    btn.innerText='Menyimpan…';btn.disabled=true;
+    google.script.run.withSuccessHandler(function(r){
+      btn.innerText='+ Masukkan Mahasiswa Terpilih';btn.disabled=false;
+      if(r.success){document.getElementById('searchStudent').value='';filterStudents();bukaAnalitikKelas(activeCourseId,activeCourseName);}
+      else{alert('❌ '+r.message);}
+    }).enrollStudentsBatch(activeCourseId,ids);
+  }
+
+// ══════════════════════════════════════════════
+//  LAZY LOADER — xlsx.js dimuat hanya saat dibutuhkan
+// ══════════════════════════════════════════════
+
+function _loadXLSX(callback) {
+  if (typeof XLSX !== 'undefined') {
+    callback();
+    return;
+  }
+  var s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  s.onload = function() { callback(); };
+  s.onerror = function() {
+    alert('❌ Gagal memuat library Excel. Periksa koneksi internet Anda dan coba lagi.');
+  };
+  document.head.appendChild(s);
+}
+
+// ══════════════════════════════════════════════
+//  IMPORT MAHASISWA DARI EXCEL SIMAK
+//  Baca NIM dari kolom B mulai baris 9 (B9:B)
+// ══════════════════════════════════════════════
+
+var _nimDariExcel = []; // Menyimpan sementara NIM hasil baca Excel
+
+function prosesImportExcelMhs(input) {
+  if (!input.files || !input.files[0]) return;
+  var file = input.files[0];
+
+  _loadXLSX(function() {
+    _bacaExcelMhs(file, input);
+  });
+}
+
+function _bacaExcelMhs(file, input) {
+  var reader = new FileReader();
+
+  reader.onload = function(e) {
+    try {
+      var data     = new Uint8Array(e.target.result);
+      var workbook = XLSX.read(data, { type: 'array' });
+
+      var sheetName = workbook.SheetNames[0];
+      var sheet     = workbook.Sheets[sheetName];
+      var rows      = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+
+      _nimDariExcel = [];
+      for (var i = 8; i < rows.length; i++) {
+        var nim = rows[i][1]; // Kolom B
+        if (nim !== null && nim !== undefined && String(nim).trim() !== '') {
+          _nimDariExcel.push(String(nim).trim());
+        }
+      }
+
+      if (_nimDariExcel.length === 0) {
+        alert('❌ Tidak ada NIM yang ditemukan di kolom B mulai baris 9.\nPastikan file adalah template SIMAK yang benar.');
+        input.value = '';
+        return;
+      }
+
+      _tampilkanPreviewNim(_nimDariExcel);
+
+    } catch(err) {
+      alert('❌ Gagal membaca file Excel. Pastikan file tidak rusak dan berformat .xlsx');
+      console.error(err);
+    }
+
+    input.value = '';
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+
+function _tampilkanPreviewNim(nimList) {
+  var container = document.getElementById('previewImportMhs');
+  var listEl    = document.getElementById('previewNimList');
+  var jumlahEl  = document.getElementById('previewJumlahNim');
+  var ketEl     = document.getElementById('previewKeteranganNim');
+
+  // Cek NIM mana yang sudah terdaftar di kelas ini
+  var enrolledBody = document.getElementById('enrolledBody');
+  var enrolledNims = [];
+  if (enrolledBody) {
+    var badges = enrolledBody.querySelectorAll('.badge-blue');
+    badges.forEach(function(b) { enrolledNims.push(b.innerText.trim()); });
+  }
+
+  var nimBaru    = nimList.filter(function(n) { return enrolledNims.indexOf(n) === -1; });
+  var nimDuplikat = nimList.filter(function(n) { return enrolledNims.indexOf(n) !== -1; });
+
+  jumlahEl.innerText = nimBaru.length + ' NIM baru';
+
+  if (nimDuplikat.length > 0) {
+    ketEl.innerText = '(' + nimDuplikat.length + ' NIM sudah terdaftar, dilewati otomatis)';
+  } else {
+    ketEl.innerText = '— semua baru';
+  }
+
+  // Render badge NIM
+  listEl.innerHTML = '';
+  nimList.forEach(function(nim) {
+    var isDuplikat = enrolledNims.indexOf(nim) !== -1;
+    listEl.innerHTML += '<span style="'
+      + 'display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;'
+      + (isDuplikat
+          ? 'background:rgba(92,200,240,0.08);color:#3a6a85;border:1px solid rgba(92,200,240,0.15);text-decoration:line-through;'
+          : 'background:rgba(52,201,138,0.18);color:var(--mint);border:1px solid rgba(52,201,138,0.3);')
+      + '">' + nim + '</span>';
+  });
+
+  // Update tombol: kirim hanya NIM yang belum terdaftar
+  document.getElementById('btnKonfirmasiImportMhs').setAttribute('data-nim-baru', JSON.stringify(nimBaru));
+
+  container.style.display = 'block';
+}
+
+function konfirmasiImportMahasiswaExcel() {
+  var btn     = document.getElementById('btnKonfirmasiImportMhs');
+  var nimBaru = JSON.parse(btn.getAttribute('data-nim-baru') || '[]');
+
+  if (nimBaru.length === 0) {
+    alert('Semua NIM dari file ini sudah terdaftar di kelas.');
+    return;
+  }
+
+  btn.innerText = 'Mendaftarkan…';
+  btn.disabled  = true;
+
+  google.script.run
+    .withSuccessHandler(function(r) {
+      btn.innerText = '✅ Daftarkan Semua ke Kelas Ini';
+      btn.disabled  = false;
+
+      if (r.success) {
+        document.getElementById('previewImportMhs').style.display = 'none';
+        _nimDariExcel = [];
+
+        // Tampilkan ringkasan hasil
+        var info = '✅ ' + r.countBerhasil + ' mahasiswa berhasil didaftarkan.';
+        if (r.nimTidakAda && r.nimTidakAda.length > 0) {
+          info += '\n\n⚠️ ' + r.nimTidakAda.length + ' NIM tidak ada di database:\n'
+                + r.nimTidakAda.join(', ')
+                + '\n\nSilakan tambahkan akun mahasiswa tersebut terlebih dahulu melalui Google Sheets.';
+        }
+        if (r.nimSudahMasuk && r.nimSudahMasuk.length > 0) {
+          info += '\n\nℹ️ ' + r.nimSudahMasuk.length + ' NIM sudah terdaftar sebelumnya (dilewati).';
+        }
+        alert(info);
+
+        bukaAnalitikKelas(activeCourseId, activeCourseName);
+      } else {
+        alert('❌ ' + r.message);
+      }
+    })
+    .withFailureHandler(function(err) {
+      btn.innerText = '✅ Daftarkan Semua ke Kelas Ini';
+      btn.disabled  = false;
+      alert('❌ Gagal: ' + err.message);
+    })
+    .enrollStudentsBatch(activeCourseId, nimBaru);
+}
+
+function batalImportMhs() {
+  document.getElementById('previewImportMhs').style.display = 'none';
+  _nimDariExcel = [];
+}
+  
+
+  function keluarkanMahasiswa(userId,nama){
+    if(confirm('Keluarkan "'+nama+'" dari kelas ini?')){
+      google.script.run.withSuccessHandler(function(r){
+        if(r.success) bukaAnalitikKelas(activeCourseId,activeCourseName); else alert('❌ '+r.message);
+      }).unenrollStudent(activeCourseId,userId);
+    }
+  }
+
+  function renderManajemenMahasiswa(data){
+    var enrolled=data.enrolled;var all=data.all;
+    var tbody=document.getElementById('enrolledBody');tbody.innerHTML='';
+    if(!enrolled.length){
+      tbody.innerHTML='<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Belum ada mahasiswa.</td></tr>';
+    } else {
+      enrolled.forEach(function(s){
+        tbody.innerHTML+='<tr>'
+          +'<td style="text-align:center;"><span class="badge badge-blue">'+s.user_id+'</span></td>'
+          +'<td style="color:#c0dbe8;font-weight:500;">'+s.nama+'</td>'
+          +'<td style="text-align:center;"><button class="btn btn-coral btn-sm" onclick="keluarkanMahasiswa(\''+s.user_id+'\',\''+s.nama+'\')">Keluarkan</button></td>'
+          +'</tr>';
+      });
+    }
+    var container=document.getElementById('studentCheckboxList');
+    container.innerHTML='';
+    var available=all.filter(function(s){return !enrolled.some(function(e){return e.user_id===s.user_id;});});
+    if(!available.length){
+      container.innerHTML='<p style="color:var(--mint);font-size:13px;padding:8px;">✅ Semua mahasiswa telah terdaftar.</p>';
+    } else {
+      available.forEach(function(s){
+        container.innerHTML+='<label class="check-item"><input type="checkbox" class="mhs-checkbox" value="'+s.user_id+'"><b style="color:var(--foam);">'+s.user_id+'</b> — '+s.nama_lengkap+'</label>';
+      });
+    }
+    // Isi dropdown nilai dengan mahasiswa yang terdaftar
+    var selectNilai = document.getElementById('inputNilaiUser');
+    selectNilai.innerHTML = '<option value="">-- Pilih Mahasiswa --</option>';
+    enrolled.forEach(function(s) {
+      selectNilai.innerHTML += '<option value="' + s.user_id + '">' + s.user_id + ' - ' + s.nama + '</option>';
+    });
+  }
+
+  function renderRankings(rankings){
+    document.getElementById('loadingRanking').style.display='none';
+    document.getElementById('rankingContainer').style.display='block';
+    var tbody=document.getElementById('rankingBody');tbody.innerHTML='';
+    if(!rankings||!rankings.length){tbody.innerHTML='<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Belum ada data aktivitas</td></tr>';return;}
+    var medals=['🥇','🥈','🥉'];
+    rankings.forEach(function(r,i){
+      var cls=i===0?'rank-gold':i===1?'rank-silver':i===2?'rank-bronze':'';
+      var icon=i<3?medals[i]:(i+1);
+      tbody.innerHTML+='<tr class="'+cls+'">'
+        +'<td style="text-align:center;font-size:17px;"><b>'+icon+'</b></td>'
+        +'<td>'+r.nama+'</td>'
+        +'<td style="text-align:center;"><b>'+r.skor+' Pts</b></td>'
+        +'</tr>';
+    });
+  }
+
+  function renderInactive(inactiveStudents){
+    document.getElementById('loadingInactive').style.display='none';
+    var list=document.getElementById('inactiveList');
+    if(!inactiveStudents||!inactiveStudents.length){list.innerHTML='<li style="color:var(--mint);list-style:none;">✅ Semua mahasiswa aktif!</li>';return;}
+    list.innerHTML=inactiveStudents.map(function(s){return '<li>'+s+'</li>';}).join('');
+  }
+
+  // ══════════════════════════════════
+  // FITUR BARU: MANAJEMEN NILAI DOSEN
+  // ══════════════════════════════════
+
+  // Menyimpan nilai dari form ke database
+  function simpanNilaiKelas() {
+    var userId = document.getElementById('inputNilaiUser').value;
+    var jenisNilai = document.getElementById('inputJenisNilai').value.trim();
+    var nilai = document.getElementById('inputAngkaNilai').value.trim();
+    if (!userId || !jenisNilai || !nilai) {
+      alert('Semua kolom (Mahasiswa, Jenis Penilaian, dan Nilai) wajib diisi!');
+      return;
+    }
+    var btn = document.getElementById('btnSimpanNilai');
+    btn.innerText = 'Menyimpan...'; btn.disabled = true;
+    google.script.run.withSuccessHandler(function(r) {
+      btn.innerText = '+ Simpan Nilai'; btn.disabled = false;
+      if (r.success) {
+        document.getElementById('inputJenisNilai').value = '';
+        document.getElementById('inputAngkaNilai').value = '';
+        google.script.run.withSuccessHandler(renderTabelNilaiDosen).getSemuaNilaiKelas(activeCourseId);
+      } else {
+        alert('❌ ' + r.message);
+      }
+    }).tambahNilaiMahasiswa(activeCourseId, userId, jenisNilai, nilai);
+  }
+
+  // Menggambar tabel nilai di panel dosen
+  function renderTabelNilaiDosen(dataNilai) {
+    var tbody = document.getElementById('nilaiDosenBody');
+    tbody.innerHTML = '';
+    if (!dataNilai || dataNilai.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#3a6a85;">Belum ada nilai yang diinput di kelas ini.</td></tr>';
+      return;
+    }
+    dataNilai.forEach(function(n) {
+      tbody.innerHTML += '<tr>'
+        + '<td style="text-align:center;"><span class="badge badge-blue">' + n.user_id + '</span></td>'
+        + '<td style="color:#c0dbe8;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0;">' + n.nama + '</td>'
+        + '<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0;">' + n.jenis_nilai + '</td>'
+        + '<td style="text-align:center;"><span class="badge badge-mint" style="font-size:13px;font-weight:700;">' + n.nilai + '</span></td>'
+        + '<td style="text-align:center;"><button class="btn btn-coral btn-sm" onclick="konfirmasiHapusNilai(\'' + n.user_id + '\', \'' + n.jenis_nilai_key + '\', \'' + n.nama + '\')">Hapus</button></td>'
+        + '</tr>';
+    });
+  }
+
+  // Menghapus nilai
+  function konfirmasiHapusNilai(userId, jenisNilaiKey, namaMhs) {
+    if (confirm('Yakin ingin menghapus data nilai milik ' + namaMhs + '?')) {
+      google.script.run.withSuccessHandler(function(r) {
+        if (r.success) {
+          google.script.run.withSuccessHandler(renderTabelNilaiDosen).getSemuaNilaiKelas(activeCourseId);
+        } else {
+          alert('❌ ' + r.message);
+        }
+      }).hapusNilaiMahasiswa(activeCourseId, userId, jenisNilaiKey);
+    }
+  }
+
+  // ══════════════════════════════════════════
+  // FITUR IMPOR NILAI DARI EXCEL/CSV
+  // ══════════════════════════════════════════
+  function bukaModalImportNilai() {
+    document.getElementById('importJenisNilai').value = '';
+    document.getElementById('fileImportNilai').value = '';
+    document.getElementById('importNilaiModalOverlay').style.display = 'flex';
+  }
+
+  function tutupModalImportNilai() {
+    document.getElementById('importNilaiModalOverlay').style.display = 'none';
+  }
+
+  function prosesImportNilaiExcel() {
+  var jenisNilai = document.getElementById('importJenisNilai').value.trim();
+  var fileInput  = document.getElementById('fileImportNilai');
+  var btn        = document.getElementById('btnProsesImportNilai');
+
+  if (!jenisNilai) { alert('Jenis Penilaian wajib diisi!'); return; }
+  if (fileInput.files.length === 0) { alert('Silakan pilih file Excel/CSV terlebih dahulu!'); return; }
+
+  var file = fileInput.files[0];
+
+  btn.innerText = 'Memuat library...';
+  btn.disabled  = true;
+
+  _loadXLSX(function() {
+    _bacaExcelNilai(file, jenisNilai, btn);
+  });
+}
+
+function _bacaExcelNilai(file, jenisNilai, btn) {
+  var reader = new FileReader();
+
+  btn.innerText = 'Membaca File...';
+
+  reader.onload = function(e) {
+    try {
+      var data       = new Uint8Array(e.target.result);
+      var workbook   = XLSX.read(data, { type: 'array' });
+      var firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      var jsonData   = XLSX.utils.sheet_to_json(firstSheet, { defval: '' });
+
+      var parsedData = [];
+      for (var i = 0; i < jsonData.length; i++) {
+        var row = jsonData[i];
+
+        // Smart Detector: Deteksi otomatis nama kolom dari Google Forms / SIAKAD
+        var nim   = row['NIM'] || row['nim'] || row['Username'] || row['NIM / ID'];
+        var nilai = row['Nilai'] || row['nilai'] || row['Skor'] || row['Score'] || row['Total score'];
+
+        // Jika Google Forms memformat skor menjadi "85.00 / 100", ambil angka depannya saja
+        if (typeof nilai === 'string' && nilai.includes('/')) {
+          nilai = nilai.split('/')[0].trim();
+        }
+
+        if (nim && nilai !== undefined && nilai !== '') {
+          parsedData.push({ nim: String(nim).trim(), nilai: parseFloat(nilai) });
+        }
+      }
+
+      if (parsedData.length === 0) {
+        alert('Gagal: Tidak menemukan kolom "NIM" dan "Skor/Nilai" di dalam file. Pastikan nama kolom di baris pertama Excel Anda sudah benar.');
+        btn.innerText = '📤 Proses Impor';
+        btn.disabled  = false;
+        return;
+      }
+
+      btn.innerText = 'Menyimpan ke Database...';
+
+      // Kirim ke backend menggunakan Failure Handler (Anti Stuck)
+      google.script.run
+        .withSuccessHandler(function(r) {
+          btn.innerText = '📤 Proses Impor';
+          btn.disabled  = false;
+          if (r.success) {
+            alert('✅ ' + r.message);
+            tutupModalImportNilai();
+            google.script.run.withSuccessHandler(renderTabelNilaiDosen).getSemuaNilaiKelas(activeCourseId);
+          } else {
+            alert('❌ ' + r.message);
+          }
+        })
+        .withFailureHandler(function(err) {
+          btn.innerText = '📤 Proses Impor';
+          btn.disabled  = false;
+          alert('Terjadi kesalahan koneksi: ' + err.message);
+        })
+        .importNilaiBatch(activeCourseId, jenisNilai, parsedData);
+
+    } catch (err) {
+      btn.innerText = '📤 Proses Impor';
+      btn.disabled  = false;
+      alert('Gagal membaca file. Pastikan file tidak rusak dan berformat Excel/CSV.');
+    }
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+
+  // ══════════════════════════════════
+  // FITUR BARU: KALENDER PERTEMUAN
+  // ══════════════════════════════════
+
+  function ubahPlaceholderLokasi() {
+    var mode = document.getElementById('inputMode').value;
+    var inputLokasi = document.getElementById('inputLokasi');
+    if (mode === 'Daring') {
+      inputLokasi.placeholder = "Contoh: https://zoom.us/j/123...";
+    } else {
+      inputLokasi.placeholder = "Contoh: Ruang Kelas 101 / Lab Terpadu";
+    }
+  }
+
+  function simpanJadwal() {
+    var pertemuan = document.getElementById('inputPertemuan').value.trim();
+    var tanggal = document.getElementById('inputTanggal').value;
+    var waktu = document.getElementById('inputWaktu').value;
+    var mode = document.getElementById('inputMode').value;
+    var lokasi = document.getElementById('inputLokasi').value.trim();
+    if (!pertemuan || !tanggal || !waktu || !lokasi) {
+      alert('Semua data kalender (Topik, Tanggal, Waktu, Lokasi) wajib diisi!'); return;
+    }
+    var parts = tanggal.split("-");
+    var formattedDate = parts[2] + "-" + parts[1] + "-" + parts[0];
+    var btn = document.getElementById('btnSimpanJadwal');
+    btn.innerText = 'Menyimpan...'; btn.disabled = true;
+    google.script.run.withSuccessHandler(function(r) {
+      btn.innerText = '+ Simpan Jadwal'; btn.disabled = false;
+      if (r.success) {
+        document.getElementById('inputPertemuan').value = '';
+        document.getElementById('inputTanggal').value = '';
+        document.getElementById('inputWaktu').value = '';
+        document.getElementById('inputLokasi').value = '';
+        google.script.run.withSuccessHandler(renderTabelJadwalDosen).getJadwalKelas(activeCourseId);
+      } else { alert('❌ ' + r.message); }
+    }).tambahJadwal(activeCourseId, pertemuan, formattedDate, waktu, mode, lokasi);
+  }
+
+  function renderTabelJadwalDosen(jadwal) {
+    var tbody = document.getElementById('jadwalDosenBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    if (!jadwal || !jadwal.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#3a6a85;">Belum ada jadwal pertemuan.</td></tr>'; return;
+    }
+    jadwal.forEach(function(j) {
+      var badgeMode = j.mode === 'Daring'
+        ? '<span class="badge badge-mint">Daring</span>'
+        : '<span class="badge badge-amber">Luring</span>';
+      var lokasiDisplay = j.mode === 'Daring'
+        ? '<a href="'+j.lokasi_link+'" target="_blank" style="color:var(--foam);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;">🔗 Buka Link</a>'
+        : '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;">'+j.lokasi_link+'</span>';
+      tbody.innerHTML += '<tr>'
+        + '<td style="color:#c0dbe8;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0;">'+j.pertemuan+'</td>'
+        + '<td>'+j.tanggal+'<br><span style="font-size:11px;color:#5a8fa8;">⏰ '+j.waktu+'</span></td>'
+        + '<td style="text-align:center;">'+badgeMode+'</td>'
+        + '<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0;">'+lokasiDisplay+'</td>'
+        + '<td style="text-align:center;"><button class="btn btn-coral btn-sm" onclick="konfirmasiHapusJadwal(\'' + j.jadwal_id + '\')">Hapus</button></td>'
+        + '</tr>';
+    });
+  }
+
+  function konfirmasiHapusJadwal(jadwalId) {
+    if (confirm('Yakin ingin menghapus jadwal pertemuan ini?')) {
+      google.script.run.withSuccessHandler(function(r){
+        if (r.success) google.script.run.withSuccessHandler(renderTabelJadwalDosen).getJadwalKelas(activeCourseId);
+        else alert('❌ ' + r.message);
+      }).hapusJadwal(activeCourseId, jadwalId);
+    }
+  }
+
+  function renderJadwalMahasiswa(jadwal) {
+    document.getElementById('loadingJadwal').style.display = 'none';
+    var list = document.getElementById('jadwalList');
+    if (!jadwal || !jadwal.length) {
+      list.innerHTML = '<p style="color:#3a6a85;">Jadwal belum tersedia.</p>'; return;
+    }
+
+    var now = new Date().getTime();
+    var BATAS_HAPUS_MS = 24 * 60 * 60 * 1000;
+
+    var jadwalAktif = jadwal.filter(function(j) {
+      var parts = String(j.tanggal).split('-');
+      var tgl, bln, thn;
+      if (parts[0].length <= 2) {
+        tgl = parseInt(parts[0], 10);
+        bln = parseInt(parts[1], 10) - 1;
+        thn = parseInt(parts[2], 10);
+      } else {
+        thn = parseInt(parts[0], 10);
+        bln = parseInt(parts[1], 10) - 1;
+        tgl = parseInt(parts[2], 10);
+      }
+      var jamParts = j.waktu ? String(j.waktu).split(':') : ['23','59'];
+      var jadwalMs = new Date(thn, bln, tgl,
+        parseInt(jamParts[0], 10),
+        parseInt(jamParts[1], 10)
+      ).getTime();
+      return (now - jadwalMs) < BATAS_HAPUS_MS;
+    });
+
+    if (!jadwalAktif.length) {
+      list.innerHTML = '<p style="color:#3a6a85;">Tidak ada jadwal mendatang.</p>'; return;
+    }
+
+    list.innerHTML = jadwalAktif.map(function(j) {
+      var isDaring = j.mode === 'Daring';
+      var badgeCls = isDaring ? 'badge-mint' : 'badge-amber';
+      var icon = isDaring ? '💻' : '🏢';
+      var actionArea = isDaring
+        ? '<a href="'+j.lokasi_link+'" target="_blank" class="btn btn-teal btn-full mt-2" style="text-decoration:none;">▶️ Gabung Kelas (Zoom Meeting)</a>'
+        : '<div style="margin-top:10px;padding:10px;background:rgba(232,168,58,0.1);border:1px solid rgba(232,168,58,0.3);border-radius:10px;font-size:13px;color:var(--amber);text-align:center;">📍 Lokasi: <b>'+j.lokasi_link+'</b></div>';
+      return '<div class="glass rounded-2xl p-5" style="border:1px solid var(--border);">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'
+        + '<span class="badge '+badgeCls+'">'+icon+' '+j.mode+'</span>'
+        + '<span style="font-size:12px;color:var(--foam);font-weight:600;">📅 '+j.tanggal+'</span>'
+        + '</div>'
+        + '<h4 style="font-size:16px;font-weight:600;color:#fff;margin-bottom:4px;">'+j.pertemuan+'</h4>'
+        + '<p style="font-size:13px;color:#5a8fa8;margin-bottom:12px;">⏰ Jam: '+j.waktu+' WITA</p>'
+        + actionArea
+        + '</div>';
+    }).join('');
+  }
+
+  // Fungsi untuk memicu pembaruan data dari server (Dioptimasi jadi 1 API Call)
+function refreshDataKelas() {
+  if (!activeCourseId) {
+    alert("Tidak ada kelas yang sedang aktif.");
+    return;
+  }
+
+  var btn = document.getElementById('btnRefreshData');
+  if (btn) { 
+    btn.innerHTML = '⏳ Memperbarui...'; 
+    btn.disabled = true; 
+  }
+
+  // Panggil 1 fungsi super yang mengurus cache dan mengambil data sekaligus
+  google.script.run.withSuccessHandler(function(r) {
+    if (btn) { 
+      btn.innerHTML = '🔄 Refresh Data'; 
+      btn.disabled = false; 
+    }
+
+    if (r.success) {
+      // Langsung render (tampilkan) semua data dari 1 respon server
+      renderManajemenMateri(r.materials);
+      renderManajemenKuis(r.quizzes);
+      renderManajemenLesson(r.lessons);
+      console.log("Sinkronisasi berhasil."); 
+    } else {
+      alert("❌ " + r.message);
+    }
+  }).refreshAndGetCourseData(activeCourseId);
+}
+
+  // ══════════════════════════════════════════
+  // FITUR EXPORT NILAI KE EXCEL
+  // ══════════════════════════════════════════
+
+  // Konversi angka ke Nilai Huruf (skala Universitas Udayana)
+  function angkaKeHuruf(nilai) {
+    var n = parseFloat(nilai);
+    if (isNaN(n)) return '-';
+    if (n >= 80) return 'A';
+    if (n >= 71) return 'B+';
+    if (n >= 65) return 'B';
+    if (n >= 60) return 'C+';
+    if (n >= 55) return 'C';
+    if (n >= 50) return 'D+';
+    if (n >= 40) return 'D';
+    return 'E';
+  }
+
+  function bukaModalExport() {
+    // Isi default tahun & semester otomatis
+    var now = new Date();
+    var tahun = now.getFullYear();
+    var bulan = now.getMonth() + 1; // 1-12
+    var semester = (bulan >= 2 && bulan <= 7) ? 'Genap' : 'Ganjil';
+    document.getElementById('exportTahunAjaran').value = tahun;
+    document.getElementById('exportSemester').value = semester;
+    document.getElementById('exportPengampu').value = currentUserInfo ? currentUserInfo.name : '';
+    document.getElementById('exportModalOverlay').style.display = 'flex';
+  }
+
+  // ══════════════════════════════════════════
+  // FITUR IMPOR KONTEN ANTAR KELAS
+  // ══════════════════════════════════════════
+
+  // Modifikasi fungsi buka modal agar mereset tanggal
+  function bukaModalImport() {
+    document.getElementById('importTargetName').innerText = activeCourseName;
+    document.getElementById('importSourceCourse').innerHTML = '<option value="">-- Memuat kelas... --</option>';
+    document.getElementById('importNewDeadline').value = ''; // Reset input tanggal
+    document.getElementById('importModalOverlay').style.display = 'flex';
+
+    google.script.run.withSuccessHandler(function(courses) {
+      var select = document.getElementById('importSourceCourse');
+      select.innerHTML = '<option value="">-- Pilih Kelas Sumber --</option>';
+      courses.forEach(function(c) {
+        if (c.course_id !== activeCourseId) {
+          select.innerHTML += '<option value="' + c.course_id + '">' + c.course_id + ' - ' + c.course_name + '</option>';
+        }
+      });
+    }).getLecturerCourses(currentUserInfo.userId);
+  }
+
+  // Modifikasi fungsi proses untuk mem-parsing tanggal baru
+  function prosesImportKonten() {
+    var sourceCourseId = document.getElementById('importSourceCourse').value;
+    var rawDate = document.getElementById('importNewDeadline').value; // Ambil nilai tanggal
+
+    if (!sourceCourseId) { alert('Silakan pilih kelas sumber terlebih dahulu!'); return; }
+    if (!rawDate) { alert('Silakan tentukan Deadline Lesson Learn untuk kelas ini!'); return; }
+
+    if (!confirm('Yakin ingin menyalin semua konten dari kelas tersebut ke kelas ini?')) { return; }
+
+    // Format tanggal dari YYYY-MM-DD (bawaan input date HTML) menjadi DD-MM-YYYY (standar backend kita)
+    var parts = rawDate.split('-');
+    var formattedDeadline = parts[2] + '-' + parts[1] + '-' + parts[0];
+
+    var btn = document.getElementById('btnProsesImport');
+    btn.innerText = 'Menyalin Data...'; btn.disabled = true;
+
+    google.script.run.withSuccessHandler(function(r) {
+      btn.innerText = '📥 Mulai Impor'; btn.disabled = false;
+      if (r.success) {
+        alert('✅ ' + r.message);
+        tutupModalImport();
+        google.script.run.withSuccessHandler(renderManajemenMateri).getCourseMaterials(activeCourseId);
+        google.script.run.withSuccessHandler(renderManajemenKuis).getCourseQuizzes(activeCourseId);
+        google.script.run.withSuccessHandler(renderManajemenLesson).getCourseLessons(activeCourseId);
+      } else {
+        alert('❌ ' + r.message);
+      }
+    }).importKontenKelas(sourceCourseId, activeCourseId, formattedDeadline); // <-- Parameter deadline disisipkan di sini
+  }
+
+  function tutupModalImport() {
+    document.getElementById('importModalOverlay').style.display = 'none';
+  }
+
+  function tutupModalExport() {
+    document.getElementById('exportModalOverlay').style.display = 'none';
+  }
+
+  function prosesExportNilai() {
+    var tahunAjaran = document.getElementById('exportTahunAjaran').value.trim();
+    var semester    = document.getElementById('exportSemester').value.trim();
+    var pengampu    = document.getElementById('exportPengampu').value.trim();
+
+    if (!tahunAjaran || !semester || !pengampu) {
+      alert('Mohon lengkapi semua data sebelum export!'); return;
+    }
+
+    // ── Baca daftar mahasiswa terdaftar dari tabel enrolledBody ──
+    var enrolledRows = document.querySelectorAll('#enrolledBody tr');
+    var enrolledStudents = [];
+    enrolledRows.forEach(function(row) {
+      var nimEl  = row.querySelector('.badge-blue');
+      var namaTd = row.querySelectorAll('td')[1];
+      if (nimEl && namaTd) {
+        enrolledStudents.push({
+          user_id: nimEl.innerText.trim(),
+          nama:    namaTd.innerText.trim()
+        });
+      }
+    });
+
+    if (enrolledStudents.length === 0) {
+      alert('Tidak ada mahasiswa terdaftar. Buka tab Manajemen Mahasiswa terlebih dahulu agar data termuat.');
+      return;
+    }
+
+    var btnExport = document.getElementById('btnProsesExport');
+    btnExport.innerText = 'Memuat library...';
+    btnExport.disabled  = true;
+
+    _loadXLSX(function() {
+      btnExport.innerText = 'Memproses...';
+
+      google.script.run.withSuccessHandler(function(configBobot) {
+        google.script.run.withSuccessHandler(function(dataNilai) {
+          btnExport.innerText = '📥 Download Excel';
+          btnExport.disabled  = false;
+          tutupModalExport();
+          // ← Tambah enrolledStudents sebagai parameter baru
+          generateExcelNilai(dataNilai, configBobot, tahunAjaran, semester, pengampu, enrolledStudents);
+        }).getSemuaNilaiKelas(activeCourseId);
+      }).getAdminGradeConfig(activeCourseId);
+    });
+  }
+
+  function generateExcelNilai(dataNilai, configBobot, tahunAjaran, semester, pengampu, enrolledStudents) {
+
+    // ── 1. Bangun lookup nilai berdasarkan NIM ──
+    // { "2301234": { "UTS": 80, "Tugas 1": 90 }, ... }
+    var nilaiByNim   = {};
+    var jenisNilaiSet = [];
+
+    (dataNilai || []).forEach(function(item) {
+      var uid = String(item.user_id).trim();
+      if (!nilaiByNim[uid]) nilaiByNim[uid] = {};
+      nilaiByNim[uid][item.jenis_nilai] = parseFloat(item.nilai);
+      if (jenisNilaiSet.indexOf(item.jenis_nilai) === -1) {
+        jenisNilaiSet.push(item.jenis_nilai);
+      }
+    });
+
+    // ── 2. Gunakan daftar mahasiswa terdaftar sebagai kerangka utama ──
+    // Mahasiswa yang tidak ada di nilaiByNim tetap masuk dengan nilai "-"
+    var mahasiswaList = enrolledStudents.map(function(s) {
+      return {
+        user_id:    s.user_id,
+        nama:       s.nama,
+        nilai:      nilaiByNim[String(s.user_id).trim()] || {}
+      };
+    });
+
+    // Tambahkan mahasiswa yang punya nilai tapi tidak terdaftar (anomali)
+    (dataNilai || []).forEach(function(item) {
+      var uid = String(item.user_id).trim();
+      var sudahAda = mahasiswaList.some(function(m) {
+        return String(m.user_id).trim() === uid;
+      });
+      if (!sudahAda) {
+        mahasiswaList.push({
+          user_id: uid,
+          nama:    item.nama || 'Tidak Terdaftar',
+          nilai:   nilaiByNim[uid] || {}
+        });
+      }
+    });
+
+    if (mahasiswaList.length === 0) {
+      alert('Belum ada mahasiswa di kelas ini!'); return;
+    }
+
+    // ── 3. Hitung Nilai Akhir per Mahasiswa ──
+    var bobotAturan        = configBobot && configBobot.bobot ? configBobot.bobot : {};
+    var adaPengaturanBobot = Object.keys(bobotAturan).length > 0;
+
+    mahasiswaList.forEach(function(mhs) {
+      var totalAkhir = 0;
+
+      if (adaPengaturanBobot) {
+        Object.keys(bobotAturan).forEach(function(jenisKonfig) {
+          var persen   = parseFloat(bobotAturan[jenisKonfig]) || 0;
+          var nilaiMhs = 0;
+          Object.keys(mhs.nilai).forEach(function(j) {
+            if (j.toLowerCase() === jenisKonfig.toLowerCase()) {
+              nilaiMhs = parseFloat(mhs.nilai[j]) || 0;
+            }
+          });
+          totalAkhir += (nilaiMhs * persen) / 100;
+        });
+      } else {
+        // Fallback: rata-rata biasa jika bobot belum diatur
+        var total = 0; var count = 0;
+        jenisNilaiSet.forEach(function(jenis) {
+          if (mhs.nilai[jenis] !== undefined) { total += mhs.nilai[jenis]; count++; }
+        });
+        totalAkhir = count > 0 ? (total / count) : 0;
+      }
+
+      // Jika mahasiswa belum punya nilai apapun, Nilai Akhir juga "-"
+      var punyaNilai = jenisNilaiSet.some(function(j) {
+        return mhs.nilai[j] !== undefined;
+      });
+
+      mhs.rata_rata   = punyaNilai ? Math.round(totalAkhir * 100) / 100 : '-';
+      mhs.nilai_huruf = punyaNilai ? angkaKeHuruf(totalAkhir) : '-';
+    });
+
+    // Urutkan berdasarkan NIM
+    mahasiswaList.sort(function(a, b) {
+      return String(a.user_id).localeCompare(String(b.user_id));
+    });
+
+    // ── 4. Bangun array data untuk SheetJS ──
+    var wsData = [];
+
+    var kodeAsli  = activeCourseId.includes('-') ? activeCourseId.split('-')[0].trim() : activeCourseId;
+    var kelasAsli = activeCourseId.includes('-') ? activeCourseId.split('-')[1].trim() : '-';
+    var namaAsli  = activeCourseName.includes('(') ? activeCourseName.split('(')[0].trim() : activeCourseName;
+
+    wsData.push(['Daftar Nilai Matakuliah']);
+    wsData.push(['Matakuliah :', kodeAsli + ' - ' + namaAsli]);
+    wsData.push(['Tahun Ajaran :', tahunAjaran]);
+    wsData.push(['Semester :', semester]);
+    wsData.push(['Kelas :', kelasAsli]);
+    wsData.push(['Ketua Pengampu :', pengampu]);
+    wsData.push(['Jumlah Mahasiswa :', mahasiswaList.length + ' orang']);
+    wsData.push([]);
+
+    // Header kolom
+    var headerRow = ['No', 'NIM', 'Nama'];
+    jenisNilaiSet.forEach(function(j) { headerRow.push(j); });
+    headerRow.push('Nilai Akhir', 'Nilai Huruf');
+    wsData.push(headerRow);
+
+    // Baris data — nilai "-" untuk yang belum ada
+    mahasiswaList.forEach(function(mhs, idx) {
+      var row = [idx + 1, mhs.user_id, mhs.nama];
+      jenisNilaiSet.forEach(function(jenis) {
+        row.push(mhs.nilai[jenis] !== undefined ? mhs.nilai[jenis] : '-');
+      });
+      row.push(mhs.rata_rata, mhs.nilai_huruf);
+      wsData.push(row);
+    });
+
+    // ── 5. Buat workbook & download ──
+    var wb = XLSX.utils.book_new();
+    var ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    var colWidths = [{ wch: 5 }, { wch: 16 }, { wch: 38 }];
+    jenisNilaiSet.forEach(function() { colWidths.push({ wch: 16 }); });
+    colWidths.push({ wch: 13 }, { wch: 13 });
+    ws['!cols'] = colWidths;
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Nilai Mahasiswa');
+
+    var safeCourseName = activeCourseName.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_');
+    XLSX.writeFile(wb, 'NilaiMahasiswa_' + safeCourseName + '_' + tahunAjaran + '.xlsx');
+  }
+
+  // =========================================================
+  // LOGIKA JS: PENGATURAN NILAI (DOSEN) & VIEW (MAHASISWA)
+  // =========================================================
+
+  // Animasi toggle switch yang lebih responsif
+  function animasiToggleRilis(checkbox) {
+    var knob = document.getElementById('toggleKnob');
+    var bg = document.getElementById('toggleBg');
+
+    if (checkbox.checked) {
+      knob.style.transform = 'translateX(20px)';
+      knob.style.backgroundColor = 'var(--mint)'; // Warna hijau menyala
+      bg.style.borderColor = 'var(--mint)';       // Border ikut hijau
+    } else {
+      knob.style.transform = 'translateX(0)';
+      knob.style.backgroundColor = 'var(--foam)'; // Warna biru redup
+      bg.style.borderColor = '#3a6a85';
+    }
+  }
+
+  // Membuka modal dosen dan mengambil data lama
+  function bukaModalPengaturanNilai() {
+    document.getElementById('pengaturanNilaiModalOverlay').style.display = 'flex';
+    document.getElementById('bobotContainer').innerHTML = '<p style="color:#5a8fa8;font-size:12px;">Memuat data...</p>';
+    
+    google.script.run.withSuccessHandler(function(config) {
+      document.getElementById('bobotContainer').innerHTML = '';
+      
+      var keys = Object.keys(config.bobot);
+      if(keys.length === 0) {
+        // Jika masih kosong, berikan 1 baris kosong sbg contoh
+        tambahBarisBobot('', '');
+      } else {
+        keys.forEach(function(k) {
+          tambahBarisBobot(k, config.bobot[k]);
+        });
+      }
+
+      // Atur posisi toggle
+      var toggle = document.getElementById('toggleRilisNilai');
+      toggle.checked = config.is_released;
+      animasiToggleRilis(toggle); // Memicu animasi warna secara manual
+      
+    }).getAdminGradeConfig(activeCourseId);
+  }
+
+  function tutupModalPengaturanNilai() {
+    document.getElementById('pengaturanNilaiModalOverlay').style.display = 'none';
+  }
+
+  // Membuat baris input dinamis untuk komponen (Misal: UTS 60%)
+  function tambahBarisBobot(namaJenis, persentase) {
+    var div = document.createElement('div');
+    div.className = "row-bobot";
+    div.style.cssText = "display:flex; gap:10px; margin-bottom:10px;";
+    
+    div.innerHTML = `
+      <input type="text" class="form-input nama-komponen" placeholder="Misal: UTS" value="`+namaJenis+`" style="flex:2;">
+      <div style="display:flex; align-items:center; flex:1;">
+        <input type="number" class="form-input persen-komponen" placeholder="Bobot" value="`+persentase+`" style="border-top-right-radius:0; border-bottom-right-radius:0;">
+        <span style="background:rgba(92,200,240,0.1); padding:10px; border:1px solid rgba(92,200,240,0.22); border-left:none; border-top-right-radius:10px; border-bottom-right-radius:10px; color:#5a8fa8;">%</span>
+      </div>
+      <button class="btn btn-coral" style="padding:10px;" onclick="this.parentElement.remove()">X</button>
+    `;
+    document.getElementById('bobotContainer').appendChild(div);
+  }
+
+  function simpanPengaturanNilai() {
+    var baris = document.getElementsByClassName('row-bobot');
+    var dataBobot = {};
+    var totalPersen = 0;
+
+    for (var i = 0; i < baris.length; i++) {
+      var nama = baris[i].querySelector('.nama-komponen').value.trim();
+      var persen = parseFloat(baris[i].querySelector('.persen-komponen').value);
+      
+      if (nama && !isNaN(persen)) {
+        dataBobot[nama] = persen;
+        totalPersen += persen;
+      }
+    }
+
+    if (Object.keys(dataBobot).length > 0 && totalPersen !== 100) {
+      alert("Total persentase bobot wajib tepat 100%! Saat ini total: " + totalPersen + "%");
+      return;
+    }
+
+    var isReleased = document.getElementById('toggleRilisNilai').checked;
+    
+    var btn = document.getElementById('btnSimpanPengaturanNilai');
+    btn.innerText = "Menyimpan...";
+    btn.disabled = true;
+
+    google.script.run.withSuccessHandler(function(r) {
+      btn.innerText = "💾 Simpan & Terapkan";
+      btn.disabled = false;
+      if(r.success) {
+        alert("✅ " + r.message);
+        tutupModalPengaturanNilai();
+      } else {
+        alert("❌ Terjadi kesalahan!");
+      }
+    }).saveGradeConfig(activeCourseId, JSON.stringify(dataBobot), isReleased);
+  }
+
+  // -------- BAGIAN MAHASISWA --------
+  
+  // Fungsi yang dipanggil saat mahasiswa klik tombol "Lihat Nilai Akhir"
+  // Fungsi Super Cepat (Tanpa API Server)
+  function lihatNilaiAkhirMahasiswa() {
+    // Ambil data dari memori yang sudah disimpan saat masuk kelas tadi
+    var config = window.lokalGradeConfig;
+    var listNilai = window.lokalNilaiMhs || [];
+
+    // Cek apakah dosen sudah merilis nilai
+    if (!config || !config.is_released) {
+      alert("Mohon bersabar, Dosen belum merilis Nilai Akhir untuk kelas ini.");
+      return;
+    }
+
+    var breakdown = [];
+    var totalAkhir = 0;
+    var bobotKeys = Object.keys(config.bobot || {});
+    
+    // Kalkulasi matematika dilakukan langsung di komputer/HP mahasiswa
+    bobotKeys.forEach(function(jenis) {
+      var persenBobot = parseFloat(config.bobot[jenis]);
+      var nilaiMhs = 0;
+      
+      for (var j = 0; j < listNilai.length; j++) {
+        if (String(listNilai[j].jenis_nilai).toLowerCase() === String(jenis).toLowerCase()) {
+          nilaiMhs = parseFloat(listNilai[j].nilai);
+          break;
+        }
+      }
+      
+      var hasilKali = (nilaiMhs * persenBobot) / 100;
+      totalAkhir += hasilKali;
+      
+      breakdown.push({ jenis: jenis, nilai: nilaiMhs, bobot: persenBobot, hasil: hasilKali });
+    });
+
+    // Konversi huruf
+    function angkaKeHuruf(n) {
+      if (isNaN(n)) return '-';
+      if (n >= 80) return 'A';
+      if (n >= 71) return 'B+';
+      if (n >= 65) return 'B';
+      if (n >= 60) return 'C+';
+      if (n >= 55) return 'C';
+      if (n >= 50) return 'D+';
+      if (n >= 40) return 'D';
+      return 'E';
+    }
+
+    // Tampilkan ke layar (Instan, tanpa loading!)
+    var tbody = document.getElementById('rincianNilaiBody');
+    tbody.innerHTML = '';
+    
+    breakdown.forEach(function(item) {
+      tbody.innerHTML += `<tr>
+        <td style="color:#c0dbe8; font-weight:500;">` + item.jenis + `</td>
+        <td style="text-align:center;"><span class="badge badge-blue">` + item.nilai + `</span></td>
+        <td style="text-align:center;">` + item.bobot + `%</td>
+        <td style="text-align:center; color:var(--foam); font-weight:bold;">` + item.hasil.toFixed(2) + `</td>
+      </tr>`;
+    });
+
+    document.getElementById('finalScoreNumber').innerText = totalAkhir.toFixed(2);
+    document.getElementById('finalScoreLetter').innerText = angkaKeHuruf(totalAkhir);
+    document.getElementById('nilaiAkhirModalOverlay').style.display = 'flex';
+  }
+
+  function tutupModalNilaiAkhir() {
+    document.getElementById('nilaiAkhirModalOverlay').style.display = 'none';
+  }
+
+  // Trik untuk memunculkan tombol mahasiswa jika nilainya sudah dirilis
+  // Sisipkan logika ini sedikit di bagian "renderNilai" milik Mahasiswa
+  // Kita overwrite fungsi renderNilai yang lama agar otomatis mengecek
+  var originalRenderNilai = renderNilai;
+  renderNilai = function(nilaiData) {
+    originalRenderNilai(nilaiData); // Jalankan fungsi tabel lama
+    // Munculkan secara default tombolnya, backend akan menolak jika blm rilis
+    document.getElementById('areaTombolNilaiAkhir').style.display = 'block';
+  }
+
+</script>
+
+<!-- ── MODAL EXPORT NILAI ── -->
+<div id="exportModalOverlay" class="modal-overlay" style="display:none;" onclick="if(event.target===this)tutupModalExport()">
+  <div class="modal-card">
+    <h3 class="modal-title">📥 Download Rekapitulasi Nilai</h3>
+    <p style="font-size:13px;color:#5a8fa8;margin-bottom:18px;">
+      Sistem akan menghitung <b style="color:var(--foam);">Nilai Akhir berdasarkan Bobot Persentase</b> yang telah Anda atur,
+      lalu mengkonversinya ke <b style="color:var(--mint);">Nilai Huruf</b> secara otomatis.
+    </p>
+
+    <!-- Info skala nilai -->
+    <div style="background:rgba(33,150,211,0.08);border:1px solid rgba(33,150,211,0.2);border-radius:10px;padding:12px 14px;margin-bottom:18px;font-size:12px;color:#8ab8cc;">
+      <b style="color:var(--foam);">Skala Nilai Huruf:</b>
+      A (≥80) &nbsp;·&nbsp; B+ (71–79) &nbsp;·&nbsp; B (65–70) &nbsp;·&nbsp;
+      C+ (60–64) &nbsp;·&nbsp; C (55–59) &nbsp;·&nbsp; D+ (50–54) &nbsp;·&nbsp; D (40–49) &nbsp;·&nbsp; E (&lt;40)
+    </div>
+
+    <div class="grid gap-3" style="grid-template-columns:1fr 1fr;margin-bottom:14px;">
+      <div>
+        <label class="form-label">Tahun Ajaran</label>
+        <input type="text" id="exportTahunAjaran" class="form-input" placeholder="Contoh: 2025">
+      </div>
+      <div>
+        <label class="form-label">Semester</label>
+        <input type="text" id="exportSemester" class="form-input" placeholder="Ganjil / Genap">
+      </div>
+    </div>
+    <div style="margin-bottom:20px;">
+      <label class="form-label">Ketua Pengampu</label>
+      <input type="text" id="exportPengampu" class="form-input" placeholder="Nama lengkap dosen">
+    </div>
+
+    <div style="display:flex;gap:10px;">
+      <button id="btnProsesExport" class="btn btn-amber" style="flex:1;" onclick="prosesExportNilai()">📥 Download</button>
+      <button class="btn btn-dark" onclick="tutupModalExport()">Batal</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL IMPOR KONTEN ── -->
+<div id="importModalOverlay" class="modal-overlay" style="display:none;" onclick="if(event.target===this)tutupModalImport()">
+  <div class="modal-card">
+    <h3 class="modal-title">📥 Impor Konten Kelas</h3>
+    <p style="font-size:13px;color:#5a8fa8;margin-bottom:18px;">
+      Pilih kelas sumber. Semua <b>Materi, Kuis, dan Presensi</b> dari kelas tersebut akan disalin ke kelas <b style="color:var(--foam);" id="importTargetName"></b>.
+    </p>
+    
+    <div style="margin-bottom:15px;">
+      <label class="form-label">Pilih Kelas Sumber</label>
+      <select id="importSourceCourse" class="form-input" style="padding: 10px 14px;">
+        <option value="">-- Memuat kelas... --</option>
+      </select>
+    </div>
+
+    <div style="margin-bottom:20px;">
+      <label class="form-label">📅 Deadline Lesson Learn (Untuk Kelas Ini)</label>
+      <input type="date" id="importNewDeadline" class="form-input" title="Tentukan batas waktu presensi untuk kelas target">
+    </div>
+
+    <div style="display:flex;gap:10px;">
+      <button id="btnProsesImport" class="btn btn-ocean" style="flex:1;" onclick="prosesImportKonten()">📥 Mulai Impor</button>
+      <button class="btn btn-dark" onclick="tutupModalImport()">Batal</button>
+    </div>
+  </div>
+</div>
+<div id="importNilaiModalOverlay" class="modal-overlay" style="display:none;" onclick="if(event.target===this)tutupModalImportNilai()">
+  <div class="modal-card">
+    <h3 class="modal-title">📤 Impor Nilai dari Excel/CSV</h3>
+    <p style="font-size:13px;color:#5a8fa8;margin-bottom:12px;">
+      Unggah file Excel hasil Google Forms. Pastikan file memiliki kolom bernama <b style="color:var(--foam);">NIM</b> dan <b style="color:var(--mint);">Skor / Nilai</b>.
+    </p>
+
+    <div class="grid gap-3" style="grid-template-columns:1fr; margin-bottom:14px;">
+      <div>
+        <label class="form-label">Jenis Penilaian</label>
+        <input type="text" id="importJenisNilai" class="form-input" placeholder="Contoh: Kuis 1, Tugas Kelompok, UTS">
+      </div>
+      <div>
+        <label class="form-label">Pilih File (.xlsx / .csv)</label>
+        <input type="file" id="fileImportNilai" class="form-input" accept=".xlsx, .xls, .csv" style="padding: 7px 10px;">
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button id="btnProsesImportNilai" class="btn btn-teal" style="flex:1;" onclick="prosesImportNilaiExcel()">📤 Proses Impor</button>
+      <button class="btn btn-dark" onclick="tutupModalImportNilai()">Batal</button>
+    </div>
+  </div>
+</div>
+
+<div id="pengaturanNilaiModalOverlay" class="modal-overlay" style="display:none;" onclick="if(event.target===this)tutupModalPengaturanNilai()">
+  <div class="modal-card">
+    <h3 class="modal-title">⚙️ Pengaturan & Rilis Nilai Akhir</h3>
+    <p style="font-size:13px;color:#5a8fa8;margin-bottom:12px;">Masukkan jenis penilaian persis seperti yang Anda input sebelumnya beserta bobot presentasenya (Total wajib 100%).</p>
+    
+    <div id="bobotContainer" class="mb-4">
+      </div>
+    
+    <button class="btn btn-ghost btn-sm btn-full mb-4" onclick="tambahBarisBobot('', '')">+ Tambah Komponen Penilaian</button>
+    
+    <div class="glass p-4 rounded-xl mb-6" style="border:1px solid var(--amber); display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <h4 style="color:var(--foam); font-size:14px; font-weight:600; margin:0;">Rilis ke Mahasiswa?</h4>
+        <p style="color:#8ab8cc; font-size:11px; margin:0;">Mahasiswa bisa melihat nilai akhirnya jika aktif.</p>
+      </div>
+      <label style="position:relative; display:inline-block; width:44px; height:24px; cursor:pointer;">
+        <input type="checkbox" id="toggleRilisNilai" onchange="animasiToggleRilis(this)" style="opacity:0; width:0; height:0; position:absolute;">
+        <span id="toggleBg" style="position:absolute; top:0; left:0; right:0; bottom:0; background-color:#0b1f3a; border:1px solid #3a6a85; border-radius:34px; transition:.4s;"></span>
+        <span id="toggleKnob" style="position:absolute; height:16px; width:16px; left:4px; bottom:3px; background-color:var(--foam); border-radius:50%; transition:.4s; pointer-events:none;"></span>
+      </label>
+    </div>
+
+    <div style="display:flex;gap:10px;">
+      <button id="btnSimpanPengaturanNilai" class="btn btn-ocean" style="flex:1;" onclick="simpanPengaturanNilai()">💾 Simpan & Terapkan</button>
+      <button class="btn btn-dark" onclick="tutupModalPengaturanNilai()">Batal</button>
+    </div>
+  </div>
+</div>
+
+<div id="nilaiAkhirModalOverlay" class="modal-overlay" style="display:none;" onclick="if(event.target===this)tutupModalNilaiAkhir()">
+  <div class="modal-card">
+    <h3 class="modal-title">📊 Rincian Nilai Akhir Anda</h3>
+    
+    <div class="tbl-wrap mb-4" style="max-height: 200px;">
+      <table style="width:100%; text-align:left;">
+        <thead>
+          <tr>
+            <th>Komponen</th>
+            <th style="text-align:center;">Nilai</th>
+            <th style="text-align:center;">Bobot</th>
+            <th style="text-align:center;">Hasil</th>
+          </tr>
+        </thead>
+        <tbody id="rincianNilaiBody">
+        </tbody>
+      </table>
+    </div>
+
+    <div class="glass p-4 rounded-xl" style="text-align:center; border:1px solid var(--mint);">
+      <p style="color:#8ab8cc; font-size:12px; margin-bottom:4px; text-transform:uppercase;">Skor Akhir & Grade</p>
+      <h2 style="font-family:'Lora',serif; color:var(--foam); font-size:32px; margin:0;">
+        <span id="finalScoreNumber">0</span> = <span id="finalScoreLetter" class="badge badge-mint" style="font-size:24px;">-</span>
+      </h2>
+    </div>
+
+    <p style="font-size: 11px; color: #8ab8cc; margin-top: 15px; font-style: italic; text-align: center; line-height: 1.4;">
+      * Nilai final bergantung pada hasil kompilasi Ketua Dosen Pengampu Mata Kuliah berdasarkan kompilasi seluruh dosen pengampu.
+    </p>
+    <button class="btn btn-dark btn-full mt-5" onclick="tutupModalNilaiAkhir()">Tutup</button>
+  </div>
+</div>
+
+<div id="toastContainer" style="position:fixed;top:70px;right:20px;z-index:99999;display:flex;flex-direction:column;gap:8px;pointer-events:none;"></div>
+
+<div id="customConfirmOverlay" style="display:none;position:fixed;inset:0;z-index:100000;background:rgba(6,15,30,0.85);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:20px;">
+  <div class="glass-solid" style="width:100%;max-width:360px;text-align:center;padding:28px 24px;border-radius:20px;border:1px solid var(--border);animation:fadeUp 0.25s ease;">
+    <div id="confirmIcon" style="font-size:36px;margin-bottom:10px;">⚠️</div>
+    <h3 id="confirmTitle" style="font-family:'Lora',serif;color:var(--foam);font-size:17px;margin:0 0 8px;">Konfirmasi</h3>
+    <p id="confirmMessage" style="color:#8ab8cc;font-size:13px;line-height:1.6;margin:0 0 22px;">Apakah Anda yakin?</p>
+    <div style="display:flex;gap:10px;">
+      <button id="btnConfirmNo" class="btn btn-dark" style="flex:1;">Batal</button>
+      <button id="btnConfirmYes" class="btn btn-coral" style="flex:1;">Ya, Lanjutkan</button>
+    </div>
+  </div>
+</div>
+
+<div id="overlayCbt" class="modal-overlay" style="display:none;" onclick="if(event.target===this)tutupModalCbt()">
+  <div class="modal-card" style="max-width: 550px; max-height: 90vh; overflow-y: auto;">
+    <h3 class="modal-title">⚙️ Tambah Soal Ujian Baru (CBT)</h3>
+    
+    <!-- GANTI bagian "ID Kuis / Tugas" yang lama dengan ini -->
+  <div style="margin-bottom:15px;">
+    <label class="form-label">ID Kuis / Tugas:</label>
+    <select id="cbtQuizIdSelect" class="form-input" style="padding:10px 14px;" onchange="handleQuizIdSelect()">
+    <option value="">-- Buka dulu kelas yang ingin dibuat kuisnya --</option>
+    </select>
+    <!-- Input manual, muncul hanya jika pilih "Buat Baru" -->
+    <input type="text" id="cbtQuizIdNew" class="form-input" 
+         placeholder="Contoh: KUIS-2024001" 
+         style="display:none; margin-top:8px;">
+    <p id="cbtQuizIdHint" style="font-size:11px; color:#5a8fa8; margin-top:5px; display:none;">
+      ID baru akan otomatis terdaftar di kelas aktif saat soal disimpan.
+    </p>
+  </div>
+  
+    <div style="margin-bottom:15px;">
+        <label class="form-label">Tipe Soal:</label>
+        <select id="cbtType" onchange="toggleCbtOptions()" class="form-input" style="padding: 10px 14px;">
+            <option value="PG">Pilihan Ganda (PG)</option>
+            <option value="ESSAY">Essay (Penilaian Otomatis AI)</option>
+        </select>
+    </div>
+  
+    <div style="margin-bottom:15px;">
+        <label class="form-label">Pertanyaan Soal:</label>
+        <textarea id="cbtText" rows="3" class="form-input" placeholder="Tuliskan soal di sini..." style="resize: vertical;"></textarea>
+    </div>
+
+    <div style="margin-bottom:15px;">
+      <label class="form-label" style="color:#8ab8cc;">🖼️ Gambar Soal (Opsional):</label>
+      <input type="url" id="cbtImageUrl" class="form-input"
+            placeholder="https://drive.google.com/uc?export=view&id=...">
+      <p style="font-size:10px; color:#5a8fa8; margin-top:4px;">
+        Kosongkan jika soal tidak bergambar. Google Drive: ubah ke
+        <code style="color:var(--foam);">uc?export=view&id=FILE_ID</code>
+      </p>
+      <div id="cbtImagePreview" style="margin-top:8px; display:none; text-align:center;">
+        <img id="cbtPreviewImg"
+            style="max-width:100%; max-height:200px; border-radius:8px;
+                    border:1px solid var(--border); object-fit:contain;">
+        <p id="cbtPreviewErr" style="font-size:11px; color:var(--coral); display:none;">
+          ⚠️ Gambar tidak dapat dimuat. Periksa kembali URL.
+        </p>
+      </div>
+    </div>
+  
+    <div id="areaPG" style="margin-bottom:15px; padding:15px; background:rgba(33,150,211,0.08); border:1px solid rgba(33,150,211,0.2); border-radius:10px;">
+        <label class="form-label" style="color:var(--foam);">Pilihan Jawaban (PG):</label>
+        <p style="color:#5a8fa8; font-size: 11px; margin-top:0; margin-bottom: 8px;">Tulis setiap pilihan jawaban di <b>baris baru (Tekan Enter)</b>.</p>
+        <textarea id="cbtOptionsInput" rows="4" class="form-input" placeholder="A. Jakarta&#10;B. Bandung&#10;C. Surabaya" style="resize: vertical;"></textarea>
+    </div>
+  
+    <div style="margin-bottom:15px;">
+        <label class="form-label">Kunci Jawaban / Patokan Rubrik:</label>
+        <textarea id="cbtCorrectAnswer" rows="2" class="form-input" placeholder="Tulis jawaban benar secara persis" style="resize: vertical;"></textarea>
+        <p style="color:var(--coral); margin-top:6px; margin-bottom:0; font-size:11px; font-style: italic;">
+          *PG: Samakan dengan salah satu opsi.<br>*Essay: Tulis rubrik panduan untuk AI.
+        </p>
+    </div>
+  
+    <div style="margin-bottom:20px;">
+        <label class="form-label">Bobot Poin Soal Ini:</label>
+        <input type="number" id="cbtPoints" value="10" class="form-input">
+    </div>
+
+    <div style="margin-bottom:20px; border-top:1px dashed var(--border); padding-top:15px;">
+  <label class="form-label" style="color:var(--amber);">⏱️ Pengaturan Waktu Ujian:</label>
+  
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px;">
+    <div>
+      <label class="form-label" style="font-size:11px; color:#8ab8cc;">
+        🔒 Batas Akses (Deadline):
+      </label>
+      <input type="datetime-local" id="cbtDeadline" class="form-input">
+      <p style="font-size:10px; color:#5a8fa8; margin-top:4px;">
+        Ujian tidak bisa dibuka setelah waktu ini.
+      </p>
+    </div>
+    <div>
+      <label class="form-label" style="font-size:11px; color:#8ab8cc;">
+        ⏳ Durasi Pengerjaan (menit):
+      </label>
+      <input type="number" id="cbtDuration" class="form-input" 
+             placeholder="Cth: 30" min="1" max="300">
+      <p style="font-size:10px; color:#5a8fa8; margin-top:4px;">
+        Dihitung sejak mahasiswa klik mulai.
+      </p>
+    </div>
+  </div>
+
+  <div style="background:rgba(232,168,58,0.08); border:1px solid rgba(232,168,58,0.2); 
+              border-radius:8px; padding:10px; margin-top:10px;">
+    <p style="font-size:11px; color:var(--amber); margin:0;">
+      💡 Contoh: Deadline = besok jam 23:59, Durasi = 30 menit.<br>
+      Mahasiswa bebas mulai kapan saja sebelum deadline, tapi hanya punya 30 menit sejak klik mulai.
+    </p>
+  </div>
+
+  <button onclick="simpanPengaturanWaktuCbt()" id="btnSimpanDeadline" 
+          class="btn btn-amber" style="width:100%; margin-top:12px;">
+    ⏳ Simpan Pengaturan Waktu
+  </button>
+</div>
+  
+    <div style="display:flex; gap:10px;">
+      <button onclick="simpanSoalCbt()" id="btnSimpanCbt" class="btn btn-ocean" style="flex:1;">💾 Simpan Soal</button>
+      <button onclick="tutupModalCbt()" class="btn btn-dark">Tutup</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
