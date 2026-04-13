@@ -5,195 +5,1636 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CBT Ujian - AquaLMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Sora:wght@600;700&display=swap" rel="stylesheet">
   <style>
-    body { font-family: Arial, sans-serif; background-color: #f4f4f9; margin: 0; padding: 20px; color: #333; }
-    .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-    .header { border-bottom: 2px solid #ddd; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-    .question-card { margin-bottom: 25px; padding: 15px; background: #fafafa; border-radius: 8px; border: 1px solid #eee; }
-    .options { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
-    textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: inherit; margin-top: 10px; resize: vertical; }
-    button { background: #1565a8; color: white; padding: 12px 24px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; }
-    button:hover { background: #0d3d6b; }
-    button:disabled { background: #aaa; cursor: not-allowed; }
+    /* ===== DESIGN TOKENS ===== */
+    :root {
+      --blue-900: #0d2f5e;
+      --blue-700: #1565a8;
+      --blue-500: #1e88e5;
+      --blue-100: #e3f2fd;
+      --teal:     #00897b;
+      --teal-bg:  #e0f2f1;
+      --red:      #c62828;
+      --red-bg:   rgba(198,40,40,.08);
+      --amber:    #b8761a;
+      --amber-bg: rgba(232,168,58,.10);
+      --green:    #2e7d32;
+      --green-bg: rgba(46,125,50,.08);
+      --text:     #1a1f36;
+      --muted:    #5e6278;
+      --border:   #e4e8ef;
+      --surface:  #f7f9fc;
+      --white:    #ffffff;
+      --radius:   12px;
+      --shadow:   0 4px 18px rgba(21,101,168,.10);
+      --shadow-lg:0 8px 40px rgba(21,101,168,.16);
+      --font-body: 'DM Sans', sans-serif;
+      --font-head: 'Sora', sans-serif;
+    }
+
+    /* ===== RESET & BASE ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-body);
+      background: var(--surface);
+      color: var(--text);
+      padding: 20px 16px 40px;
+      user-select: none;
+      -webkit-user-select: none;
+      min-height: 100vh;
+    }
+    textarea { user-select: text; -webkit-user-select: text; }
+
+    /* ===== LAYOUT ===== */
+    .page-wrapper {
+      max-width: 860px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ===== HEADER CARD ===== */
+    .header-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      border-top: 4px solid var(--blue-700);
+    }
+    .header-title { font-family: var(--font-head); font-size: 18px; color: var(--blue-900); }
+    .header-meta  { font-size: 13px; color: var(--muted); margin-top: 3px; }
+    .timer-badge {
+      background: var(--blue-700);
+      color: var(--white);
+      padding: 8px 18px;
+      border-radius: 30px;
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: 0.4px;
+      transition: background .4s;
+    }
+    .timer-badge.warn   { background: #e65100; }
+    .timer-badge.danger { background: var(--red); }
+
+    /* ===== NAVIGATOR ===== */
+    #navigator-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px 20px;
+    }
+    #navigator-card .nav-label {
+      font-size: 12px; font-weight: 600;
+      color: var(--muted); text-transform: uppercase;
+      letter-spacing: .6px; margin-bottom: 10px;
+    }
+    #navGrid {
+      display: flex; flex-wrap: wrap; gap: 7px;
+    }
+    .nav-pill {
+      width: 34px; height: 34px;
+      border-radius: 8px;
+      border: 2px solid var(--border);
+      background: var(--surface);
+      font-size: 12px; font-weight: 700;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .2s;
+      color: var(--muted);
+    }
+    .nav-pill.answered {
+      background: var(--teal); border-color: var(--teal); color: var(--white);
+    }
+    .nav-pill:hover { border-color: var(--blue-500); color: var(--blue-500); }
+    #navSummary {
+      font-size: 12px; color: var(--muted); margin-top: 10px;
+    }
+    #navSummary b { color: var(--text); }
+
+    /* ===== QUESTION CARD ===== */
+    .question-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px 24px;
+      border-left: 4px solid var(--border);
+      transition: border-color .3s;
+      scroll-margin-top: 70px; /* offset for floating timer */
+    }
+    .question-card.answered  { border-left-color: var(--teal); }
+    .question-card.unanswered-flag { border-left-color: #e53935; }
+
+    .q-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .q-num {
+      font-family: var(--font-head);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--blue-700);
+      background: var(--blue-100);
+      padding: 3px 10px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+    .q-points {
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .q-text { font-size: 15px; line-height: 1.65; color: var(--text); }
+
+    /* ===== DUA PANEL: TEKS + GAMBAR ===== */
+    .q-body-split {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      margin-top: 0;
+    }
+    .q-body-split .q-text {
+      flex: 1;
+      min-width: 0;
+    }
+    .q-image-wrap {
+      flex-shrink: 0;
+      width: 190px;        /* ~5cm pada 96dpi */
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      overflow: hidden;
+      background: var(--surface);
+      text-align: center;
+    }
+    .q-image-wrap img {
+      width: 190px;
+      height: 190px;       /* ~5cm */
+      object-fit: contain;
+      display: block;
+      cursor: zoom-in;
+      transition: opacity .18s;
+    }
+    .q-image-wrap img:hover { opacity: .85; }
+    .q-image-caption {
+      font-size: 10px;
+      color: var(--muted);
+      padding: 3px 6px 5px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      line-height: 1.3;
+    }
+    @media (max-width: 600px) {
+      .q-body-split { flex-direction: column; }
+      .q-image-wrap { width: 100%; }
+      .q-image-wrap img { width: 100%; height: 180px; }
+    }
+
+    /* ===== LIGHTBOX ===== */
+    #lightbox-overlay {
+      display: none;
+      position: fixed; inset: 0; z-index: 99800;
+      background: rgba(0, 0, 0, .82);
+      backdrop-filter: blur(6px);
+      align-items: center;
+      justify-content: center;
+    }
+    #lightbox-overlay.visible { display: flex; }
+
+    #lightbox-box {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      max-width: 92vw;
+      max-height: 92vh;
+    }
+
+    #lightbox-close {
+      position: absolute;
+      top: -14px; right: -14px;
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: white;
+      color: var(--blue-900);
+      border: none;
+      font-size: 18px; font-weight: 700;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,.35);
+      z-index: 1; line-height: 1;
+      transition: background .15s, transform .15s;
+    }
+    #lightbox-close:hover { background: #fce4e4; transform: scale(1.1); }
+
+    #lightbox-img {
+      display: block;
+      max-width: 88vw;
+      max-height: 78vh;
+      object-fit: contain;
+      border-radius: 10px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.5);
+      transition: transform .2s ease;
+      transform-origin: center center;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #lightbox-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 14px;
+      background: rgba(255,255,255,.12);
+      border-radius: 30px;
+      padding: 7px 16px;
+      backdrop-filter: blur(4px);
+    }
+    .lb-btn {
+      width: 36px; height: 36px;
+      border-radius: 50%; border: none;
+      background: rgba(255,255,255,.9);
+      color: var(--blue-900);
+      font-size: 18px; font-weight: 700;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s, transform .12s;
+      line-height: 1;
+    }
+    .lb-btn:hover  { background: white; transform: scale(1.1); }
+    .lb-btn:active { transform: scale(.95); }
+    #lightbox-zoom-label {
+      font-size: 13px; font-weight: 600;
+      color: white; min-width: 44px; text-align: center;
+    }
+    #lightbox-caption {
+      font-size: 12px;
+      color: rgba(255,255,255,.6);
+      margin-top: 8px; text-align: center;
+    }
+
+    /* ===== PILIHAN GANDA ===== */
+    .options { display: flex; flex-direction: column; gap: 9px; margin-top: 14px; }
+    .option-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 14px;
+      border-radius: 9px;
+      border: 2px solid var(--border);
+      cursor: pointer;
+      transition: all .18s;
+      font-size: 14px;
+    }
+    .option-label:hover { border-color: var(--blue-500); background: var(--blue-100); }
+    .option-label input[type="radio"] { accent-color: var(--blue-700); width: 16px; height: 16px; flex-shrink: 0; }
+    .option-label.selected { border-color: var(--teal); background: var(--teal-bg); font-weight: 600; color: var(--teal); }
+
+    /* ===== ESSAY ===== */
+    .essay-area {
+      width: 100%;
+      padding: 12px 14px;
+      border: 2px solid var(--border);
+      border-radius: 9px;
+      font-family: var(--font-body);
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text);
+      margin-top: 14px;
+      resize: vertical;
+      min-height: 120px;
+      transition: border-color .18s;
+    }
+    .essay-area:focus { outline: none; border-color: var(--blue-500); }
+
+    /* ===== AUTOSAVE BAR ===== */
+    #autosave-bar {
+      position: fixed; bottom: 16px; left: 50%;
+      transform: translateX(-50%);
+      background: var(--teal);
+      color: white;
+      font-size: 12px; font-weight: 600;
+      padding: 7px 18px; border-radius: 20px;
+      z-index: 6000;
+      opacity: 0;
+      transition: opacity .4s;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    #autosave-bar.show { opacity: 1; }
+
+    /* ===== VIOLATION BADGE ===== */
+    #ac-violation-badge {
+      position: fixed; bottom: 16px; right: 16px;
+      background: var(--red); color: white;
+      font-size: 12px; font-weight: 700;
+      padding: 7px 14px; border-radius: 20px;
+      display: none; z-index: 7000;
+      box-shadow: 0 2px 10px rgba(0,0,0,.3);
+    }
+
+    /* ===== FLOATING TIMER ===== */
+    #floatingTimer {
+      display: none; position: fixed; top: 12px; right: 16px; z-index: 9999;
+      background: var(--blue-700); color: white;
+      padding: 8px 16px; border-radius: 20px;
+      font-weight: 700; font-size: 14px;
+      box-shadow: 0 4px 12px rgba(0,0,0,.25);
+      transition: background .4s;
+    }
+
+    /* ===== TOAST ===== */
+    #ac-toast {
+      position: fixed; top: 16px; left: 50%;
+      transform: translateX(-50%);
+      background: #37474f; color: white;
+      padding: 10px 22px; border-radius: 8px;
+      font-size: 13px; font-weight: 600;
+      z-index: 9500; opacity: 0;
+      transition: opacity .3s;
+      pointer-events: none; white-space: nowrap;
+      max-width: 90vw; text-align: center;
+    }
+    #ac-toast.show { opacity: 1; }
+    #ac-toast.danger { background: var(--red); }
+    #ac-toast.warn   { background: #e65100; }
+
+    /* ===== OVERLAYS ===== */
+    /* Fullscreen gate */
+    #ac-fullscreen-gate {
+      position: fixed; inset: 0;
+      background: linear-gradient(160deg, #0d2f5e 0%, #1565a8 100%);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 9000; color: white; text-align: center; padding: 30px;
+    }
+    #ac-fullscreen-gate .gate-icon { font-size: 52px; margin-bottom: 16px; }
+    #ac-fullscreen-gate h2 { font-family: var(--font-head); font-size: 24px; margin-bottom: 12px; }
+    #ac-fullscreen-gate p  { font-size: 14px; color: rgba(255,255,255,.8); margin-bottom: 28px; max-width: 440px; line-height: 1.7; }
+    #ac-fullscreen-gate button {
+      background: white; color: var(--blue-900);
+      padding: 14px 34px; border: none; border-radius: 12px;
+      font-family: var(--font-head); font-size: 16px; font-weight: 700;
+      cursor: pointer; transition: transform .15s, box-shadow .15s;
+      box-shadow: 0 4px 20px rgba(0,0,0,.2);
+    }
+    #ac-fullscreen-gate button:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,.28); }
+
+    /* Offline overlay */
+    #ac-offline-overlay {
+      position: fixed; inset: 0;
+      background: rgba(180,0,0,.94);
+      display: none; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 8500; color: white; text-align: center; padding: 30px;
+    }
+    #ac-offline-overlay.visible { display: flex; }
+    #ac-offline-overlay .icon { font-size: 48px; margin-bottom: 16px; }
+    #ac-offline-overlay h3 { font-size: 20px; margin-bottom: 8px; }
+    #ac-offline-overlay p  { font-size: 14px; color: rgba(255,255,255,.8); }
+
+    /* Re-enter fullscreen overlay */
+    #ac-reenter-overlay {
+      display: none; position: fixed; inset: 0; z-index: 99999;
+      background: #b71c1c;
+      flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; padding: 30px;
+      color: white; font-family: var(--font-body);
+    }
+    #ac-reenter-overlay.visible { display: flex; }
+    #ac-reenter-overlay h2 { font-family: var(--font-head); font-size: 22px; margin: 16px 0 10px; }
+    #ac-reenter-overlay p { font-size: 14px; opacity: .9; max-width: 400px; line-height: 1.7; margin-bottom: 12px; }
+    #ac-reenter-overlay .vio-chip {
+      font-size: 13px; background: rgba(0,0,0,.25);
+      padding: 6px 20px; border-radius: 20px; margin-bottom: 26px;
+    }
+    #ac-reenter-overlay button {
+      background: white; color: #b71c1c;
+      padding: 14px 36px; border: none; border-radius: 12px;
+      font-family: var(--font-head); font-size: 16px; font-weight: 700;
+      cursor: pointer;
+    }
+    #ac-reenter-overlay .footnote { font-size: 11px; opacity: .65; margin-top: 14px; }
+
+    /* Main content */
+    #main-content { display: none; }
+
+    /* ===== SUBMIT BUTTON ===== */
+    #btnSubmit {
+      display: none;
+      background: linear-gradient(135deg, var(--blue-700), var(--blue-500));
+      color: white; padding: 15px 24px;
+      border: none; border-radius: var(--radius);
+      font-family: var(--font-head); font-size: 16px; font-weight: 700;
+      width: 100%; cursor: pointer;
+      box-shadow: 0 4px 16px rgba(21,101,168,.35);
+      transition: filter .2s, transform .15s;
+    }
+    #btnSubmit:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
+    #btnSubmit:disabled { background: #aaa; cursor: not-allowed; box-shadow: none; }
+
+    /* ===== MODAL SUBMIT ===== */
+    #modal-submit-overlay {
+      display: none; position: fixed; inset: 0; z-index: 99000;
+      background: rgba(0,0,0,.55); backdrop-filter: blur(4px);
+      align-items: center; justify-content: center; padding: 20px;
+    }
+    #modal-submit-overlay.visible { display: flex; }
+    #modal-submit-box {
+      background: white; border-radius: 18px; padding: 30px 26px;
+      max-width: 400px; width: 100%; text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,.28);
+      animation: popIn .22s cubic-bezier(.175,.885,.32,1.275);
+    }
+    @keyframes popIn {
+      from { opacity:0; transform: scale(.88); }
+      to   { opacity:1; transform: scale(1); }
+    }
+    #modal-submit-box .modal-icon { font-size: 46px; margin-bottom: 14px; }
+    #modal-submit-box h3 { font-family: var(--font-head); font-size: 18px; color: var(--blue-900); margin-bottom: 8px; }
+    #modal-submit-box p  { font-size: 13px; color: var(--muted); line-height: 1.65; margin-bottom: 10px; }
+    #modal-unanswered-note {
+      background: var(--red-bg); border: 1px solid rgba(198,40,40,.25);
+      border-radius: 9px; padding: 10px 14px;
+      font-size: 13px; color: var(--red); font-weight: 600;
+      margin-bottom: 18px; display: none;
+    }
+    .modal-btn-row { display: flex; gap: 10px; }
+    .modal-btn-row button {
+      flex: 1; padding: 13px; border-radius: 11px;
+      font-size: 14px; font-weight: 700; border: none; cursor: pointer;
+      transition: filter .2s, transform .1s; font-family: var(--font-body);
+    }
+    .modal-btn-row button:active { transform: scale(.97); }
+    #btnModalBatal { background: #f0f0f5; color: var(--muted); }
+    #btnModalBatal:hover { filter: brightness(.95); }
+    #btnModalOke {
+      background: linear-gradient(135deg, var(--blue-700), var(--blue-500));
+      color: white;
+    }
+    #btnModalOke:hover { filter: brightness(1.1); }
+
+    /* ===== LOADING SUBMIT ===== */
+    #loading-submit-overlay {
+      display: none; position: fixed; inset: 0; z-index: 99500;
+      background: rgba(255,255,255,.94);
+      align-items: center; justify-content: center;
+      flex-direction: column; gap: 18px;
+    }
+    #loading-submit-overlay.visible { display: flex; }
+    .spinner {
+      width: 52px; height: 52px; border-radius: 50%;
+      border: 5px solid var(--border);
+      border-top-color: var(--blue-700);
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loadingSubmitPesan { font-size: 14px; font-weight: 600; color: var(--blue-700); margin: 0; }
+
+    /* ===== RESULT AREA ===== */
+    #resultArea {
+      display: none;
+      background: white; border-radius: var(--radius);
+      box-shadow: var(--shadow); padding: 30px;
+      text-align: center;
+    }
+    .result-title { font-family: var(--font-head); font-size: 20px; color: var(--blue-900); margin-bottom: 8px; }
+    .result-sub   { font-size: 14px; color: var(--muted); margin-bottom: 20px; }
+    .result-alert {
+      border-radius: 10px; padding: 12px 16px;
+      font-size: 13px; text-align: left;
+      margin-bottom: 12px; line-height: 1.55;
+    }
+    .result-alert.vio    { background: var(--red-bg);   border: 1px solid rgba(198,40,40,.3);  color: var(--red); }
+    .result-alert.note   { background: var(--amber-bg); border: 1px solid rgba(232,168,58,.3); color: var(--amber); }
+    .result-alert.essay  { background: var(--amber-bg); border: 1px solid rgba(232,168,58,.3); color: var(--amber); }
+
+    #btnKembali {
+      background: #f0f0f5; color: var(--text);
+      padding: 12px 24px; border: none; border-radius: 10px;
+      font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 18px;
+      font-family: var(--font-body); transition: filter .2s;
+    }
+    #btnKembali:hover { filter: brightness(.94); }
+
+    /* ===== LOADING STATE ===== */
+    #loading { text-align: center; color: var(--muted); padding: 30px 0; font-size: 14px; }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 600px) {
+      body { padding: 12px 10px 36px; }
+      .header-card { flex-direction: column; align-items: flex-start; }
+      .q-header { flex-wrap: wrap; }
+    }
   </style>
 </head>
 <body>
 
-<div class="container" id="cbtApp">
-  <div class="header">
-    <div>
-      <h2 style="margin: 0;">Ujian Berbasis Komputer</h2>
-      <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">Mahasiswa: <span id="studentName">Memuat...</span></p>
-    </div>
-    <div id="quizTimer" style="font-weight: bold; color: #d32f2f;"></div>
-  </div>
+<!-- ===== GATE: FULLSCREEN ===== -->
+<div id="ac-fullscreen-gate">
+  <div class="gate-icon">🔒</div>
+  <h2>Ujian Terkunci – Mode Layar Penuh</h2>
+  <p>
+    Demi integritas ujian, Anda <strong>wajib</strong> menggunakan mode Layar Penuh selama ujian berlangsung.<br>
+    Keluar dari layar penuh akan dicatat sebagai pelanggaran dan dilaporkan ke dosen.
+  </p>
+  <button onclick="masukLayarPenuh()">▶ Masuk Layar Penuh &amp; Mulai Ujian</button>
+</div>
 
-  <div id="loading" style="text-align: center; color: #666;">Memuat soal ujian...</div>
-  
-  <div id="questionContainer"></div>
-  
-  <button id="btnSubmit" style="display: none;" onclick="submitKuis()">Kirim Jawaban</button>
-  
-  <div id="resultArea" style="display: none; text-align: center; margin-top: 20px;">
-    <h3>Ujian Selesai!</h3>
-    <p>Nilai Akhir Anda: <strong style="font-size: 24px; color: #4CAF50;" id="finalScoreDisplay">0</strong> / 100</p>
-    <button onclick="tutupAman()" style="margin-top: 15px; background: #555;">Kembali ke LMS / Tutup</button>
+<!-- ===== OVERLAY: RE-ENTER FULLSCREEN ===== -->
+<div id="ac-reenter-overlay">
+  <div style="font-size:52px;">⚠️</div>
+  <h2>Pelanggaran Terdeteksi!</h2>
+  <p>Anda keluar dari mode <strong>Layar Penuh</strong>.<br>Pelanggaran ini telah dicatat dan akan dilaporkan.</p>
+  <div class="vio-chip">Total Pelanggaran: <strong id="reenter-vio-count">0</strong> / 5</div>
+  <button onclick="_paksakanFullscreen()">🔒 Kembali ke Ujian</button>
+  <p class="footnote">Ujian tidak dapat dilanjutkan di luar mode layar penuh.</p>
+</div>
+
+<!-- ===== OVERLAY: OFFLINE ===== -->
+<div id="ac-offline-overlay">
+  <div class="icon">📵</div>
+  <h3>Koneksi Internet Terputus!</h3>
+  <p>Ujian dijeda. Halaman akan pulih otomatis saat internet kembali terhubung.</p>
+</div>
+
+<!-- ===== BADGE & TOAST ===== -->
+<div id="ac-violation-badge">⚠ Pelanggaran: <span id="violation-count">0</span></div>
+<div id="ac-toast"></div>
+<div id="autosave-bar">💾 Jawaban tersimpan otomatis</div>
+
+<!-- ===== FLOATING TIMER ===== -->
+<div id="floatingTimer">⏱ <span id="floatingTimerText">--:--</span></div>
+
+<!-- ===== MAIN CONTENT ===== -->
+<div id="main-content">
+  <div class="page-wrapper">
+
+    <!-- Header -->
+    <div class="header-card">
+      <div>
+        <div class="header-title">Computer Assisted Assessment</div>
+        <div class="header-meta">
+          Mahasiswa: <strong id="studentName">Memuat...</strong>
+        </div>
+      </div>
+      <div id="timerBadge" class="timer-badge" style="display:none;">--:--</div>
+    </div>
+
+    <!-- Question Navigator -->
+    <div id="navigator-card" style="display:none;">
+      <div class="nav-label">Navigasi Soal</div>
+      <div id="navGrid"></div>
+      <div id="navSummary"></div>
+    </div>
+
+    <!-- Loading state -->
+    <div id="loading">🕵🏻 Memuat soal ujian...</div>
+
+    <!-- Question Container -->
+    <div id="questionContainer"></div>
+
+    <!-- Submit Button -->
+    <button id="btnSubmit" onclick="submitKuis()">📤 Kumpulkan Jawaban</button>
+
+    <!-- Result Area -->
+    <div id="resultArea"></div>
+
+  </div><!-- .page-wrapper -->
+</div><!-- #main-content -->
+
+<!-- ===== MODAL: KONFIRMASI SUBMIT ===== -->
+<div id="modal-submit-overlay">
+  <div id="modal-submit-box">
+    <div class="modal-icon">📋</div>
+    <h3>Kumpulkan Jawaban?</h3>
+    <p>Periksa kembali semua jawaban Anda.<br>Jawaban <strong>tidak dapat diubah</strong> setelah dikumpulkan.</p>
+    <div id="modal-unanswered-note"></div>
+    <div class="modal-btn-row">
+      <button id="btnModalBatal" onclick="tutupModalSubmit()">Batal</button>
+      <button id="btnModalOke"   onclick="konfirmasiSubmit()">✅ Kumpulkan</button>
+    </div>
   </div>
 </div>
 
+<!-- ===== LIGHTBOX: ZOOM GAMBAR ===== -->
+<div id="lightbox-overlay">
+  <div id="lightbox-box">
+    <button id="lightbox-close" onclick="tutupLightbox()" title="Tutup">✕</button>
+    <img id="lightbox-img" src="" alt="Gambar soal diperbesar">
+    <div id="lightbox-toolbar">
+      <button class="lb-btn" onclick="zoomLightbox(-1)" title="Perkecil">−</button>
+      <span id="lightbox-zoom-label">100%</span>
+      <button class="lb-btn" onclick="zoomLightbox(+1)" title="Perbesar">+</button>
+    </div>
+    <div id="lightbox-caption"></div>
+  </div>
+</div>
+
+<!-- ===== OVERLAY: LOADING SUBMIT ===== -->
+<div id="loading-submit-overlay">
+  <div class="spinner"></div>
+  <p id="loadingSubmitPesan">Mengumpulkan jawaban Anda...</p>
+</div>
+
+
 <script>
-  var currentUser = null;
-  var quizId = null;
-  var userAnswers = {}; // Format: { "Q1": "Jawaban", "Q2": "A" }
+/* =============================================================
+   STATE APLIKASI
+   ============================================================= */
+var currentUser      = null;
+var quizId           = null;
+var userAnswers      = {};     // { questionId: answer }
+var allQuestions     = [];     // daftar soal untuk keperluan navigator
+var timerInterval    = null;
+var autosaveInterval = null;
+var submitRetryCount = 0;
+var MAX_RETRY        = 3;
+var AUTOSAVE_KEY     = '';     // localStorage key, diisi setelah quizId diketahui
 
-  var cheatViolations = 0; // Sensor anti-curang
+/* --- Anti-cheat state --- */
+var cheatViolations = parseInt(sessionStorage.getItem('cbt_violations') || '0');
+var acEnabled       = false;
+var toastTimer      = null;
+var pendingViolations = [];    // Antrian untuk dikirim ke server
 
-  window.onload = function() {
-    // Meminta API Google untuk membaca URL saat ini
-    google.script.url.getLocation(function(location) {
-      quizId = location.parameter.quizId;
-      var tokenSesi = location.parameter.token;
+/* =============================================================
+   ANTI-CHEAT — FULLSCREEN GATE
+   ============================================================= */
+function masukLayarPenuh() {
+  var el  = document.documentElement;
+  var req = el.requestFullscreen || el.webkitRequestFullscreen
+          || el.mozRequestFullScreen || el.msRequestFullscreen;
+  if (req) {
+    req.call(el)
+      .then(function() {
+        document.getElementById('ac-fullscreen-gate').style.display = 'none';
+        document.getElementById('main-content').style.display = 'block';
+        acEnabled = true;
+        _daftarkanListenerFullscreen();
+        initAntiCheatSensors();
+        inisialisasiApp();
+      })
+      .catch(function() {
+        tampilToast('Browser menolak layar penuh. Coba tekan F11 secara manual.', 'warn', 5000);
+      });
+  } else {
+    /* Fallback: browser tidak support fullscreen API */
+    document.getElementById('ac-fullscreen-gate').style.display = 'none';
+    document.getElementById('main-content').style.display = 'block';
+    acEnabled = true;
+    _daftarkanListenerFullscreen();
+    initAntiCheatSensors();
+    inisialisasiApp();
+  }
+}
 
-      // 1. Coba ambil sesi dari URL (Solusi Bypass Iframe)
-      if (tokenSesi) {
-        try {
-          currentUser = JSON.parse(atob(tokenSesi)); // Buka bungkusan data
-          // Simpan ke local storage CBT agar saat mahasiswa mereload tab, sesi tidak hilang
-          localStorage.setItem('lms_session', JSON.stringify(currentUser));
-        } catch(e) { console.log("Token sesi tidak valid."); }
-      }
+function _daftarkanListenerFullscreen() {
+  document.addEventListener('fullscreenchange',       _onFullscreenChange);
+  document.addEventListener('webkitfullscreenchange', _onFullscreenChange);
+  document.addEventListener('mozfullscreenchange',    _onFullscreenChange);
+  document.addEventListener('MSFullscreenChange',     _onFullscreenChange);
+}
 
-      // 2. Jika tidak ada di URL (misal dibuka langsung), coba ambil dari LocalStorage biasa
-      if (!currentUser) {
-        var sessionData = localStorage.getItem('lms_session');
-        if (sessionData) currentUser = JSON.parse(sessionData);
-      }
+function _onFullscreenChange() {
+  if (!acEnabled) return;
+  var isFs = !!(
+    document.fullscreenElement       ||
+    document.webkitFullscreenElement ||
+    document.mozFullScreenElement    ||
+    document.msFullscreenElement
+  );
+  if (!isFs) {
+    tambahPelanggaran('Keluar dari layar penuh (Esc / tombol sistem)');
+    document.getElementById('ac-reenter-overlay').classList.add('visible');
+    document.getElementById('reenter-vio-count').textContent = cheatViolations;
+  }
+}
 
-      // 3. Validasi Final: Jika tetap tidak ada data, tendang kembali
-      if (!currentUser) {
-        alert("Anda belum login! Silakan login melalui halaman utama LMS.");
-        document.getElementById("loading").innerText = "Akses Ditolak. Harap login dari LMS.";
-        return;
-      }
+function _paksakanFullscreen() {
+  var el  = document.documentElement;
+  var req = el.requestFullscreen || el.webkitRequestFullscreen
+          || el.mozRequestFullScreen || el.msRequestFullscreen;
+  if (req) {
+    req.call(el)
+      .then(function() {
+        document.getElementById('ac-reenter-overlay').classList.remove('visible');
+        tampilToast('✓ Layar penuh aktif kembali. Lanjutkan ujian.', 'ok', 3000);
+      })
+      .catch(function() {
+        tampilToast('Gagal masuk layar penuh. Tekan tombol lagi.', 'warn', 4000);
+      });
+  } else {
+    document.getElementById('ac-reenter-overlay').classList.remove('visible');
+  }
+}
 
-      // Tampilkan nama mahasiswa ke layar
-      document.getElementById("studentName").innerText = currentUser.name + " (" + currentUser.userId + ")";
+/* =============================================================
+   SENSOR ANTI-CHEAT
+   ============================================================= */
+function initAntiCheatSensors() {
 
-      // 4. Lanjutkan mengecek ID Kuis
-      if (!quizId) {
-        alert("ID Ujian tidak valid atau tidak ditemukan di link!");
-        document.getElementById("loading").innerText = "Gagal memuat. Parameter ID Kuis tidak ditemukan.";
-        return;
-      }
+  /* L1a: Blokir klik kanan */
+  document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    tampilToast('⚠ Klik kanan dinonaktifkan selama ujian.');
+  });
 
-      // VALIDASI AKSES (Deadline & Double Submit)
-      google.script.run.withSuccessHandler(function(access) {
-        if (!access.allowed) {
-           // Siapkan tombol HTML-nya agar bisa dipakai berulang kali
-           var btnKembali = `<br><br><button onclick="tutupAman()" style="background: #555; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s;">Tutup / Kembali ke LMS</button>`;
+  /* L1b: Blokir shortcut berbahaya */
+  document.addEventListener('keydown', function(e) {
+    var k    = e.key.toLowerCase();
+    var ctrl = e.ctrlKey || e.metaKey;
+    var blokir =
+      (ctrl && ['c','v','u','s','p','a'].includes(k)) ||
+      (ctrl && e.shiftKey && ['i','j','c'].includes(k)) ||
+      e.key === 'F12' ||
+      e.key === 'PrintScreen';
+    if (blokir) {
+      e.preventDefault();
+      tampilToast('⚠ Shortcut ini dinonaktifkan selama ujian.', 'warn');
+    }
+  });
 
-           if (access.reason === "submitted") {
-             // Tampilkan nilai DAN tombol kembalinya
-             document.getElementById("loading").innerHTML = `<h3 style="color:#4CAF50; margin-bottom:5px;">✅ Anda sudah mengerjakan ujian ini.</h3><p style="margin-top:0;">Nilai Akhir Anda: <strong style="font-size: 24px; color:#1565a8;">${access.score}</strong> / 100</p>` + btnKembali;
-           } else if (access.reason === "deadline") {
-             // Tampilkan pesan deadline DAN tombol kembalinya
-             document.getElementById("loading").innerHTML = `<h3 style="color:#f44336; margin-bottom:5px;">🔒 Ujian Terkunci</h3><p style="margin-top:0;">Batas waktu pengerjaan ujian ini telah habis.</p>` + btnKembali;
-           }
-           return; // Hentikan proses, jangan tampilkan soal
+  /* L1c: Deteksi pindah tab / minimize window */
+  document.addEventListener('visibilitychange', function() {
+    if (!acEnabled) return;
+    if (document.hidden) {
+      tambahPelanggaran('Berpindah tab / jendela browser');
+      tampilToast('⚠ Pelanggaran! Anda meninggalkan tab ujian.', 'danger');
+    }
+  });
+
+  /* L2: Blokir drag & drop */
+  document.addEventListener('dragstart', function(e) { e.preventDefault(); });
+  document.addEventListener('drop',      function(e) { e.preventDefault(); });
+  document.addEventListener('dragover',  function(e) { e.preventDefault(); });
+
+  /* L4: Kursor keluar halaman — dicatat sebagai pelanggaran ringan tanpa full overlay */
+  document.addEventListener('mouseleave', function() {
+    if (!acEnabled) return;
+    tambahPelanggaran('Kursor keluar dari area halaman ujian');
+    tampilToast('⚠ Kursor keluar! Harap tetap di halaman ujian.', 'warn', 2500);
+  });
+
+  /* L5: Pemantauan DOM PASIF — catat saja, jangan hapus paksa.
+         Penghapusan paksa berisiko mengganggu komponen aksesibilitas atau LMS. */
+  var extensionObserver = new MutationObserver(function(mutations) {
+    mutations.forEach(function(mut) {
+      mut.addedNodes.forEach(function(node) {
+        if (node.nodeType !== 1) return;
+        /* Heuristik: node dengan data-extension-id atau shadow root yang tidak dikenal */
+        var isSuspect =
+          node.getAttribute && node.getAttribute('data-extension-id') ||
+          (node.shadowRoot && !['ac-fullscreen-gate','ac-reenter-overlay'].includes(node.id));
+        if (isSuspect) {
+          /* Cukup catat — jangan manipulasi DOM ekstensi karena bisa crash halaman */
+          tambahPelanggaran('Aktivitas ekstensi browser terdeteksi (' + (node.id || node.tagName) + ')');
+          tampilToast('⚠ Ekstensi browser terdeteksi. Pelanggaran dicatat.', 'danger', 4000);
         }
-        
-        // Jika lolos validasi, baru ambil soal dari server
-        google.script.run.withSuccessHandler(renderSoal).getCbtQuestions(quizId);
-
-      }).validateCbtAccess(quizId, currentUser.userId);
+      });
     });
-  };
+  });
+  extensionObserver.observe(document.body, { childList: true, subtree: false });
 
-  function renderSoal(questions) {
-    document.getElementById("loading").style.display = "none";
-    var container = document.getElementById("questionContainer");
-    
-    if (questions.length === 0) {
-      container.innerHTML = "<p>Soal tidak ditemukan untuk ujian ini.</p>";
+  /* L6: Koneksi offline / pulih */
+  window.addEventListener('offline', function() {
+    document.getElementById('ac-offline-overlay').classList.add('visible');
+    tambahPelanggaran('Koneksi internet diputus sementara');
+  });
+  window.addEventListener('online', function() {
+    document.getElementById('ac-offline-overlay').classList.remove('visible');
+    tampilToast('✓ Koneksi kembali. Ujian dilanjutkan.', 'ok', 3000);
+    /* Flush antrian pelanggaran yang tertunda karena offline */
+    _kirimPelanggaranKeBelakang();
+  });
+}
+
+/* =============================================================
+   UTILITAS ANTI-CHEAT
+   ============================================================= */
+function tambahPelanggaran(alasan) {
+  cheatViolations++;
+  sessionStorage.setItem('cbt_violations', cheatViolations);
+  console.warn('[ANTI-CHEAT] #' + cheatViolations + ': ' + alasan);
+
+  /* Perbarui badge */
+  document.getElementById('violation-count').textContent = cheatViolations;
+  document.getElementById('ac-violation-badge').style.display = 'block';
+  /* Perbarui counter di overlay jika terbuka */
+  document.getElementById('reenter-vio-count').textContent = cheatViolations;
+
+  /* Masukkan ke antrian pengiriman ke server */
+  pendingViolations.push({
+    alasan: alasan,
+    no: cheatViolations,
+    ts: new Date().toISOString()
+  });
+  /* Kirim ke server secara non-blocking */
+  _kirimPelanggaranKeBelakang();
+
+  /* Auto-submit jika batas tercapai */
+  if (cheatViolations >= 5) {
+    tampilToast('🚨 Batas pelanggaran tercapai! Ujian dikumpulkan otomatis.', 'danger', 6000);
+    setTimeout(function() {
+      if (document.getElementById('btnSubmit').style.display !== 'none') {
+        submitKuis(true);
+      }
+    }, 3000);
+  }
+}
+
+/**
+ * Mengirim log pelanggaran ke server (Google Apps Script) secara periodik.
+ * Menggunakan pendingViolations sebagai antrian agar tidak lost saat offline.
+ */
+function _kirimPelanggaranKeBelakang() {
+  if (!pendingViolations.length || !currentUser || !quizId) return;
+  var snapshot = pendingViolations.slice();
+  pendingViolations = [];
+  try {
+    google.script.run
+      .withFailureHandler(function() {
+        /* Kembalikan ke antrian jika gagal */
+        pendingViolations = snapshot.concat(pendingViolations);
+      })
+      .logCbtViolations(quizId, currentUser.userId, snapshot);
+  } catch(e) {
+    pendingViolations = snapshot.concat(pendingViolations);
+  }
+}
+
+function tampilToast(pesan, jenis, durasi) {
+  var toast = document.getElementById('ac-toast');
+  toast.textContent = pesan;   /* textContent: aman dari XSS */
+  toast.className   = 'show';
+  if (jenis === 'danger') toast.classList.add('danger');
+  else if (jenis === 'warn') toast.classList.add('warn');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function() { toast.className = ''; }, durasi || 2500);
+}
+
+/* =============================================================
+   AUTOSAVE — SIMPAN KE LOCALSTORAGE SETIAP 30 DETIK
+   ============================================================= */
+function mulaiAutosave() {
+  AUTOSAVE_KEY = 'cbt_answers_' + quizId + '_' + (currentUser ? currentUser.userId : 'anon');
+
+  /* Pulihkan jawaban yang tersimpan dari sesi sebelumnya (misal setelah refresh) */
+  try {
+    var saved = localStorage.getItem(AUTOSAVE_KEY);
+    if (saved) {
+      var parsed = JSON.parse(saved);
+      userAnswers = parsed;
+      /* Terapkan ke UI jika soal sudah ter-render */
+      _terapkanJawabanTersimpan();
+    }
+  } catch(e) { /* Abaikan jika parse gagal */ }
+
+  /* Jadwal autosave setiap 2 menit */
+  autosaveInterval = setInterval(function() {
+    _simpanKeLokal();
+  }, 120000);
+}
+
+function _simpanKeLokal() {
+  if (!AUTOSAVE_KEY) return;
+  try {
+    localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(userAnswers));
+    var bar = document.getElementById('autosave-bar');
+    bar.classList.add('show');
+    setTimeout(function() { bar.classList.remove('show'); }, 2000);
+  } catch(e) { /* Kuota storage penuh, abaikan */ }
+}
+
+function _terapkanJawabanTersimpan() {
+  /* Terapkan pilihan ganda */
+  Object.keys(userAnswers).forEach(function(qId) {
+    var val = userAnswers[qId];
+    /* Radio buttons */
+    var radio = document.querySelector('input[name="' + qId + '"][value="' + CSS.escape(val) + '"]');
+    if (radio) {
+      radio.checked = true;
+      /* Tandai label sebagai selected */
+      var label = radio.closest('.option-label');
+      if (label) label.classList.add('selected');
+    }
+    /* Textarea essay */
+    var ta = document.querySelector('.essay-area[data-qid="' + qId + '"]');
+    if (ta) ta.value = val;
+    /* Perbarui UI kartu dan navigator */
+    _tandaiKartuTerjawab(qId);
+    _updateNavPill(qId, true);
+  });
+  _updateNavSummary();
+}
+
+/* =============================================================
+   LIGHTBOX — ZOOM GAMBAR SOAL
+   ============================================================= */
+var _lbScale    = 1;
+var _lbMinScale = 0.5;
+var _lbMaxScale = 4;
+var _lbStep     = 0.5;
+
+function bukaLightbox(src, caption) {
+  var overlay = document.getElementById('lightbox-overlay');
+  var img     = document.getElementById('lightbox-img');
+  var cap     = document.getElementById('lightbox-caption');
+  _lbScale            = 1;
+  img.src             = src;
+  img.style.transform = 'scale(1)';
+  cap.textContent     = caption || '';
+  document.getElementById('lightbox-zoom-label').textContent = '100%';
+  overlay.classList.add('visible');
+  overlay.addEventListener('click', _lightboxOverlayKlik);
+  document.addEventListener('keydown', _lightboxEscKlik);
+}
+
+function tutupLightbox() {
+  var overlay = document.getElementById('lightbox-overlay');
+  overlay.classList.remove('visible');
+  document.getElementById('lightbox-img').src = '';
+  overlay.removeEventListener('click', _lightboxOverlayKlik);
+  document.removeEventListener('keydown', _lightboxEscKlik);
+}
+
+function zoomLightbox(arah) {
+  _lbScale = Math.min(_lbMaxScale, Math.max(_lbMinScale, _lbScale + arah * _lbStep));
+  document.getElementById('lightbox-img').style.transform = 'scale(' + _lbScale + ')';
+  document.getElementById('lightbox-zoom-label').textContent = Math.round(_lbScale * 100) + '%';
+}
+
+function _lightboxOverlayKlik(e) {
+  if (e.target === document.getElementById('lightbox-overlay')) tutupLightbox();
+}
+
+function _lightboxEscKlik(e) {
+  if (e.key === 'Escape') tutupLightbox();
+}
+
+/* =============================================================
+   INISIALISASI APP
+   ============================================================= */
+function inisialisasiApp() {
+  document.getElementById('loading').textContent = '🕵🏻 Memverifikasi sesi ujian dan mengaktifkan fitur anti-cheating...';
+
+  google.script.url.getLocation(function(location) {
+    quizId           = location.parameter.quizId;
+    var sessionToken = location.parameter.session_token;
+
+    if (!quizId) {
+      _tampilkanError('ID Ujian tidak ditemukan di URL. Pastikan Anda membuka ujian melalui halaman LMS.');
       return;
     }
 
-    var html = "";
-    questions.forEach(function(q, index) {
-      html += `<div class="question-card">
-        <h4>` + (index + 1) + `. ` + q.text + ` <span style="font-size:12px; font-weight:normal; color:#888;">(` + q.points + ` Poin)</span></h4>`;
-      
-      if (q.type === "PG") {
-        html += `<div class="options">`;
-        q.options.forEach(function(opt) {
-          // Menyimpan jawaban jika radio button diklik
-          html += `<label>
-            <input type="radio" name="${q.question_id}" value="${opt}" onchange="simpanJawaban('${q.question_id}', '${opt}')">
-            ${opt}
-          </label>`;
-        });
-        html += `</div>`;
-      } 
-      else if (q.type === "ESSAY") {
-        html += `<textarea rows="4" placeholder="Ketik jawaban essay Anda di sini..." onblur="simpanJawaban('${q.question_id}', this.value)"></textarea>`;
+    /* Reset violations jika quizId berbeda dari sesi sebelumnya */
+    var savedQuizId = sessionStorage.getItem('cbt_quiz_id');
+    if (savedQuizId && savedQuizId !== quizId) {
+      sessionStorage.removeItem('cbt_violations');
+      cheatViolations = 0;
+    }
+    sessionStorage.setItem('cbt_quiz_id', quizId);
+
+    if (cheatViolations > 0) {
+      document.getElementById('violation-count').textContent = cheatViolations;
+      document.getElementById('ac-violation-badge').style.display = 'block';
+    }
+
+    /* Fungsi yang dijalankan setelah user terverifikasi */
+    function prosesMulaiUjian(userObj) {
+      currentUser = userObj;
+      localStorage.setItem('lms_session', JSON.stringify(currentUser));
+
+      /* Tampilkan nama dengan textContent agar aman dari XSS */
+      document.getElementById('studentName').textContent =
+        currentUser.name + ' (' + currentUser.userId + ')';
+      document.getElementById('loading').textContent = 'Memuat soal ujian...';
+
+      /* Mulai autosave */
+      mulaiAutosave();
+
+      /* Validasi akses: sudah submit / melewati deadline */
+      google.script.run
+        .withSuccessHandler(function(access) {
+          if (!access.allowed) {
+            _tampilkanStatusTutup(access);
+            return;
+          }
+          /* Lolos — mulai timer dan muat soal */
+          google.script.run
+            .withSuccessHandler(mulaiTimerDurasi)
+            .withFailureHandler(function() {
+              /* Timer gagal dimuat, lanjutkan tanpa timer */
+              console.warn('[CBT] Gagal memuat sesi timer, lanjut tanpa durasi.');
+            })
+            .startCbtSession(quizId, currentUser.userId);
+
+          google.script.run
+            .withSuccessHandler(renderSoal)
+            .withFailureHandler(function() {
+              _tampilkanError('Gagal memuat soal dari server. Periksa koneksi Anda dan muat ulang halaman.');
+            })
+            .getCbtQuestions(quizId);
+        })
+        .withFailureHandler(function() {
+          _tampilkanError('Gagal memvalidasi akses ujian. Periksa koneksi Anda.');
+        })
+        .validateCbtAccess(quizId, currentUser.userId);
+    }
+
+    /* Logika verifikasi token */
+    if (sessionToken) {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res.success) {
+            prosesMulaiUjian(res.user);
+          } else {
+            /* Token hangus — coba fallback ke localStorage */
+            var savedSession = localStorage.getItem('lms_session');
+            if (savedSession) {
+              try { prosesMulaiUjian(JSON.parse(savedSession)); }
+              catch(e) { _tampilkanAksesditolak(res.message); }
+            } else {
+              _tampilkanAksesDitolak(res.message);
+            }
+          }
+        })
+        .withFailureHandler(function() {
+          _tampilkanError('Gagal terhubung ke server keamanan. Periksa koneksi Anda.');
+        })
+        .validasiDanGunakanToken(sessionToken);
+    } else {
+      var savedSession = localStorage.getItem('lms_session');
+      if (savedSession) {
+        try { prosesMulaiUjian(JSON.parse(savedSession)); }
+        catch(e) { _tampilkanAksesDitolak('Sesi tidak valid. Silakan login ulang dari LMS.'); }
+      } else {
+        _tampilkanAksesDitolak('Anda belum login! Silakan buka ujian melalui halaman utama LMS.');
       }
-      
-      html += `</div>`;
+    }
+  });
+}
+
+/* Helper: Tampilkan pesan error di area loading */
+function _tampilkanError(pesan) {
+  var el = document.getElementById('loading');
+  el.innerHTML = '';
+  var p = document.createElement('p');
+  p.style.cssText = 'color:#c62828; font-weight:600; font-size:14px;';
+  p.textContent = '⚠ ' + pesan;
+  el.appendChild(p);
+  acEnabled = false;
+}
+
+function _tampilkanAksesDitolak(pesan) {
+  _tampilkanError(pesan);
+  /* Beri tombol redirect ke LMS setelah 3 detik */
+  setTimeout(function() {
+    var btn = document.createElement('button');
+    btn.className = 'btn-secondary';
+    btn.style.cssText = 'margin-top:16px; padding:10px 20px; border-radius:9px; border:none; '
+                      + 'background:#1565a8; color:white; cursor:pointer; font-weight:700;';
+    btn.textContent = '← Kembali ke LMS';
+    btn.addEventListener('click', tutupAman);
+    document.getElementById('loading').appendChild(btn);
+  }, 500);
+}
+
+/* Helper: Tampilkan status ujian terkunci (sudah submit / deadline habis) */
+function _tampilkanStatusTutup(access) {
+  var el = document.getElementById('loading');
+  el.innerHTML = '';
+
+  var wrapper = document.createElement('div');
+  wrapper.style.cssText = 'text-align:center; padding:10px;';
+
+  var judul = document.createElement('h3');
+  var sub   = document.createElement('p');
+  sub.style.cssText = 'margin-top:4px; font-size:14px; color:#555;';
+
+  if (access.reason === 'submitted') {
+    judul.style.color  = '#2e7d32';
+    judul.textContent  = '✅ Anda sudah mengerjakan ujian ini.';
+    sub.innerHTML      = 'Nilai Akhir: <strong style="font-size:22px;color:#1565a8;">' + access.score + '</strong> / 100';
+  } else if (access.reason === 'deadline') {
+    judul.style.color  = '#c62828';
+    judul.textContent  = '🔒 Ujian Terkunci';
+    sub.textContent    = 'Batas waktu pengerjaan ujian ini telah habis.';
+  } else if (access.reason === 'timeout') {
+    judul.style.color  = '#c62828';
+    judul.textContent  = '⏰ Waktu Pengerjaan Habis';
+    sub.textContent    = 'Durasi pengerjaan ujian Anda telah berakhir.';
+  } else {
+    judul.style.color  = '#c62828';
+    judul.textContent  = '❌ Akses Ditolak';
+    sub.textContent    = access.message || 'Anda tidak diizinkan mengakses ujian ini.';
+  }
+
+  var btn = document.createElement('button');
+  btn.style.cssText = 'margin-top:20px; padding:10px 22px; border-radius:9px; border:none; '
+                    + 'background:#1565a8; color:white; cursor:pointer; font-weight:700; font-size:14px;';
+  btn.textContent = '← Kembali ke LMS';
+  btn.addEventListener('click', tutupAman);
+
+  wrapper.appendChild(judul);
+  wrapper.appendChild(sub);
+  wrapper.appendChild(btn);
+  el.appendChild(wrapper);
+
+  sessionStorage.removeItem('cbt_violations');
+  sessionStorage.removeItem('cbt_quiz_id');
+  acEnabled = false;
+}
+
+/* =============================================================
+   TIMER DURASI + FLOATING TIMER
+   ============================================================= */
+function mulaiTimerDurasi(sessionInfo) {
+  var badgeEl    = document.getElementById('timerBadge');
+  var floatingEl = document.getElementById('floatingTimer');
+  var floatTxtEl = document.getElementById('floatingTimerText');
+
+  if (!sessionInfo || !sessionInfo.hasDuration || sessionInfo.remainingMs <= 0) {
+    if (sessionInfo && sessionInfo.hasDuration && sessionInfo.remainingMs <= 0) {
+      tampilToast('🚨 Waktu Anda sudah habis! Mengumpulkan otomatis...', 'danger', 6000);
+      setTimeout(function() { submitKuis(true); }, 3000);
+    }
+    return;
+  }
+
+  badgeEl.style.display = 'inline-flex';
+  var endTime = Date.now() + sessionInfo.remainingMs;
+
+  /* IntersectionObserver: floating timer muncul saat badge header tidak terlihat */
+  if ('IntersectionObserver' in window) {
+    var obs = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        floatingEl.style.display = entry.isIntersecting ? 'none' : 'block';
+      });
+    }, { threshold: 0 });
+    obs.observe(badgeEl);
+  }
+
+  timerInterval = setInterval(function() {
+    var sisaMs = endTime - Date.now();
+
+    if (sisaMs <= 0) {
+      clearInterval(timerInterval);
+      var teksHabis = '⏰ WAKTU HABIS';
+      badgeEl.textContent    = teksHabis;
+      floatTxtEl.textContent = '00:00';
+      badgeEl.className    = 'timer-badge danger';
+      floatingEl.className = 'danger';
+      tampilToast('🚨 Waktu habis! Jawaban dikumpulkan otomatis.', 'danger', 6000);
+      setTimeout(function() {
+        if (document.getElementById('btnSubmit').style.display !== 'none') {
+          submitKuis(true);
+        }
+      }, 2000);
+      return;
+    }
+
+    var totalDetik = Math.floor(sisaMs / 1000);
+    var menit      = Math.floor(totalDetik / 60);
+    var detik      = totalDetik % 60;
+    var teksWaktu  = String(menit).padStart(2,'0') + ':' + String(detik).padStart(2,'0') + ' tersisa';
+
+    badgeEl.textContent    = '⏱ ' + teksWaktu;
+    floatTxtEl.textContent = String(menit).padStart(2,'0') + ':' + String(detik).padStart(2,'0');
+
+    /* Warna berdasarkan sisa waktu */
+    if (sisaMs < 5 * 60 * 1000) {
+      badgeEl.className    = 'timer-badge danger';
+      floatingEl.style.background = '#c62828';
+    } else if (sisaMs < 10 * 60 * 1000) {
+      badgeEl.className    = 'timer-badge warn';
+      floatingEl.style.background = '#e65100';
+    } else {
+      badgeEl.className    = 'timer-badge';
+      floatingEl.style.background = 'var(--blue-700)';
+    }
+  }, 1000);
+}
+
+/* =============================================================
+   RENDER SOAL — AMAN XSS dengan textContent
+   ============================================================= */
+function renderSoal(questions) {
+  document.getElementById('loading').style.display = 'none';
+  var container = document.getElementById('questionContainer');
+
+  if (!questions || questions.length === 0) {
+    var p = document.createElement('p');
+    p.style.cssText = 'text-align:center; color:#555; padding:20px;';
+    p.textContent = 'Soal tidak ditemukan untuk ujian ini.';
+    container.appendChild(p);
+    return;
+  }
+
+  allQuestions = questions;
+  _bangunNavigator(questions);
+
+  /* Buat setiap kartu soal dengan DOM API (aman XSS) */
+  questions.forEach(function(q, index) {
+    var card = document.createElement('div');
+    card.className   = 'question-card';
+    card.id          = 'card-' + q.question_id;
+
+    /* Header soal */
+    var qHeader = document.createElement('div');
+    qHeader.className = 'q-header';
+
+    var qNum = document.createElement('span');
+    qNum.className   = 'q-num';
+    qNum.textContent = 'Soal ' + (index + 1);
+
+    var qPoints = document.createElement('span');
+    qPoints.className   = 'q-points';
+    qPoints.textContent = q.points + ' Poin';
+
+    qHeader.appendChild(qNum);
+    qHeader.appendChild(qPoints);
+    card.appendChild(qHeader);
+
+    /* Teks soal + gambar (dua panel jika ada gambar) */
+    if (q.image_url) {
+      var splitDiv = document.createElement('div');
+      splitDiv.className = 'q-body-split';
+
+      var qText = document.createElement('p');
+      qText.className   = 'q-text';
+      qText.textContent = q.text;
+      splitDiv.appendChild(qText);
+
+      var imgWrap = document.createElement('div');
+      imgWrap.className = 'q-image-wrap';
+
+      var img = document.createElement('img');
+      img.loading = 'lazy';
+      img.alt     = 'Gambar soal ' + (index + 1);
+      img.addEventListener('error', function() {
+        imgWrap.style.display = 'none';
+      });
+      /* Klik gambar untuk buka lightbox */
+      img.addEventListener('click', (function(src, cap) {
+        return function() { bukaLightbox(src, cap); };
+      })(q.image_url, 'Gambar soal ' + (index + 1)));
+      img.src = q.image_url;
+      imgWrap.appendChild(img);
+
+      /* Caption opsional — nomor soal sebagai fallback */
+      var cap = document.createElement('div');
+      cap.className   = 'q-image-caption';
+      cap.textContent = 'Gambar soal ' + (index + 1);
+      imgWrap.appendChild(cap);
+
+      splitDiv.appendChild(imgWrap);
+      card.appendChild(splitDiv);
+    } else {
+      var qText = document.createElement('p');
+      qText.className   = 'q-text';
+      qText.textContent = q.text;
+      card.appendChild(qText);
+    }
+
+    /* Pilihan / Textarea */
+    if (q.type === 'PG') {
+      var optsDiv = document.createElement('div');
+      optsDiv.className = 'options';
+      q.options.forEach(function(opt) {
+        var label = document.createElement('label');
+        label.className = 'option-label';
+
+        var radio = document.createElement('input');
+        radio.type  = 'radio';
+        radio.name  = q.question_id;
+        radio.value = opt;        /* Nilai dari server — bukan dimasukkan ke innerHTML */
+
+        radio.addEventListener('change', function() {
+          simpanJawaban(q.question_id, opt);
+          /* Hapus kelas selected dari semua option di soal ini */
+          optsDiv.querySelectorAll('.option-label').forEach(function(l) {
+            l.classList.remove('selected');
+          });
+          label.classList.add('selected');
+        });
+
+        var span = document.createElement('span');
+        span.textContent = opt;   /* aman XSS */
+
+        label.appendChild(radio);
+        label.appendChild(span);
+        optsDiv.appendChild(label);
+      });
+      card.appendChild(optsDiv);
+
+    } else if (q.type === 'ESSAY') {
+      var ta = document.createElement('textarea');
+      ta.className     = 'essay-area';
+      ta.rows          = 5;
+      ta.placeholder   = 'Ketik jawaban essay Anda di sini...';
+      ta.dataset.qid   = q.question_id;  /* data attribute, bukan innerHTML */
+      ta.addEventListener('blur', function() {
+        simpanJawaban(q.question_id, ta.value);
+      });
+      ta.addEventListener('input', function() {
+        /* Auto-update: tandai terjawab setelah ada input */
+        if (ta.value.trim()) {
+          _tandaiKartuTerjawab(q.question_id);
+          _updateNavPill(q.question_id, true);
+          _updateNavSummary();
+        }
+      });
+      card.appendChild(ta);
+    }
+
+    container.appendChild(card);
+  });
+
+  /* Terapkan jawaban tersimpan (dari autosave localStorage) */
+  _terapkanJawabanTersimpan();
+
+  document.getElementById('btnSubmit').style.display = 'block';
+  document.getElementById('navigator-card').style.display = 'block';
+}
+
+/* =============================================================
+   SIMPAN JAWABAN + UPDATE UI
+   ============================================================= */
+function simpanJawaban(questionId, answer) {
+  var isNew = !userAnswers[questionId];
+  userAnswers[questionId] = answer;
+  if (isNew || answer) {
+    _tandaiKartuTerjawab(questionId);
+    _updateNavPill(questionId, true);
+    _updateNavSummary();
+  }
+  /* Simpan ke localStorage segera setiap kali jawaban berubah */
+  _simpanKeLokal();
+}
+
+function _tandaiKartuTerjawab(questionId) {
+  var card = document.getElementById('card-' + questionId);
+  if (card) {
+    card.classList.add('answered');
+    card.classList.remove('unanswered-flag');
+  }
+}
+
+/* =============================================================
+   NAVIGATOR SOAL
+   ============================================================= */
+function _bangunNavigator(questions) {
+  var grid = document.getElementById('navGrid');
+  grid.innerHTML = '';
+  questions.forEach(function(q, i) {
+    var pill = document.createElement('button');
+    pill.className   = 'nav-pill';
+    pill.id          = 'nav-' + q.question_id;
+    pill.textContent = i + 1;
+    pill.title       = 'Soal ' + (i + 1);
+    pill.addEventListener('click', function() {
+      var card = document.getElementById('card-' + q.question_id);
+      if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
+    grid.appendChild(pill);
+  });
+  _updateNavSummary();
+}
 
-    container.innerHTML = html;
-    document.getElementById("btnSubmit").style.display = "block";
+function _updateNavPill(questionId, answered) {
+  var pill = document.getElementById('nav-' + questionId);
+  if (!pill) return;
+  if (answered) pill.classList.add('answered');
+  else          pill.classList.remove('answered');
+}
+
+function _updateNavSummary() {
+  var total    = allQuestions.length;
+  var terjawab = Object.keys(userAnswers).filter(function(k) { return k !== '_violations'; }).length;
+  var belum    = total - terjawab;
+  var summary  = document.getElementById('navSummary');
+  summary.innerHTML = '';
+  /* Buat teks dengan aman */
+  summary.appendChild(
+    _buatTeks(terjawab + ' dari ' + total + ' soal terjawab' + (belum > 0 ? ' · ' + belum + ' belum dijawab' : ' · Semua soal terjawab ✓'))
+  );
+  summary.querySelector && void 0;
+  /* Warna */
+  summary.style.color = belum === 0 ? 'var(--teal)' : 'var(--muted)';
+}
+
+function _buatTeks(str) {
+  var span = document.createElement('span');
+  span.textContent = str;
+  return span;
+}
+
+/* =============================================================
+   SUBMIT — MODAL + LOADING + RETRY
+   ============================================================= */
+function submitKuis(otomatis) {
+  if (otomatis) {
+    _eksekusiSubmit();
+    return;
   }
 
-  function simpanJawaban(questionId, answer) {
-    userAnswers[questionId] = answer;
+  /* Hitung soal belum dijawab & tampilkan di modal */
+  var total    = allQuestions.length;
+  var terjawab = Object.keys(userAnswers).filter(function(k) { return k !== '_violations'; }).length;
+  var belum    = total - terjawab;
+  var noteEl   = document.getElementById('modal-unanswered-note');
+
+  if (belum > 0) {
+    noteEl.textContent = '⚠ ' + belum + ' soal belum dijawab!';
+    noteEl.style.display = 'block';
+    /* Tandai kartu yang belum dijawab agar mudah ditemukan */
+    allQuestions.forEach(function(q) {
+      if (!userAnswers[q.question_id]) {
+        var card = document.getElementById('card-' + q.question_id);
+        if (card) card.classList.add('unanswered-flag');
+      }
+    });
+  } else {
+    noteEl.style.display = 'none';
   }
 
-  function submitKuis() {
-    if(!confirm("Yakin ingin mengumpulkan ujian? Pastikan semua soal telah terjawab!")) return;
-    
-    var btn = document.getElementById("btnSubmit");
-    btn.innerText = "Mengumpulkan Jawaban..."; // Teks diubah karena tidak ada AI proses di sini lagi
-    btn.disabled = true;
+  document.getElementById('modal-submit-overlay').classList.add('visible');
+}
 
-    // Sisipkan data pelanggaran (cheatViolations) ke dalam objek jawaban mahasiswa
-    userAnswers._violations = cheatViolations;
+function tutupModalSubmit() {
+  document.getElementById('modal-submit-overlay').classList.remove('visible');
+  /* Hapus flag merah dari kartu */
+  document.querySelectorAll('.question-card.unanswered-flag').forEach(function(c) {
+    c.classList.remove('unanswered-flag');
+  });
+}
 
-    // Kirim jawaban ke backend untuk disimpan & dihitung nilai PG-nya saja
-    google.script.run.withSuccessHandler(function(response) {
-      document.getElementById("questionContainer").style.display = "none";
-      btn.style.display = "none";
-      
-      document.getElementById("resultArea").style.display = "block";
-      
-      // Modifikasi Tampilan Akhir: Berikan info bahwa Essay akan dinilai menyusul
-      document.getElementById("resultArea").innerHTML = `
-        <h3 style="color:#1565a8; margin-bottom: 5px;">✅ Pekerjaan Telah Dikumpulkan!</h3>
-        <p style="color:#555; margin-top: 0;">Jawaban Anda telah tersimpan dengan aman di database.</p>
-        <div style="background: rgba(232,168,58,0.1); border: 1px solid rgba(232,168,58,0.3); padding: 10px; border-radius: 8px; margin-top: 15px;">
-          <p style="font-size:12px; color:#b8761a; margin: 0;">
-            <b>Catatan:</b> Jika assesment ini memiliki soal Essay, Nilai Akhir Anda akan diperbarui setelah Dosen mengoreksi jawaban anda.
-          </p>
-        </div>
-        <button onclick="tutupAman()" style="margin-top: 20px; background: #555; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%;">Tutup / Kembali ke LMS</button>
-      `;
-      
-    }).submitCbtExam(quizId, currentUser.userId, userAnswers);
+function konfirmasiSubmit() {
+  document.getElementById('modal-submit-overlay').classList.remove('visible');
+  document.getElementById('loading-submit-overlay').classList.add('visible');
+  document.getElementById('loadingSubmitPesan').textContent = 'Mengumpulkan jawaban Anda...';
+  setTimeout(_eksekusiSubmit, 150);
+}
+
+function _eksekusiSubmit() {
+  /* Bersihkan semua interval */
+  clearInterval(timerInterval);
+  clearInterval(autosaveInterval);
+  acEnabled = false;
+
+  var btn = document.getElementById('btnSubmit');
+  if (btn) { btn.textContent = 'Mengumpulkan...'; btn.disabled = true; }
+
+  if (submitRetryCount > 0) {
+    document.getElementById('loadingSubmitPesan').textContent =
+      'Mencoba ulang (' + submitRetryCount + '/' + MAX_RETRY + ')...';
   }
 
+  /* Kirim pelanggaran yang belum terkirim sebelum submit */
+  _kirimPelanggaranKeBelakang();
+
+  userAnswers._violations = cheatViolations;
+
+  google.script.run
+    .withSuccessHandler(function(response) {
+      if (!response.success && submitRetryCount < MAX_RETRY) {
+        submitRetryCount++;
+        document.getElementById('loadingSubmitPesan').textContent =
+          'Server sibuk, mencoba ulang dalam 3 detik... (' + submitRetryCount + '/' + MAX_RETRY + ')';
+        setTimeout(_eksekusiSubmit, 3000);
+        return;
+      }
+
+      /* Berhasil */
+      submitRetryCount = 0;
+      /* Hapus cache jawaban setelah berhasil submit */
+      if (AUTOSAVE_KEY) localStorage.removeItem(AUTOSAVE_KEY);
+      sessionStorage.removeItem('cbt_violations');
+      sessionStorage.removeItem('cbt_quiz_id');
+
+      document.getElementById('loading-submit-overlay').classList.remove('visible');
+      document.getElementById('questionContainer').style.display = 'none';
+      document.getElementById('navigator-card').style.display = 'none';
+      if (btn) btn.style.display = 'none';
+      _tampilkanHasilSubmit(true);
+    })
+    .withFailureHandler(function(err) {
+      if (submitRetryCount < MAX_RETRY) {
+        submitRetryCount++;
+        document.getElementById('loadingSubmitPesan').textContent =
+          'Koneksi bermasalah, mencoba ulang... (' + submitRetryCount + '/' + MAX_RETRY + ')';
+        setTimeout(_eksekusiSubmit, 4000);
+        return;
+      }
+
+      /* Gagal total setelah semua retry */
+      submitRetryCount = 0;
+      document.getElementById('loading-submit-overlay').classList.remove('visible');
+      if (btn) { btn.textContent = '📤 Kumpulkan Jawaban'; btn.disabled = false; }
+      _tampilkanHasilSubmit(false);
+    })
+    .submitCbtExam(quizId, currentUser.userId, userAnswers);
+}
+
+function _tampilkanHasilSubmit(berhasil) {
+  var area = document.getElementById('resultArea');
+  area.innerHTML = '';
+  area.style.display = 'block';
+
+  if (berhasil) {
+    /* Judul sukses */
+    var h3 = document.createElement('h3');
+    h3.className   = 'result-title';
+    h3.textContent = '✅ Pekerjaan Telah Dikumpulkan!';
+    var sub = document.createElement('p');
+    sub.className   = 'result-sub';
+    sub.textContent = 'Jawaban Anda telah tersimpan dengan aman di database.';
+    area.appendChild(h3);
+    area.appendChild(sub);
+
+    /* Catatan pelanggaran */
+    if (cheatViolations > 0) {
+      var vioDiv = document.createElement('div');
+      vioDiv.className = 'result-alert vio';
+      vioDiv.textContent = '⚠ Catatan Sistem: Tercatat ' + cheatViolations +
+                           ' pelanggaran selama sesi ujian ini.';
+      area.appendChild(vioDiv);
+    }
+
+    /* Catatan essay */
+    var noteDiv = document.createElement('div');
+    noteDiv.className = 'result-alert essay';
+    noteDiv.textContent = '📝 Catatan: Jika terdapat soal Essay, Nilai Akhir akan diperbarui '
+                        + 'setelah Dosen selesai mengoreksi.';
+    area.appendChild(noteDiv);
+
+  } else {
+    /* Error total */
+    var errH3 = document.createElement('h3');
+    errH3.className   = 'result-title';
+    errH3.style.color = 'var(--red)';
+    errH3.textContent = '⚠️ Gagal Mengumpulkan Jawaban';
+    area.appendChild(errH3);
+
+    var errP = document.createElement('p');
+    errP.className   = 'result-sub';
+    errP.textContent = 'Jawaban Anda tersimpan sementara di perangkat. '
+                     + 'Jangan tutup halaman ini. Hubungi dosen pengawas.';
+    area.appendChild(errP);
+
+    var retryBtn = document.createElement('button');
+    retryBtn.style.cssText = 'margin-top:12px; padding:12px 24px; border-radius:10px; border:none; '
+                           + 'background:var(--blue-700); color:white; font-weight:700; cursor:pointer; font-size:14px;';
+    retryBtn.textContent = '🔄 Coba Lagi';
+    retryBtn.addEventListener('click', function() {
+      submitRetryCount = 0;
+      area.style.display = 'none';
+      document.getElementById('loading-submit-overlay').classList.add('visible');
+      setTimeout(_eksekusiSubmit, 150);
+    });
+    area.appendChild(retryBtn);
+  }
+
+  /* Tombol kembali ke LMS */
+  var kembaliBtn = document.createElement('button');
+  kembaliBtn.id          = 'btnKembali';
+  kembaliBtn.className   = '';
+  kembaliBtn.style.cssText = 'margin-top:16px; padding:12px 24px; border-radius:10px; border:none; '
+                           + 'background:#f0f0f5; color:var(--text); font-weight:700; cursor:pointer; '
+                           + 'font-size:14px; display:block; width:100%;';
+  kembaliBtn.textContent = '← Tutup / Kembali ke LMS';
+  kembaliBtn.addEventListener('click', tutupAman);
+  area.appendChild(kembaliBtn);
+
+  /* Keluar dari fullscreen */
+  try {
+    var exitFs = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen;
+    if (exitFs) exitFs.call(document);
+  } catch(e) {}
+}
+
+/* =============================================================
+   TUTUP AMAN — redirect ke LMS
+   ============================================================= */
 function tutupAman() {
-  var btn = event.target;
-  if(btn) btn.innerText = "Mengalihkan...";
-
-  // Coba tutup tab secara paksa
+  /* Tidak menggunakan event.target agar aman dipanggil dari mana saja */
   try { window.top.close(); } catch(e) {}
-
-  // Jika gagal ditutup oleh browser, arahkan kembali ke LMS
-  google.script.run.withSuccessHandler(function(url) {
-    window.location.href = url;
-  }).getScriptUrl();
+  google.script.run
+    .withSuccessHandler(function(url) { window.location.href = url; })
+    .withFailureHandler(function()    { window.history.back(); })
+    .getScriptUrl();
 }
 </script>
-
 </body>
 </html>
