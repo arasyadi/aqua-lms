@@ -7,40 +7,52 @@ var FB_URL = "FIREBASE URL";
 // Ganti dengan URL Firebase Anda (sama dengan migration.gs)
 
 // ══════════════════════════════════════════════
-// FIREBASE REST HELPERS
+// FIREBASE REST HELPERS — v3 (URL-safe + Query Filter)
 // ══════════════════════════════════════════════
 
+/** Sanitasi URL: hapus trailing slash dari base, leading slash dari path */
+function _fbUrl(path) {
+  var base  = String(FB_URL).replace(/\/+$/, '');
+  var clean = String(path).replace(/^\/+/, '');
+  return base + '/' + clean + '.json';
+}
+
 function fbGet(path) {
-  var res = UrlFetchApp.fetch(FB_URL + "/" + path + ".json",
-    { muteHttpExceptions: true });
+  var res = UrlFetchApp.fetch(_fbUrl(path), { muteHttpExceptions: true });
   if (res.getResponseCode() !== 200) return null;
   var text = res.getContentText();
-  return text === "null" ? null : JSON.parse(text);
+  return text === 'null' ? null : JSON.parse(text);
+}
+
+// Fungsi BARU untuk Filter Bandwidth (Hanya ambil data kelas terkait) - DIPERBAIKI (URL Encoded)
+function fbGetFiltered(path, filterField, filterValue) {
+  // Gunakan encodeURIComponent untuk mengubah tanda kutip (") menjadi format URL aman (%22)
+  var query = '?orderBy=' + encodeURIComponent('"' + filterField + '"') + 
+              '&equalTo=' + encodeURIComponent('"' + filterValue + '"');
+              
+  var res = UrlFetchApp.fetch(_fbUrl(path) + query, { muteHttpExceptions: true });
+  
+  if (res.getResponseCode() !== 200) return null;
+  var text = res.getContentText();
+  return text === 'null' ? null : JSON.parse(text);
 }
 
 function fbPut(path, data) {
-  UrlFetchApp.fetch(FB_URL + "/" + path + ".json", {
-    method:      "put",
-    contentType: "application/json",
-    payload:     JSON.stringify(data),
-    muteHttpExceptions: true
+  UrlFetchApp.fetch(_fbUrl(path), {
+    method: 'put', contentType: 'application/json',
+    payload: JSON.stringify(data), muteHttpExceptions: true
   });
 }
 
 function fbPatch(path, data) {
-  UrlFetchApp.fetch(FB_URL + "/" + path + ".json", {
-    method:      "patch",
-    contentType: "application/json",
-    payload:     JSON.stringify(data),
-    muteHttpExceptions: true
+  UrlFetchApp.fetch(_fbUrl(path), {
+    method: 'patch', contentType: 'application/json',
+    payload: JSON.stringify(data), muteHttpExceptions: true
   });
 }
 
 function fbDelete(path) {
-  UrlFetchApp.fetch(FB_URL + "/" + path + ".json", {
-    method:             "delete",
-    muteHttpExceptions: true
-  });
+  UrlFetchApp.fetch(_fbUrl(path), { method: 'delete', muteHttpExceptions: true });
 }
 
 function safeKey(str) {
@@ -75,8 +87,8 @@ function verifikasiDeviceBinding(userId, deviceToken) {
   var key      = safeKey(userId);
   var existing = fbGet("aqualearn/device_binding/" + key);
 
+  // ── LOGIN PERTAMA: Ikat perangkat ──
   if (!existing) {
-    // Login pertama — ikat perangkat
     fbPut("aqualearn/device_binding/" + key, {
       device_token:  deviceToken,
       waktu_tertaut: new Date().toISOString()
@@ -84,21 +96,30 @@ function verifikasiDeviceBinding(userId, deviceToken) {
     return { success: true, isNewBind: true };
   }
 
+  // ── PENGECEKAN KETAT (Exact Match) ──
+  // Karena token klien sekarang stabil dan berdasarkan hardware, 
+  // hapus cache/incognito tidak akan mengubah token.
   if (existing.device_token === deviceToken) {
     return { success: true, isNewBind: false };
   }
 
-  // Token beda — tolak
-  var parts      = String(existing.device_token).split('_');
-  var savedOs    = parts[0] || "Tidak diketahui";
-  var savedBrwsr = parts[1] || "Tidak diketahui";
-  function cap(t) { return t ? t.charAt(0).toUpperCase() + t.slice(1) : "Tidak Dikenali"; }
+  // Jika tidak cocok, tolak dengan pesan yang informatif
+  var savedParts = String(existing.device_token).split("_");
+  
+  function cap(t) {
+    return t ? t.charAt(0).toUpperCase() + t.slice(1) : "Tidak Dikenali";
+  }
+
+  var savedOs      = cap(savedParts[0] || "");
+  var savedBrowser = cap(savedParts[1] || "");
 
   return {
     success: false,
-    message: "⛔ Akses Ditolak: Akun Anda sudah tertaut dengan perangkat lain.\n\n"
-           + "📱 Login Terakhir:\nPerangkat: " + cap(savedOs)
-           + "\nBrowser: " + cap(savedBrwsr)
+    message: "⛔ Akses Ditolak: Akun ini sudah tertaut dengan perangkat lain.\n\n"
+           + "📱 Perangkat Terdaftar:\n"
+           + "OS: " + savedOs + "\n"
+           + "Browser: " + savedBrowser + "\n\n"
+           + "Hubungi dosen jika Anda berganti perangkat atau mereset HP."
   };
 }
 
@@ -112,29 +133,79 @@ function resetDeviceBindingBatch(nimArray) {
 }
 
 // ══════════════════════════════════════════════
-// COURSES
+// DASHBOARD MAHASISWA — Optimized Loading (Paralel)
 // ══════════════════════════════════════════════
-
 function getStudentCourses(userId) {
+  var uKey = safeKey(userId);
+
+  // 1. Ambil daftar enrollment & kelas
   var enrollments = fbGet("aqualearn/enrollments") || {};
   var courses     = fbGet("aqualearn/courses")     || {};
-  var result      = [];
+  var myCourses   = [];
 
   Object.keys(enrollments).forEach(function(courseKey) {
-    var members = enrollments[courseKey];
-    if (!members[safeKey(userId)]) return;
-
-    var course = courses[courseKey];
-    if (!course) return;
-
-    result.push({
-      course_id:   courseKey,
-      course_name: course.course_name,
-      progress:    calculateCourseProgress(userId, courseKey)
-    });
+    if (enrollments[courseKey][uKey] && courses[courseKey]) {
+      myCourses.push({
+        course_id: courseKey,
+        course_name: courses[courseKey].course_name,
+        progress: 0 // Default 0, akan dihitung cepat di bawah
+      });
+    }
   });
 
-  return result;
+  if (myCourses.length === 0) return []; // Jika tidak ada kelas, langsung berhenti
+
+  // 2. Siapkan request PARALEL untuk menghitung progress secara instan
+  var requests = [];
+  myCourses.forEach(function(c) {
+    var cKey = safeKey(c.course_id);
+    var filterID = encodeURIComponent('"' + c.course_id + '"');
+
+    // Kumpulkan 6 request per kelas ke dalam satu antrean
+    requests.push({ url: _fbUrl('aqualearn/materials') + '?orderBy=%22course_id%22&equalTo=' + filterID, muteHttpExceptions: true });
+    requests.push({ url: _fbUrl('aqualearn/material_track/' + cKey + '/' + uKey), muteHttpExceptions: true });
+    requests.push({ url: _fbUrl('aqualearn/quiz') + '?orderBy=%22course_id%22&equalTo=' + filterID, muteHttpExceptions: true });
+    requests.push({ url: _fbUrl('aqualearn/quiz_track/' + cKey + '/' + uKey), muteHttpExceptions: true });
+    requests.push({ url: _fbUrl('aqualearn/lesson_assign') + '?orderBy=%22course_id%22&equalTo=' + filterID, muteHttpExceptions: true });
+    requests.push({ url: _fbUrl('aqualearn/lesson_submit/' + cKey), muteHttpExceptions: true });
+  });
+
+  // 3. JALANKAN SEMUA REQUEST BERSAMAAN (Sangat Menghemat Waktu!)
+  var responses = UrlFetchApp.fetchAll(requests);
+
+  // Helper untuk membaca hasil dengan aman
+  function parseRes(res) {
+    if (res.getResponseCode() !== 200) return {};
+    var txt = res.getContentText();
+    return (txt === 'null' || !txt) ? {} : JSON.parse(txt);
+  }
+
+  // 4. Hitung progress dari data yang sudah terkumpul
+  var idx = 0;
+  myCourses.forEach(function(c) {
+    var resMat    = parseRes(responses[idx++]);
+    var resMatTrk = parseRes(responses[idx++]);
+    var resQz     = parseRes(responses[idx++]);
+    var resQzTrk  = parseRes(responses[idx++]);
+    var resLes    = parseRes(responses[idx++]);
+    var resLesSub = parseRes(responses[idx++]);
+
+    var matIds    = Object.keys(resMat);
+    var quizIds   = Object.keys(resQz);
+    var lessonIds = Object.keys(resLes);
+
+    var matDone    = matIds.filter(function(k) { return !!resMatTrk[safeKey(k)]; }).length;
+    var quizDone   = quizIds.filter(function(k) { return !!resQzTrk[safeKey(k)]; }).length;
+    var lessonDone = lessonIds.filter(function(k) { return resLesSub[safeKey(k)] && resLesSub[safeKey(k)][uKey]; }).length;
+
+    var pMat    = matIds.length > 0    ? (matDone / matIds.length) * 40 : 0;
+    var pLesson = lessonIds.length > 0 ? (lessonDone / lessonIds.length) * 40 : 0;
+    var pQuiz   = quizIds.length > 0   ? (quizDone / quizIds.length) * 20 : 0;
+
+    c.progress = Math.round(pMat + pLesson + pQuiz);
+  });
+
+  return myCourses;
 }
 
 function getLecturerCourses(dosenId) {
@@ -600,7 +671,6 @@ function saveGradeConfig(courseId, bobotJsonStr, isReleased) {
   return { success: true, message: "Pengaturan bobot berhasil disimpan!" };
 }
 
-
 // ══════════════════════════════════════════════
 // RANKING & PROGRESS (kalkulasi dari Firebase)
 // ══════════════════════════════════════════════
@@ -672,7 +742,7 @@ function getStudentRankings(courseId) {
     }).length;
     var scoreLesson = doneLessons * 10;
 
-    rankings.push({ nama: nama, skor: scoreMat + scoreQuiz + scoreLesson });
+    rankings.push({ userId: uKey, nama: nama, skor: scoreMat + scoreQuiz + scoreLesson });
   });
 
   rankings.sort(function(a, b){ return b.skor - a.skor; });
@@ -685,47 +755,267 @@ function getInactiveStudents(courseId) {
     .map(function(r){ return r.nama; });
 }
 
-
 // ══════════════════════════════════════════════
-// PAKET DATA (satu call untuk semua UI)
+// PAKET DATA RUANG KELAS MAHASISWA — Optimized (v3)
+// Hemat Bandwidth & Filter Otomatis
 // ══════════════════════════════════════════════
-
 function getPaketDataRuangKelas(courseId, userId) {
-  var quizzes      = getCourseQuizzesWithCbtInfo(courseId); // dari cbt_backend
-  var doneQuizIds  = {};
-  var qtData       = fbGet("aqualearn/quiz_track/" + safeKey(courseId) + "/" + safeKey(userId)) || {};
-  Object.keys(qtData).forEach(function(k){ doneQuizIds[k] = true; });
-  quizzes.forEach(function(q){ q.dikerjakan = !!doneQuizIds[safeKey(q.quiz_id)]; });
+  var cKey = safeKey(courseId);
+  var uKey = safeKey(userId);
 
-  var allLessons    = getCourseLessons(courseId);
-  var submittedIds  = getSubmittedLessonIds(userId);
-  var lessons       = allLessons.filter(function(l){
-    return submittedIds.indexOf(String(l.assign_id)) === -1;
+  // ── 1. Fetch data SATU KALI dengan Filter Kelas ──
+  // Hanya mengambil data materi, kuis, dan tugas milik kelas ini saja
+  var allMat     = fbGetFiltered('aqualearn/materials', 'course_id', courseId) || {};
+  var allQuiz    = fbGetFiltered('aqualearn/quiz', 'course_id', courseId) || {};
+  var allLesson  = fbGetFiltered('aqualearn/lesson_assign', 'course_id', courseId) || {};
+  
+  // Ambil data pendukung (spesifik path kelas/user)
+  var cbtSet     = fbGet('aqualearn/cbt_settings')   || {};
+  var qtData     = fbGet('aqualearn/quiz_track/' + cKey + '/' + uKey) || {};
+  var lSubCourse = fbGet('aqualearn/lesson_submit/'  + cKey)          || {};
+  var nilaiMhs   = fbGet('aqualearn/nilai/' + cKey + '/' + uKey)     || {};
+  var gradeRaw   = fbGet('aqualearn/grade_config/'   + cKey);
+  var jadwalRaw  = fbGet('aqualearn/jadwal/'         + cKey)          || {};
+
+  // ── 2. Proses Materi ──
+  var materials = [];
+  Object.keys(allMat).forEach(function(k) {
+    var m = allMat[k];
+    materials.push({ 
+      material_id: k, 
+      course_id: m.course_id,
+      title: m.title || '', 
+      url_drive: m.url_drive || '' 
+    });
   });
 
+  // ── 3. Proses Kuis + Info CBT + Status Dikerjakan ──
+  var doneQuizIds = {};
+  Object.keys(qtData).forEach(function(k) { doneQuizIds[k] = true; });
+
+  var quizzes = [];
+  Object.keys(allQuiz).forEach(function(k) {
+    var q = allQuiz[k];
+    var urlForm = q.url_form || '';
+    
+    // Deteksi ID Kuis CBT dari URL Google Form
+    var cbtQuizId = '';
+    var match = urlForm.match(/quizId=([^&\s]+)/);
+    if (match && match[1]) cbtQuizId = match[1].trim();
+    
+    var deadline = '', duration = 0;
+    if (cbtQuizId && cbtSet[cbtQuizId]) {
+      deadline = cbtSet[cbtQuizId].deadline           || '';
+      duration = parseInt(cbtSet[cbtQuizId].duration_minutes) || 0;
+    }
+    
+    quizzes.push({ 
+      quiz_id: k, 
+      course_id: courseId, 
+      title: q.title || '',
+      url_form: urlForm, 
+      dikerjakan: !!doneQuizIds[safeKey(k)],
+      cbt_deadline: deadline, 
+      cbt_duration_menit: duration 
+    });
+  });
+
+  // ── 4. Proses Lesson (Hanya tampilkan yang belum dikumpulkan) ──
+  var lessons = [];
+  Object.keys(allLesson).forEach(function(k) {
+    var l = allLesson[k];
+    
+    // Cek apakah mahasiswa ini sudah mengumpulkan tugas ini
+    var lessonSub = lSubCourse[safeKey(k)];
+    if (lessonSub && lessonSub[uKey]) return; // Jika sudah submit, jangan tampilkan di daftar
+
+    var deadlineMs = 0;
+    var parts = String(l.deadline).split('-');
+    if (parts.length === 3) {
+      deadlineMs = new Date(
+        parseInt(parts[2]), parseInt(parts[1]) - 1,
+        parseInt(parts[0]), 23, 59, 59
+      ).getTime();
+    }
+    lessons.push({ 
+      assign_id: k, 
+      course_id: l.course_id, 
+      topic: l.topic || '',
+      deadline: l.deadline || '', 
+      deadline_ms: deadlineMs 
+    });
+  });
+
+  // ── 5. Format Nilai & Pengaturan Bobot ──
+  var nilai = [];
+  Object.keys(nilaiMhs).forEach(function(jKey) {
+    nilai.push({ 
+      jenis_nilai: nilaiMhs[jKey].jenis, 
+      nilai: nilaiMhs[jKey].nilai 
+    });
+  });
+
+  var gradeConfig = { bobot: {}, is_released: false };
+  if (gradeRaw) {
+    gradeConfig = { 
+      bobot: gradeRaw.bobot || {}, 
+      is_released: gradeRaw.is_released === true 
+    };
+  }
+
+  // ── 6. Proses Jadwal (Diurutkan berdasarkan tanggal) ──
+  var jadwal = [];
+  Object.keys(jadwalRaw).forEach(function(jKey) {
+    var j = jadwalRaw[jKey];
+    if (!j || !j.pertemuan) return;
+    jadwal.push({ 
+      jadwal_id: jKey, 
+      pertemuan: j.pertemuan || '',
+      tanggal: j.tanggal || '', 
+      waktu: j.waktu || '',
+      mode: j.mode || 'Luring', 
+      lokasi_link: j.lokasi_link || '' 
+    });
+  });
+  
+  jadwal.sort(function(a, b) {
+    function toMs(tgl) {
+      var p = String(tgl).split('-');
+      if (p.length !== 3) return 0;
+      return new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0])).getTime();
+    }
+    return toMs(a.tanggal) - toMs(b.tanggal);
+  });
+
+  // Kembalikan semua data dalam satu paket
   return {
-    materials:   getCourseMaterials(courseId),
+    materials:   materials,
     quizzes:     quizzes,
-    jadwal:      getJadwalKelas(courseId),
     lessons:     lessons,
-    nilai:       getRekapNilaiMahasiswa(courseId, userId),
-    gradeConfig: getAdminGradeConfig(courseId)
+    nilai:       nilai,
+    gradeConfig: gradeConfig,
+    jadwal:      jadwal
   };
 }
 
+// ══════════════════════════════════════════════
+// PAKET DATA ANALITIK KELAS — Ultimate Version
+// ══════════════════════════════════════════════
 function getPaketDataAnalitikKelas(courseId) {
-  return {
-    materials: getCourseMaterials(courseId),
-    quizzes:   getCourseQuizzes(courseId),
-    lessons:   getCourseLessons(courseId),
-    students:  getStudentManagementData(courseId),
-    rankings:  getStudentRankings(courseId),
-    inactive:  getInactiveStudents(courseId),
-    nilai:     getSemuaNilaiKelas(courseId),
-    jadwal:    getJadwalKelas(courseId)
-  };
-}
+  var cKey = safeKey(courseId);
 
+  // ── 1. Fetch data SATU KALI, TAPI HANYA UNTUK KELAS INI ──
+  // Menggunakan fbGetFiltered agar bandwidth sangat super hemat!
+  var allMat    = fbGetFiltered('aqualearn/materials', 'course_id', courseId) || {};
+  var allQuiz   = fbGetFiltered('aqualearn/quiz', 'course_id', courseId) || {};
+  var allLesson = fbGetFiltered('aqualearn/lesson_assign', 'course_id', courseId) || {};
+  
+  var cbtSet    = fbGet('aqualearn/cbt_settings')   || {};
+  var users     = fbGet('aqualearn/users')           || {};
+  var members   = fbGet('aqualearn/enrollments/' + cKey)      || {};
+  var matTrackC = fbGet('aqualearn/material_track/' + cKey)   || {};
+  var qTrackC   = fbGet('aqualearn/quiz_track/'     + cKey)   || {};
+  var lSubC     = fbGet('aqualearn/lesson_submit/'  + cKey)   || {};
+  var nilaiCKey = fbGet('aqualearn/nilai/'          + cKey)   || {};
+  var jadwalRaw = fbGet('aqualearn/jadwal/'         + cKey)   || {};
+
+  // ── 2. Format materi ──
+  var materials = [];
+  Object.keys(allMat).forEach(function(k) {
+    var m = allMat[k];
+    materials.push({ material_id: k, course_id: m.course_id, title: m.title || '', url_drive: m.url_drive || '' });
+  });
+
+  // ── 3. Format kuis ──
+  var quizzes = [];
+  Object.keys(allQuiz).forEach(function(k) {
+    var q = allQuiz[k];
+    var urlForm = q.url_form || '';
+    var cbtQuizId = '';
+    var match = urlForm.match(/quizId=([^&\s]+)/);
+    if (match && match[1]) cbtQuizId = match[1].trim();
+    var deadline = '', duration = 0;
+    if (cbtQuizId && cbtSet[cbtQuizId]) {
+      deadline = cbtSet[cbtQuizId].deadline || '';
+      duration = parseInt(cbtSet[cbtQuizId].duration_minutes) || 0;
+    }
+    quizzes.push({ quiz_id: k, course_id: courseId, title: q.title || '', url_form: urlForm, dikerjakan: false, cbt_deadline: deadline, cbt_duration_menit: duration });
+  });
+
+  // ── 4. Format lesson ──
+  var lessons = [];
+  Object.keys(allLesson).forEach(function(k) {
+    var l = allLesson[k];
+    var deadlineMs = 0;
+    var parts = String(l.deadline).split('-');
+    if (parts.length === 3) {
+      deadlineMs = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]), 23, 59, 59).getTime();
+    }
+    lessons.push({ assign_id: k, course_id: l.course_id, topic: l.topic || '', deadline: l.deadline || '', deadline_ms: deadlineMs });
+  });
+
+  // ── 5. Daftar mahasiswa ──
+  var enrolled = [];
+  Object.keys(members).forEach(function(uKey) {
+    if (!users[uKey]) return;
+    enrolled.push({ user_id: uKey, nama: users[uKey].nama_lengkap });
+  });
+  var all = [];
+  Object.keys(users).forEach(function(uKey) {
+    if (users[uKey].role === 'Mahasiswa') all.push({ user_id: uKey, nama_lengkap: users[uKey].nama_lengkap });
+  });
+
+  // ── 6. Ranking (Aman karena data mat/quiz/lesson di atas sudah spesifik 1 kelas) ──
+  var matIds    = Object.keys(allMat);
+  var quizIds   = Object.keys(allQuiz);
+  var lessonIds = Object.keys(allLesson);
+
+  var rankings = [];
+  Object.keys(members).forEach(function(uKey) {
+    var nama    = users[uKey] ? users[uKey].nama_lengkap : uKey;
+    var matTrk  = matTrackC[uKey] || {};
+    var qTrk    = qTrackC[uKey]   || {};
+
+    var totalMatClick = Object.keys(matTrk).length;
+    var uniqueMat     = matIds.filter(function(k) { return !!matTrk[safeKey(k)]; }).length;
+    var scoreMat      = (uniqueMat * 5) + ((totalMatClick - uniqueMat) * 3);
+    var scoreQuiz     = quizIds.filter(function(k) { return !!qTrk[safeKey(k)]; }).length * 10;
+    var doneLessons   = lessonIds.filter(function(k) { return lSubC[safeKey(k)] && lSubC[safeKey(k)][uKey]; }).length;
+    var scoreLesson   = doneLessons * 10;
+
+    rankings.push({ userId: uKey, nama: nama, skor: scoreMat + scoreQuiz + scoreLesson });
+  });
+  rankings.sort(function(a, b) { return b.skor - a.skor; });
+
+  var inactive = rankings.filter(function(r) { return r.skor === 0; }).map(function(r) { return r.nama; });
+
+  // ── 7 & 8 Nilai dan Jadwal (Sama seperti usulan sebelumnya) ──
+  var nilaiResult = [];
+  Object.keys(nilaiCKey).forEach(function(uKey) {
+    var userNilai = nilaiCKey[uKey];
+    var nama = users[uKey] ? users[uKey].nama_lengkap : 'Tidak Ditemukan';
+    Object.keys(userNilai).forEach(function(jKey) {
+      nilaiResult.push({ jenis_nilai_key: jKey, user_id: uKey, nama: nama, jenis_nilai: userNilai[jKey].jenis, nilai: userNilai[jKey].nilai });
+    });
+  });
+
+  var jadwal = [];
+  Object.keys(jadwalRaw).forEach(function(jKey) {
+    var j = jadwalRaw[jKey];
+    if (!j || !j.pertemuan) return;
+    jadwal.push({ jadwal_id: jKey, pertemuan: j.pertemuan || '', tanggal: j.tanggal || '', waktu: j.waktu || '', mode: j.mode || 'Luring', lokasi_link: j.lokasi_link || '' });
+  });
+  jadwal.sort(function(a, b) {
+    function toMs(tgl) {
+      var p = String(tgl).split('-');
+      if (p.length !== 3) return 0;
+      return new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0])).getTime();
+    }
+    return toMs(a.tanggal) - toMs(b.tanggal);
+  });
+
+  return { materials: materials, quizzes: quizzes, lessons: lessons, students: { enrolled: enrolled, all: all }, rankings: rankings, inactive: inactive, nilai: nilaiResult, jadwal: jadwal };
+}
 
 // ══════════════════════════════════════════════
 // IMPORT KONTEN ANTAR KELAS
@@ -778,7 +1068,6 @@ function importKontenKelas(sourceCourseId, targetCourseId, newDeadline) {
   };
 }
 
-
 // ══════════════════════════════════════════════
 // CACHE (tetap pakai ScriptCache untuk speed)
 // Firebase sebagai source of truth,
@@ -830,4 +1119,14 @@ function refreshAndGetCourseData(courseId) {
 
 function getScriptUrl() {
   return ScriptApp.getService().getUrl();
+}
+
+function logCbtViolations(quizId, userId, violations) {
+  if (!quizId || !userId || !violations || !violations.length) return false;
+  var path = "aqualearn/cbt_violations/" + safeKey(quizId) + "/" + safeKey(userId);
+  var existing = fbGet(path) || { total: 0, log: [] };
+  existing.total += violations.length;
+  existing.log = (existing.log || []).concat(violations);
+  fbPut(path, existing);
+  return true;
 }
