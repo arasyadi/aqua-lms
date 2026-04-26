@@ -695,9 +695,19 @@
 
       <!-- ACCORDION: Ranking -->
       <div class="accordion-item mb-4">
-        <button class="accordion-header open" onclick="toggleAccordion(this)">
-          <span>🏆 Ranking Aktivitas Mahasiswa</span><span class="arrow">▼</span>
-        </button>
+      <div class="accordion-header open" onclick="toggleAccordion(this)" style="cursor:pointer;">
+        <span>🏆 Ranking Aktivitas Mahasiswa</span>
+        <div style="display:flex;align-items:center;gap:10px;margin-left:auto;">
+          <button
+            id="btnExportAktivitas"
+            class="btn btn-teal btn-sm"
+            style="display:none; font-size:12px;"
+            onclick="exportNilaiAktivitas(); event.stopPropagation();">
+            📥 Export Nilai
+          </button>
+        <span class="arrow">▼</span>
+        </div>
+      </div>
         <div class="accordion-body open">
           <div id="loadingRanking" style="color:#3a6a85;font-size:13px;padding:6px 0;">Memuat data analitik…</div>
           <div class="tbl-wrap" id="rankingContainer" style="display:none;">
@@ -940,6 +950,7 @@ function simpanPengaturanWaktuCbt() {
   var currentUserInfo = null;
   var activeCourseId   = null;
   var activeCourseName = null;
+  var globalRankings = []; // Menyimpan data ranking terakhir untuk keperluan export
 
   var ALL_VIEWS = ['loginView','dashboardView','courseRoomView','lecturerDashboardView','lecturerAnalyticsView'];
   function showView(id) {
@@ -1011,7 +1022,12 @@ function showConfirm(message, onConfirmCallback, options) {
 // BAJAK ALERT BAWAAN BROWSER
 // ==========================================
 window.alert = function(pesan) {
-  showToast(pesan, 'warning');
+  var type = 'info';
+  if (/^✅/.test(pesan))       type = 'success';
+  else if (/^❌/.test(pesan))  type = 'error';
+  else if (/^⚠/.test(pesan))  type = 'warning';
+  else if (/^🚨/.test(pesan))  type = 'error';
+  showToast(pesan, type);
 };
 
   function switchTab(panelId, btnEl) {
@@ -1064,6 +1080,9 @@ window.alert = function(pesan) {
             if (cekDevice.isNewBind) {
                alert("✅ Perangkat (Browser) ini sekarang telah ditautkan secara permanen dengan akun Anda. Jangan gunakan mode Samaran (Incognito) atau menghapus Cache Browser.");
             }
+            if (cekDevice.wasRebound) {
+                console.log("[LMS] Token diperbarui otomatis — device sama terdeteksi.");
+            }
             
             // Lanjutkan proses login normal
             document.getElementById('message').innerText = 'Berhasil masuk...';
@@ -1102,43 +1121,67 @@ window.alert = function(pesan) {
     }
   }
 
-  // Fungsi pembuat Token Deskriptif (Mendeteksi OS & Browser)
-  function dapatkanDeviceToken() {
-    var token = localStorage.getItem('aqua_lms_device_token');
-    
-    // Jika belum punya kunci, kita buatkan yang baru dan deskriptif
-    if (!token) {
-      var ua = navigator.userAgent.toLowerCase();
-      var os = "unknown";
-      var browser = "unknown";
+// ══════════════════════════════════════════════
+// DEVICE TOKEN — DETERMINISTIK DAN STABIL
+// ══════════════════════════════════════════════
 
-      // 1. Deteksi Sistem Operasi (OS)
-      if (ua.indexOf("android") > -1) os = "android";
-      else if (ua.indexOf("iphone") > -1) os = "iphone";
-      else if (ua.indexOf("ipad") > -1) os = "ipad";
-      else if (ua.indexOf("windows") > -1) os = "windows";
-      else if (ua.indexOf("mac") > -1) os = "macintosh";
-      else if (ua.indexOf("linux") > -1) os = "linux";
+function dapatkanDeviceToken() {
+  // Coba ambil dari cache localStorage dulu
+  var cached = localStorage.getItem('aqua_lms_device_token');
+  if (cached && cached.split('_').length >= 3) return cached;
 
-      // 2. Deteksi Nama Browser
-      // Urutan pengecekan ini penting karena beberapa browser memakai 'mesin' yang sama
-      if (ua.indexOf("edg") > -1) browser = "edge";
-      else if (ua.indexOf("opr") > -1 || ua.indexOf("opera") > -1) browser = "opera";
-      else if (ua.indexOf("chrome") > -1) browser = "chrome";
-      else if (ua.indexOf("safari") > -1 && ua.indexOf("chrome") === -1) browser = "safari";
-      else if (ua.indexOf("firefox") > -1) browser = "firefox";
+  var ua      = navigator.userAgent.toLowerCase();
+  var os      = "unknown";
+  var browser = "unknown";
 
-      // 3. Gabungkan OS, Browser, dan Kode Unik (Waktu + Acak)
-      var kodeUnik = Math.random().toString(36).substr(2, 5);
-      
-      // Hasilnya akan seperti: android_chrome_x7y9z
-      token = os + '_' + browser + '_' + kodeUnik;
-      
-      localStorage.setItem('aqua_lms_device_token', token);
-    }
-    
-    return token;
+  // Deteksi OS 
+  if      (ua.indexOf("android") > -1) os = "android";
+  else if (ua.indexOf("iphone")  > -1) os = "iphone";
+  else if (ua.indexOf("ipad")    > -1) os = "ipad";
+  else if (ua.indexOf("windows") > -1) os = "windows";
+  else if (ua.indexOf("mac")     > -1) os = "mac";
+  else if (ua.indexOf("linux")   > -1) os = "linux";
+
+  // Deteksi Browser 
+  if      (ua.indexOf("edg") > -1)                               browser = "edge";
+  else if (ua.indexOf("opr") > -1 || ua.indexOf("opera") > -1)   browser = "opera";
+  else if (ua.indexOf("crios") > -1 || ua.indexOf("chrome") > -1) browser = "chrome";  
+  else if (ua.indexOf("fxios") > -1 || ua.indexOf("firefox") > -1) browser = "firefox";
+  else if (ua.indexOf("safari") > -1)                            browser = "safari";
+
+  var tz = "UTC";
+  try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch(e) {}
+
+  // Mencegah token berubah kalau HP diputar (Landscape/Portrait)
+  var maxRes = Math.max(screen.width || 0, screen.height || 0);
+  var minRes = Math.min(screen.width || 0, screen.height || 0);
+
+  // Kumpulkan properti hardware yang stabil
+  var fingerprint = [
+    maxRes,
+    minRes,
+    screen.colorDepth   || 24,
+    navigator.language  || "xx",
+    navigator.hardwareConcurrency || 0,
+    tz
+  ].join("|");
+
+  var hash = _djb2Hash(fingerprint).toString(36);
+  var token = os + "_" + browser + "_" + hash;
+
+  try { localStorage.setItem("aqua_lms_device_token", token); } catch(e) {}
+
+  return token;
+}
+
+function _djb2Hash(str) {
+  var hash = 5381;
+  for (var i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash) ^ str.charCodeAt(i);
+    hash = hash & hash; // Clamp ke 32-bit
   }
+  return Math.abs(hash);
+}
 
   function checkSession() {
     var saved = localStorage.getItem('lms_session');
@@ -1499,20 +1542,26 @@ window.alert = function(pesan) {
 
   function renderNilai(nilaiData) {
     document.getElementById('loadingNilai').style.display = 'none';
+
     var tbody = document.getElementById('nilaiList');
+
     if (!nilaiData || nilaiData.length === 0) {
       tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#3a6a85;">Belum ada nilai yang diinputkan oleh dosen.</td></tr>';
+      document.getElementById('areaTombolNilaiAkhir').style.display = 'none';
       return;
     }
+
     var html = '';
     nilaiData.forEach(function(item) {
       html += '<tr>'
             + '<td style="color:#c0dbe8;font-weight:500;">' + item.jenis_nilai + '</td>'
-            // Tambahkan text-align:center pada baris td di bawah ini
-            + '<td style="text-align:center;"><span class="badge badge-mint" style="font-size:13px; font-weight:700;">' + item.nilai + '</span></td>'
+            + '<td style="text-align:center;"><span class="badge badge-mint" style="font-size:13px;font-weight:700;">' + item.nilai + '</span></td>'
             + '</tr>';
     });
     tbody.innerHTML = html;
+
+    // Tampilkan tombol nilai akhir — visibilitasnya dikontrol oleh lihatNilaiAkhirMahasiswa()
+    document.getElementById('areaTombolNilaiAkhir').style.display = 'block';
   }
 
   function kirimLesson(assignId) {
@@ -1725,7 +1774,8 @@ function _tampilkanErrorAnalitik(pesanHtml) {
     quizzes.forEach(function(q){
       var aksiBuka = "";
       if (q.url_form.indexOf('?page=cbt') > -1) {
-         var extractedQuizId = q.url_form.split('quizId=')[1];
+         var match = q.url_form.match(/quizId=([^&\s]+)/);
+         var extractedQuizId = match ? match[1] : '';
          // Tombol ini memanggil fungsi bukaDashboardCbtTab()
          aksiBuka = '<button class="btn btn-teal btn-sm" onclick="bukaDashboardCbtTab(\'' + extractedQuizId + '\')">📊 Dashboard CBT</button>';
       } else {
@@ -2055,20 +2105,36 @@ function batalImportMhs() {
     });
   }
 
-  function renderRankings(rankings){
-    document.getElementById('loadingRanking').style.display='none';
-    document.getElementById('rankingContainer').style.display='block';
-    var tbody=document.getElementById('rankingBody');tbody.innerHTML='';
-    if(!rankings||!rankings.length){tbody.innerHTML='<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Belum ada data aktivitas</td></tr>';return;}
-    var medals=['🥇','🥈','🥉'];
-    rankings.forEach(function(r,i){
-      var cls=i===0?'rank-gold':i===1?'rank-silver':i===2?'rank-bronze':'';
-      var icon=i<3?medals[i]:(i+1);
-      tbody.innerHTML+='<tr class="'+cls+'">'
-        +'<td style="text-align:center;font-size:17px;"><b>'+icon+'</b></td>'
-        +'<td>'+r.nama+'</td>'
-        +'<td style="text-align:center;"><b>'+r.skor+' Pts</b></td>'
-        +'</tr>';
+  function renderRankings(rankings) {
+    document.getElementById('loadingRanking').style.display = 'none';
+    document.getElementById('rankingContainer').style.display = 'block';
+
+    // Simpan data untuk keperluan export
+    globalRankings = rankings || [];
+
+    // Tampilkan / sembunyikan tombol export
+    var btnExport = document.getElementById('btnExportAktivitas');
+    if (btnExport) {
+      btnExport.style.display = globalRankings.length > 0 ? 'inline-flex' : 'none';
+    }
+
+    var tbody = document.getElementById('rankingBody');
+    tbody.innerHTML = '';
+
+    if (!rankings || !rankings.length) {
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Belum ada data aktivitas</td></tr>';
+      return;
+    }
+
+    var medals = ['🥇','🥈','🥉'];
+    rankings.forEach(function(r, i) {
+      var cls  = i === 0 ? 'rank-gold' : i === 1 ? 'rank-silver' : i === 2 ? 'rank-bronze' : '';
+      var icon = i < 3 ? medals[i] : (i + 1);
+      tbody.innerHTML += '<tr class="' + cls + '">'
+        + '<td style="text-align:center;font-size:17px;"><b>' + icon + '</b></td>'
+        + '<td>' + r.nama + '</td>'
+        + '<td style="text-align:center;"><b>' + r.skor + ' Pts</b></td>'
+        + '</tr>';
     });
   }
 
@@ -2171,7 +2237,6 @@ function batalImportMhs() {
 
 function _bacaExcelNilai(file, jenisNilai, btn) {
   var reader = new FileReader();
-
   btn.innerText = 'Membaca File...';
 
   reader.onload = function(e) {
@@ -2179,28 +2244,57 @@ function _bacaExcelNilai(file, jenisNilai, btn) {
       var data       = new Uint8Array(e.target.result);
       var workbook   = XLSX.read(data, { type: 'array' });
       var firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-      var jsonData   = XLSX.utils.sheet_to_json(firstSheet, { defval: '' });
+      
+      // ── Baca sebagai array mentah dulu (tanpa asumsi header di baris 1) ──
+      var rawRows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
 
+      // ── Cari baris yang mengandung "NIM" sebagai header ──
+      var headerRowIdx = -1;
+      var nimColIdx    = -1;
+      var nilaiColIdx  = -1;
+
+      for (var i = 0; i < rawRows.length; i++) {
+        var row = rawRows[i];
+        for (var j = 0; j < row.length; j++) {
+          var cell = String(row[j]).trim().toLowerCase();
+          if (cell === 'nim' || cell === 'username' || cell === 'nim / id') {
+            headerRowIdx = i;
+            nimColIdx    = j;
+          }
+          if (cell === 'nilai' || cell === 'skor' || cell === 'score' || cell === 'total score') {
+            nilaiColIdx = j;
+          }
+        }
+        if (headerRowIdx !== -1 && nilaiColIdx !== -1) break;
+      }
+
+      // ── Fallback: jika NIM ketemu tapi Nilai tidak (atau sebaliknya) ──
+      if (headerRowIdx === -1 || nimColIdx === -1 || nilaiColIdx === -1) {
+        alert('Gagal: Tidak menemukan kolom "NIM" dan "Skor/Nilai" di dalam file. Pastikan nama kolom sudah benar.');
+        btn.innerText = '📤 Proses Impor';
+        btn.disabled  = false;
+        return;
+      }
+
+      // ── Proses baris data (mulai setelah header) ──
       var parsedData = [];
-      for (var i = 0; i < jsonData.length; i++) {
-        var row = jsonData[i];
+      for (var r = headerRowIdx + 1; r < rawRows.length; r++) {
+        var dataRow = rawRows[r];
+        var nim     = String(dataRow[nimColIdx]  || '').trim();
+        var nilai   = String(dataRow[nilaiColIdx] || '').trim();
 
-        // Smart Detector: Deteksi otomatis nama kolom dari Google Forms / SIAKAD
-        var nim   = row['NIM'] || row['nim'] || row['Username'] || row['NIM / ID'];
-        var nilai = row['Nilai'] || row['nilai'] || row['Skor'] || row['Score'] || row['Total score'];
-
-        // Jika Google Forms memformat skor menjadi "85.00 / 100", ambil angka depannya saja
-        if (typeof nilai === 'string' && nilai.includes('/')) {
+        // Tangani format "85.00 / 100" dari Google Forms
+        if (nilai.indexOf('/') > -1) {
           nilai = nilai.split('/')[0].trim();
         }
 
-        if (nim && nilai !== undefined && nilai !== '') {
-          parsedData.push({ nim: String(nim).trim(), nilai: parseFloat(nilai) });
+        if (nim && nim !== '-' && nilai !== '') {
+          parsedData.push({ nim: nim, nilai: parseFloat(nilai) });
         }
       }
 
       if (parsedData.length === 0) {
-        alert('Gagal: Tidak menemukan kolom "NIM" dan "Skor/Nilai" di dalam file. Pastikan nama kolom di baris pertama Excel Anda sudah benar.');
+        alert('Tidak ada data NIM valid yang ditemukan. Pastikan kolom NIM tidak berisi tanda "-".');
         btn.innerText = '📤 Proses Impor';
         btn.disabled  = false;
         return;
@@ -2208,7 +2302,6 @@ function _bacaExcelNilai(file, jenisNilai, btn) {
 
       btn.innerText = 'Menyimpan ke Database...';
 
-      // Kirim ke backend menggunakan Failure Handler (Anti Stuck)
       google.script.run
         .withSuccessHandler(function(r) {
           btn.innerText = '📤 Proses Impor';
@@ -2843,15 +2936,89 @@ function refreshDataKelas() {
     document.getElementById('nilaiAkhirModalOverlay').style.display = 'none';
   }
 
-  // Trik untuk memunculkan tombol mahasiswa jika nilainya sudah dirilis
-  // Sisipkan logika ini sedikit di bagian "renderNilai" milik Mahasiswa
-  // Kita overwrite fungsi renderNilai yang lama agar otomatis mengecek
-  var originalRenderNilai = renderNilai;
-  renderNilai = function(nilaiData) {
-    originalRenderNilai(nilaiData); // Jalankan fungsi tabel lama
-    // Munculkan secara default tombolnya, backend akan menolak jika blm rilis
-    document.getElementById('areaTombolNilaiAkhir').style.display = 'block';
+// ══════════════════════════════════════════════
+// EXPORT NILAI KEAKTIFAN — Normalisasi Skor ke Skala 0–100
+// Rumus: nilai_mahasiswa / skor_tertinggi * 100
+// ══════════════════════════════════════════════
+function exportNilaiAktivitas() {
+  if (!globalRankings || globalRankings.length === 0) {
+    alert('Data ranking belum tersedia. Buka panel kelas terlebih dahulu.');
+    return;
   }
+
+  var btn = document.getElementById('btnExportAktivitas');
+  btn.innerText = 'Menyiapkan...';
+  btn.disabled  = true;
+
+  _loadXLSX(function() {
+    btn.innerText = '📥 Export Nilai';
+    btn.disabled  = false;
+    _prosesExportAktivitas();
+  });
+}
+
+function _prosesExportAktivitas() {
+  // Skor tertinggi selalu index 0 (sudah diurutkan descending)
+  var skorMax = globalRankings[0].skor;
+
+  if (skorMax <= 0) {
+    alert('Skor tertinggi = 0, tidak ada aktivitas yang bisa diekspor.');
+    return;
+  }
+
+  // Konversi angka ke Nilai Huruf Universitas Udayana
+  function angkaKeHuruf(n) {
+    if (isNaN(n)) return '-';
+    if (n >= 80) return 'A';
+    if (n >= 71) return 'B+';
+    if (n >= 65) return 'B';
+    if (n >= 60) return 'C+';
+    if (n >= 55) return 'C';
+    if (n >= 50) return 'D+';
+    if (n >= 40) return 'D';
+    return 'E';
+  }
+
+  // Bangun baris data
+  var wsData = [
+    ['NIM', 'Nama', 'Nilai']
+  ];
+
+  globalRankings.forEach(function(r) {
+    var nilaiNormalisasi = Math.round((r.skor / skorMax) * 100 * 100) / 100;
+    wsData.push([
+      r.userId && r.userId !== 'undefined' ? r.userId : '-',
+      r.nama   || '-',
+      nilaiNormalisasi
+    ]);
+  });
+
+  // Metadata ringkas di baris pertama (opsional — bisa dihapus jika tidak diinginkan)
+  var metadata = [
+    ['Kelas'         , activeCourseName || activeCourseId],
+    ['Skor Tertinggi', skorMax],
+    ['Jumlah Mhs'    , globalRankings.length],
+    ['Diekspor'      , new Date().toLocaleString('id-ID', { timeZone: 'Asia/Makassar' }) + ' WITA'],
+    []  // Baris kosong sebelum header data
+  ];
+
+  var finalData = metadata.concat(wsData);
+
+  // Buat workbook
+  var wb = XLSX.utils.book_new();
+  var ws = XLSX.utils.aoa_to_sheet(finalData);
+
+  // Lebar kolom
+  ws['!cols'] = [{ wch: 16 }, { wch: 38 }, { wch: 10 }];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Nilai Keaktifan');
+
+  var safeNama = (activeCourseName || activeCourseId || 'kelas')
+    .replace(/[^a-zA-Z0-9\s]/g, '')
+    .replace(/\s+/g, '_');
+
+  XLSX.writeFile(wb, 'NilaiAktivitas_' + safeNama + '.xlsx');
+}
 
 </script>
 
