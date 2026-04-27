@@ -133,79 +133,38 @@ function resetDeviceBindingBatch(nimArray) {
 }
 
 // ══════════════════════════════════════════════
-// DASHBOARD MAHASISWA — Optimized Loading (Paralel)
+// DASHBOARD MAHASISWA — [FIX] Query per-kelas + Cache
+// Mencegah Exception: Kuota bandwidth Firebase terlampaui
 // ══════════════════════════════════════════════
 function getStudentCourses(userId) {
-  var uKey = safeKey(userId);
+  var uKey     = safeKey(userId);
+  var cacheKey = 'student_courses_' + uKey;
 
-  // 1. Ambil daftar enrollment & kelas
-  var enrollments = fbGet("aqualearn/enrollments") || {};
-  var courses     = fbGet("aqualearn/courses")     || {};
-  var myCourses   = [];
+  // Cek cache dulu — hindari fetch berulang dalam 5 menit
+  var cached = cacheGet(cacheKey);
+  if (cached) return cached;
 
-  Object.keys(enrollments).forEach(function(courseKey) {
-    if (enrollments[courseKey][uKey] && courses[courseKey]) {
-      myCourses.push({
-        course_id: courseKey,
-        course_name: courses[courseKey].course_name,
-        progress: 0 // Default 0, akan dihitung cepat di bawah
-      });
-    }
+  var coursesData = fbGet("aqualearn/courses") || {};
+  var result      = [];
+
+  Object.keys(coursesData).forEach(function(courseKey) {
+    // Cek enrollment per-kelas (1 node kecil, bukan seluruh /enrollments)
+    var isMember = fbGet("aqualearn/enrollments/" + courseKey + "/" + uKey);
+    if (!isMember) return;
+
+    var course = coursesData[courseKey];
+    if (!course) return;
+
+    result.push({
+      course_id:   courseKey,
+      course_name: course.course_name,
+      progress:    calculateCourseProgress(userId, courseKey)
+    });
   });
 
-  if (myCourses.length === 0) return []; // Jika tidak ada kelas, langsung berhenti
-
-  // 2. Siapkan request PARALEL untuk menghitung progress secara instan
-  var requests = [];
-  myCourses.forEach(function(c) {
-    var cKey = safeKey(c.course_id);
-    var filterID = encodeURIComponent('"' + c.course_id + '"');
-
-    // Kumpulkan 6 request per kelas ke dalam satu antrean
-    requests.push({ url: _fbUrl('aqualearn/materials') + '?orderBy=%22course_id%22&equalTo=' + filterID, muteHttpExceptions: true });
-    requests.push({ url: _fbUrl('aqualearn/material_track/' + cKey + '/' + uKey), muteHttpExceptions: true });
-    requests.push({ url: _fbUrl('aqualearn/quiz') + '?orderBy=%22course_id%22&equalTo=' + filterID, muteHttpExceptions: true });
-    requests.push({ url: _fbUrl('aqualearn/quiz_track/' + cKey + '/' + uKey), muteHttpExceptions: true });
-    requests.push({ url: _fbUrl('aqualearn/lesson_assign') + '?orderBy=%22course_id%22&equalTo=' + filterID, muteHttpExceptions: true });
-    requests.push({ url: _fbUrl('aqualearn/lesson_submit/' + cKey), muteHttpExceptions: true });
-  });
-
-  // 3. JALANKAN SEMUA REQUEST BERSAMAAN (Sangat Menghemat Waktu!)
-  var responses = UrlFetchApp.fetchAll(requests);
-
-  // Helper untuk membaca hasil dengan aman
-  function parseRes(res) {
-    if (res.getResponseCode() !== 200) return {};
-    var txt = res.getContentText();
-    return (txt === 'null' || !txt) ? {} : JSON.parse(txt);
-  }
-
-  // 4. Hitung progress dari data yang sudah terkumpul
-  var idx = 0;
-  myCourses.forEach(function(c) {
-    var resMat    = parseRes(responses[idx++]);
-    var resMatTrk = parseRes(responses[idx++]);
-    var resQz     = parseRes(responses[idx++]);
-    var resQzTrk  = parseRes(responses[idx++]);
-    var resLes    = parseRes(responses[idx++]);
-    var resLesSub = parseRes(responses[idx++]);
-
-    var matIds    = Object.keys(resMat);
-    var quizIds   = Object.keys(resQz);
-    var lessonIds = Object.keys(resLes);
-
-    var matDone    = matIds.filter(function(k) { return !!resMatTrk[safeKey(k)]; }).length;
-    var quizDone   = quizIds.filter(function(k) { return !!resQzTrk[safeKey(k)]; }).length;
-    var lessonDone = lessonIds.filter(function(k) { return resLesSub[safeKey(k)] && resLesSub[safeKey(k)][uKey]; }).length;
-
-    var pMat    = matIds.length > 0    ? (matDone / matIds.length) * 40 : 0;
-    var pLesson = lessonIds.length > 0 ? (lessonDone / lessonIds.length) * 40 : 0;
-    var pQuiz   = quizIds.length > 0   ? (quizDone / quizIds.length) * 20 : 0;
-
-    c.progress = Math.round(pMat + pLesson + pQuiz);
-  });
-
-  return myCourses;
+  // Simpan ke cache 5 menit
+  cachePut(cacheKey, result);
+  return result;
 }
 
 function getLecturerCourses(dosenId) {
@@ -364,6 +323,8 @@ function logMaterialAccess(userId, materialId) {
 
   fbPut(path, new Date().toISOString());
   invalidateCourseCache(mat.course_id);
+  // [FIX] Invalidate cache dashboard mahasiswa agar progress terupdate
+  cacheRemove('student_courses_' + safeKey(userId));
   return true;
 }
 
@@ -426,6 +387,8 @@ function logQuizAccess(userId, quizId) {
 
   fbPut(path, new Date().toISOString());
   invalidateCourseCache(q.course_id);
+  // [FIX] Invalidate cache dashboard mahasiswa agar progress terupdate
+  cacheRemove('student_courses_' + safeKey(userId));
   return true;
 }
 
@@ -497,6 +460,8 @@ function submitLesson(assignId, userId, insight) {
   });
 
   invalidateCourseCache(l.course_id);
+  // [FIX] Invalidate cache dashboard mahasiswa agar progress terupdate
+  cacheRemove('student_courses_' + safeKey(userId));
   return true;
 }
 
@@ -989,7 +954,7 @@ function getPaketDataAnalitikKelas(courseId) {
 
   var inactive = rankings.filter(function(r) { return r.skor === 0; }).map(function(r) { return r.nama; });
 
-  // ── 7 & 8 Nilai dan Jadwal (Sama seperti usulan sebelumnya) ──
+  // ── 7 & 8 Nilai dan Jadwal ──
   var nilaiResult = [];
   Object.keys(nilaiCKey).forEach(function(uKey) {
     var userNilai = nilaiCKey[uKey];
