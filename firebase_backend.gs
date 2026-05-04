@@ -4,17 +4,17 @@
 // ============================================================
 
 var FB_URL = "FIREBASE URL";
-// Ganti dengan URL Firebase Anda (sama dengan migration.gs)
+var FB_SECRET = "FIREBASE SECRET";
 
 // ══════════════════════════════════════════════
-// FIREBASE REST HELPERS — v3 (URL-safe + Query Filter)
+// FIREBASE REST HELPERS — v4 (+ Auth Secret)
 // ══════════════════════════════════════════════
 
-/** Sanitasi URL: hapus trailing slash dari base, leading slash dari path */
+/** Sanitasi URL + tambahkan auth token */
 function _fbUrl(path) {
   var base  = String(FB_URL).replace(/\/+$/, '');
   var clean = String(path).replace(/^\/+/, '');
-  return base + '/' + clean + '.json';
+  return base + '/' + clean + '.json?auth=' + FB_SECRET;
 }
 
 function fbGet(path) {
@@ -24,17 +24,30 @@ function fbGet(path) {
   return text === 'null' ? null : JSON.parse(text);
 }
 
-// Fungsi BARU untuk Filter Bandwidth (Hanya ambil data kelas terkait) - DIPERBAIKI (URL Encoded)
 function fbGetFiltered(path, filterField, filterValue) {
-  // Gunakan encodeURIComponent untuk mengubah tanda kutip (") menjadi format URL aman (%22)
-  var query = '?orderBy=' + encodeURIComponent('"' + filterField + '"') + 
+  // Gunakan & bukan ? karena _fbUrl sudah punya ?auth=
+  var query = '&orderBy=' + encodeURIComponent('"' + filterField + '"') +
               '&equalTo=' + encodeURIComponent('"' + filterValue + '"');
-              
+
   var res = UrlFetchApp.fetch(_fbUrl(path) + query, { muteHttpExceptions: true });
-  
-  if (res.getResponseCode() !== 200) return null;
-  var text = res.getContentText();
-  return text === 'null' ? null : JSON.parse(text);
+
+  if (res.getResponseCode() === 200) {
+    var text = res.getContentText();
+    return text === 'null' ? null : JSON.parse(text);
+  }
+
+  // Fallback manual filter
+  var allData = fbGet(path);
+  if (!allData) return null;
+
+  var result = {};
+  Object.keys(allData).forEach(function(key) {
+    if (allData[key] && allData[key][filterField] === filterValue) {
+      result[key] = allData[key];
+    }
+  });
+
+  return Object.keys(result).length > 0 ? result : null;
 }
 
 function fbPut(path, data) {
@@ -85,41 +98,56 @@ function checkLogin(username, password) {
 
 function verifikasiDeviceBinding(userId, deviceToken) {
   var key      = safeKey(userId);
-  var existing = fbGet("aqualearn/device_binding/" + key);
+  var existing = fbGet('aqualearn/device_binding/' + key);
 
   // ── LOGIN PERTAMA: Ikat perangkat ──
   if (!existing) {
-    fbPut("aqualearn/device_binding/" + key, {
+    fbPut('aqualearn/device_binding/' + key, {
       device_token:  deviceToken,
       waktu_tertaut: new Date().toISOString()
     });
     return { success: true, isNewBind: true };
   }
 
-  // ── PENGECEKAN KETAT (Exact Match) ──
-  // Karena token klien sekarang stabil dan berdasarkan hardware, 
-  // hapus cache/incognito tidak akan mengubah token.
+  // ── PENGECEKAN 1: Exact match — langsung lolos ──
   if (existing.device_token === deviceToken) {
     return { success: true, isNewBind: false };
   }
 
-  // Jika tidak cocok, tolak dengan pesan yang informatif
-  var savedParts = String(existing.device_token).split("_");
-  
-  function cap(t) {
-    return t ? t.charAt(0).toUpperCase() + t.slice(1) : "Tidak Dikenali";
+  // ── PENGECEKAN 2: Partial match OS+Browser ──
+  // Menangani kasus Safari/iOS yang membersihkan localStorage secara berkala.
+  // Jika OS dan Browser sama, anggap perangkat yang sama; perbarui token.
+  var savedParts = String(existing.device_token).split('_');
+  var newParts   = String(deviceToken).split('_');
+
+  var savedOs      = savedParts[0] || '';
+  var savedBrowser = savedParts[1] || '';
+  var newOs        = newParts[0]   || '';
+  var newBrowser   = newParts[1]   || '';
+
+  if (savedOs === newOs && savedBrowser === newBrowser && savedOs !== 'unknown') {
+    // Perangkat sama — token lama kemungkinan terhapus oleh Safari ITP
+    // Perbarui token di database agar sesi berikutnya bisa exact match lagi
+    fbPut('aqualearn/device_binding/' + key, {
+      device_token:       deviceToken,       // token baru
+      waktu_tertaut:      existing.waktu_tertaut, // pertahankan tanggal awal
+      waktu_diperbarui:   new Date().toISOString()
+    });
+    return { success: true, isNewBind: false, wasRebound: true };
   }
 
-  var savedOs      = cap(savedParts[0] || "");
-  var savedBrowser = cap(savedParts[1] || "");
+  // ── PENGECEKAN 3: Benar-benar perangkat berbeda — tolak ──
+  function cap(t) {
+    return t ? t.charAt(0).toUpperCase() + t.slice(1) : 'Tidak Dikenali';
+  }
 
   return {
     success: false,
-    message: "⛔ Akses Ditolak: Akun ini sudah tertaut dengan perangkat lain.\n\n"
-           + "📱 Perangkat Terdaftar:\n"
-           + "OS: " + savedOs + "\n"
-           + "Browser: " + savedBrowser + "\n\n"
-           + "Hubungi dosen jika Anda berganti perangkat atau mereset HP."
+    message: '⛔ Akses Ditolak: Akun ini sudah tertaut dengan perangkat lain.\n\n'
+           + '📱 Perangkat Terdaftar:\n'
+           + 'OS: '      + cap(savedOs)      + '\n'
+           + 'Browser: ' + cap(savedBrowser) + '\n\n'
+           + 'Hubungi dosen jika Anda berganti perangkat atau mereset HP.'
   };
 }
 
@@ -200,22 +228,61 @@ function hapusMataKuliah(courseId, dosenId) {
     return { success: false, message: "Tidak punya akses." };
   }
 
-  fbDelete("aqualearn/courses/"     + key);
-  fbDelete("aqualearn/enrollments/" + key);
-  fbDelete("aqualearn/materials/");   // partial delete butuh query — lihat catatan di bawah
-  fbDelete("aqualearn/quiz/");
+  // ── 1. Hapus node yang sudah terstruktur per courseId (aman) ──
+  fbDelete("aqualearn/courses/"      + key);
+  fbDelete("aqualearn/enrollments/"  + key);
   fbDelete("aqualearn/nilai/"        + key);
   fbDelete("aqualearn/grade_config/" + key);
   fbDelete("aqualearn/jadwal/"       + key);
-  fbDelete("aqualearn/lesson_assign/");
   fbDelete("aqualearn/lesson_submit/" + key);
 
-  // Catatan: materials & quiz disimpan flat dengan course_id di dalam node-nya,
-  // penghapusan cascade-nya memerlukan query filter (lihat hapusMateri/hapusKuis)
+  // ── 2. Hapus materials HANYA milik kelas ini ──
+  var allMaterials = fbGet("aqualearn/materials") || {};
+  Object.keys(allMaterials).forEach(function(mKey) {
+    if (allMaterials[mKey].course_id === courseId) {
+      fbDelete("aqualearn/materials/" + mKey);
+      // Hapus juga material_track milik materi ini (semua user)
+      fbDelete("aqualearn/material_track/" + key + "/" + mKey); // opsional, bersihkan tracker
+    }
+  });
 
-  return { success: true, message: "Kelas berhasil dihapus." };
+  // ── 3. Hapus quiz HANYA milik kelas ini ──
+  var allQuiz = fbGet("aqualearn/quiz") || {};
+  Object.keys(allQuiz).forEach(function(qKey) {
+    if (allQuiz[qKey].course_id === courseId) {
+      fbDelete("aqualearn/quiz/" + qKey);
+      // Hapus quiz_track kelas ini
+      fbDelete("aqualearn/quiz_track/" + key);
+      // Jika kuis CBT, hapus juga data CBT-nya
+      var urlForm = allQuiz[qKey].url_form || "";
+      var match   = urlForm.match(/quizId=([^&\s]+)/);
+      if (match && match[1]) {
+        var cbtQuizId = match[1].trim();
+        fbDelete("aqualearn/cbt_questions/"   + cbtQuizId);
+        fbDelete("aqualearn/cbt_sessions/"    + cbtQuizId);
+        fbDelete("aqualearn/cbt_submissions/" + cbtQuizId);
+        fbDelete("aqualearn/cbt_settings/"    + cbtQuizId);
+        fbDelete("aqualearn/cbt_violations/"  + cbtQuizId);
+      }
+    }
+  });
+
+  // ── 4. Hapus lesson_assign HANYA milik kelas ini ──
+  var allLesson = fbGet("aqualearn/lesson_assign") || {};
+  Object.keys(allLesson).forEach(function(lKey) {
+    if (allLesson[lKey].course_id === courseId) {
+      fbDelete("aqualearn/lesson_assign/" + lKey);
+    }
+  });
+
+  // ── 5. Hapus material_track seluruh kelas ini ──
+  fbDelete("aqualearn/material_track/" + key);
+
+  // ── 6. Invalidate cache kelas yang dihapus ──
+  invalidateCourseCache(courseId);
+
+  return { success: true, message: "Kelas berhasil dihapus beserta seluruh kontennya." };
 }
-
 
 // ══════════════════════════════════════════════
 // ENROLLMENTS
@@ -307,8 +374,21 @@ function tambahMateri(courseId, title, urlDrive) {
 
 function hapusMateri(materialId) {
   var mat = fbGet("aqualearn/materials/" + safeKey(materialId));
+  if (!mat) return { success: false, message: "Materi tidak ditemukan." };
+  
   fbDelete("aqualearn/materials/" + safeKey(materialId));
-  if (mat) invalidateCourseCache(mat.course_id);
+  
+  // ── TAMBAHKAN: Hapus material_track untuk materi ini di semua user ──
+  var cKey     = safeKey(mat.course_id);
+  var matTrack = fbGet("aqualearn/material_track/" + cKey) || {};
+  
+  Object.keys(matTrack).forEach(function(uKey) {
+    if (matTrack[uKey] && matTrack[uKey][safeKey(materialId)]) {
+      fbDelete("aqualearn/material_track/" + cKey + "/" + uKey + "/" + safeKey(materialId));
+    }
+  });
+
+  invalidateCourseCache(mat.course_id);
   return { success: true };
 }
 
@@ -371,8 +451,21 @@ function tambahKuis(courseId, title, urlForm) {
 
 function hapusKuis(quizId) {
   var q = fbGet("aqualearn/quiz/" + safeKey(quizId));
+  if (!q) return { success: false, message: "Kuis tidak ditemukan." };
+
   fbDelete("aqualearn/quiz/" + safeKey(quizId));
-  if (q) invalidateCourseCache(q.course_id);
+
+  // ── TAMBAHKAN: Hapus quiz_track untuk kuis ini di semua user ──
+  var cKey      = safeKey(q.course_id);
+  var qTrackC   = fbGet("aqualearn/quiz_track/" + cKey) || {};
+
+  Object.keys(qTrackC).forEach(function(uKey) {
+    if (qTrackC[uKey] && qTrackC[uKey][safeKey(quizId)]) {
+      fbDelete("aqualearn/quiz_track/" + cKey + "/" + uKey + "/" + safeKey(quizId));
+    }
+  });
+
+  invalidateCourseCache(q.course_id);
   return { success: true };
 }
 
@@ -436,11 +529,15 @@ function tambahLesson(courseId, topic, deadline) {
 
 function hapusLesson(assignId) {
   var l = fbGet("aqualearn/lesson_assign/" + safeKey(assignId));
+  if (!l) return { success: false, message: "Lesson tidak ditemukan." };
+
+  // Hapus lesson_assign dulu
   fbDelete("aqualearn/lesson_assign/" + safeKey(assignId));
-  if (l) {
-    fbDelete("aqualearn/lesson_submit/" + safeKey(l.course_id) + "/" + safeKey(assignId));
-    invalidateCourseCache(l.course_id);
-  }
+  
+  // Hapus lesson_submit hanya untuk assign ini (bukan seluruh kelas)
+  fbDelete("aqualearn/lesson_submit/" + safeKey(l.course_id) + "/" + safeKey(assignId));
+  
+  invalidateCourseCache(l.course_id);
   return { success: true };
 }
 
@@ -1094,4 +1191,42 @@ function logCbtViolations(quizId, userId, violations) {
   existing.log = (existing.log || []).concat(violations);
   fbPut(path, existing);
   return true;
+}
+
+function backupFirebaseKeGoogleDrive() {
+  try {
+    var data    = fbGet("aqualearn");
+    if (!data) {
+      Logger.log("❌ Backup gagal: Firebase mengembalikan data kosong.");
+      return;
+    }
+    var json     = JSON.stringify(data, null, 2);
+    var tanggal  = Utilities.formatDate(new Date(), "Asia/Makassar", "yyyy-MM-dd_HH-mm");
+    var namaFile = "AquaLearn_Backup_" + tanggal + ".json";
+    var folder   = DriveApp.getFolderById("1AaU_i6fn0q6Rw4Muu6ff1KLlcyQjxVVq");
+    folder.createFile(namaFile, json, MimeType.PLAIN_TEXT);
+    Logger.log("✅ Backup berhasil: " + namaFile);
+  } catch(e) {
+    Logger.log("❌ Backup gagal: " + e.toString());
+  }
+}
+
+// Setup trigger — jalankan SATU KALI dari Editor
+function setupTriggerBackup() {
+  // Hapus trigger lama jika ada
+  ScriptApp.getProjectTriggers().forEach(function(t) {
+    if (t.getHandlerFunction() === "backupFirebaseKeGoogleDrive") {
+      ScriptApp.deleteTrigger(t);
+    }
+  });
+  
+  // Backup otomatis setiap minggu jam 02.00 WITA
+  ScriptApp.newTrigger("backupFirebaseKeGoogleDrive")
+  .timeBased()
+  .everyWeeks(1)
+  .onWeekDay(ScriptApp.WeekDay.SUNDAY)
+  .atHour(18) // 02.00 WITA
+  .create();
+  
+  Logger.log("✅ Trigger backup mingguan aktif.");
 }
