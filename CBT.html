@@ -673,29 +673,51 @@ var pendingViolations = [];    // Antrian untuk dikirim ke server
    ============================================================= */
 function masukLayarPenuh() {
   var el  = document.documentElement;
-  var req = el.requestFullscreen || el.webkitRequestFullscreen
-          || el.mozRequestFullScreen || el.msRequestFullscreen;
-  if (req) {
-    req.call(el)
-      .then(function() {
-        document.getElementById('ac-fullscreen-gate').style.display = 'none';
-        document.getElementById('main-content').style.display = 'block';
-        acEnabled = true;
-        _daftarkanListenerFullscreen();
-        initAntiCheatSensors();
-        inisialisasiApp();
-      })
-      .catch(function() {
-        tampilToast('Browser menolak layar penuh. Coba tekan F11 secara manual.', 'warn', 5000);
-      });
-  } else {
-    /* Fallback: browser tidak support fullscreen API */
+  var req = el.requestFullscreen
+          || el.webkitRequestFullscreen
+          || el.mozRequestFullScreen
+          || el.msRequestFullscreen;
+
+  // Fungsi yang dijalankan setelah fullscreen berhasil
+  function onFullscreenSuccess() {
     document.getElementById('ac-fullscreen-gate').style.display = 'none';
     document.getElementById('main-content').style.display = 'block';
     acEnabled = true;
     _daftarkanListenerFullscreen();
-    initAntiCheatSensors();
+    // Tunda sensor mouseleave agar tidak trigger saat transisi
+    setTimeout(initAntiCheatSensors, 1500);
     inisialisasiApp();
+  }
+
+  if (!req) {
+    // Browser tidak support fullscreen API sama sekali (fallback)
+    onFullscreenSuccess();
+    return;
+  }
+
+  try {
+    var result = req.call(el);
+
+    // Safari lama: result = undefined (bukan Promise)
+    // Chrome/Firefox modern: result = Promise
+    if (result && typeof result.then === 'function') {
+      result
+        .then(onFullscreenSuccess)
+        .catch(function(err) {
+          // Promise rejected — tetap lanjutkan dengan peringatan
+          console.warn('[CBT] Fullscreen Promise rejected:', err);
+          tampilToast('Pastikan layar penuh aktif untuk melanjutkan.', 'warn', 4000);
+          onFullscreenSuccess(); // Tetap lanjutkan agar soal bisa dimuat
+        });
+    } else {
+      // Safari lama: langsung panggil tanpa menunggu Promise
+      // Beri jeda agar animasi fullscreen browser selesai dulu
+      setTimeout(onFullscreenSuccess, 600);
+    }
+  } catch (e) {
+    console.warn('[CBT] Fullscreen request error:', e);
+    tampilToast('Mode layar penuh tidak tersedia. Lanjut tanpa fullscreen.', 'warn', 4000);
+    onFullscreenSuccess();
   }
 }
 
