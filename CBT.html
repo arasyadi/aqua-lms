@@ -352,6 +352,38 @@
       transition: background .4s;
     }
 
+    /* ===== PING INDICATOR ===== */
+    #ping-indicator {
+      position: fixed;
+      top: 12px; left: 16px;
+      z-index: 9998;
+      background: rgba(255,255,255,.92);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 5px 12px 5px 9px;
+      font-size: 11px; font-weight: 700;
+      color: var(--muted);
+      display: none;           /* ditampilkan setelah ujian dimulai */
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.12);
+      backdrop-filter: blur(4px);
+      white-space: nowrap;
+      pointer-events: none;    /* tidak menghalangi klik apapun */
+      user-select: none;
+    }
+    #ping-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #9e9e9e;
+      flex-shrink: 0;
+      transition: background .5s;
+    }
+    /* Pada layar sempit geser ke bawah agar tidak tabrakan header */
+    @media (max-width: 520px) {
+      #ping-indicator { top: auto; bottom: 56px; left: 12px; }
+    }
+
     /* ===== TOAST ===== */
     #ac-toast {
       position: fixed; top: 16px; left: 50%;
@@ -576,6 +608,12 @@
 <!-- ===== FLOATING TIMER ===== -->
 <div id="floatingTimer">⏱ <span id="floatingTimerText">--:--</span></div>
 
+<!-- ===== PING / KUALITAS KONEKSI ===== -->
+<div id="ping-indicator">
+  <span id="ping-dot"></span>
+  <span id="ping-text">--</span>
+</div>
+
 <!-- ===== MAIN CONTENT ===== -->
 <div id="main-content">
   <div class="page-wrapper">
@@ -668,6 +706,69 @@ var acEnabled       = false;
 var toastTimer      = null;
 var pendingViolations = [];    // Antrian untuk dikirim ke server
 
+/* ── Helper: seeded RNG untuk acak soal per mahasiswa ── */
+var _pingInterval = null;   // untuk ping monitor
+
+function _hashStr(str) {
+  var h = 5381;
+  for (var i = 0; i < str.length; i++)
+    h = ((h << 5) + h) ^ str.charCodeAt(i);
+  return h >>> 0;
+}
+function _buatRng(seed) {
+  /* xorshift32 — deterministik, ringan */
+  var s = seed || 1;
+  return function() {
+    s ^= s << 13; s ^= s >> 17; s ^= s << 5;
+    return (s >>> 0) / 4294967296;
+  };
+}
+function _acakArr(arr, rng) {
+  /* Fisher-Yates */
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(rng() * (i + 1));
+    var t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+
+/* ── Ping / kualitas koneksi ── */
+function _initPingMonitor() {
+  var ind = document.getElementById('ping-indicator');
+  ind.style.display = 'flex';
+
+  function _updatePingUI(ms) {
+    var dot  = document.getElementById('ping-dot');
+    var text = document.getElementById('ping-text');
+    if (ms < 0) {
+      dot.style.background = '#9e9e9e';
+      text.textContent = 'Timeout';
+    } else if (ms < 100) {
+      dot.style.background = '#2e7d32';   /* hijau — bagus  */
+      text.textContent = ms + ' ms';
+    } else if (ms < 250) {
+      dot.style.background = '#f9a825';   /* kuning — sedang */
+      text.textContent = ms + ' ms';
+    } else {
+      dot.style.background = '#c62828';   /* merah — lambat  */
+      text.textContent = ms + ' ms';
+    }
+  }
+
+  function _ukurPing() {
+    var start = performance.now();
+    fetch('https://www.gstatic.com/generate_204', {
+      method: 'GET', mode: 'no-cors', cache: 'no-store'
+    })
+    .then(function() { _updatePingUI(Math.round(performance.now() - start)); })
+    .catch(function() { _updatePingUI(-1); });
+  }
+
+  _ukurPing();
+  _pingInterval = setInterval(_ukurPing, 15000); /* ukur tiap 15 detik */
+}
+
 /* =============================================================
    ANTI-CHEAT — FULLSCREEN GATE
    ============================================================= */
@@ -686,6 +787,7 @@ function masukLayarPenuh() {
     _daftarkanListenerFullscreen();
     // Tunda sensor mouseleave agar tidak trigger saat transisi
     setTimeout(initAntiCheatSensors, 1500);
+    _initPingMonitor();   // ← mulai monitor ping
     inisialisasiApp();
   }
 
@@ -1263,6 +1365,16 @@ function renderSoal(questions) {
     return;
   }
 
+  /* ── Acak urutan soal per mahasiswa, PG tetap terpisah dari Essay ── */
+  var _rng       = _buatRng(_hashStr((currentUser ? currentUser.userId : 'x') + (quizId || '')));
+  var _pgList    = questions.filter(function(q){ return q.type === 'PG'; });
+  var _essayList = questions.filter(function(q){ return q.type === 'ESSAY'; });
+  var _otherList = questions.filter(function(q){ return q.type !== 'PG' && q.type !== 'ESSAY'; });
+  _pgList        = _acakArr(_pgList,    _rng);
+  _essayList     = _acakArr(_essayList, _rng);
+  _pgList.forEach(function(q){ q.options = _acakArr(q.options, _rng); }); /* acak pilihan PG juga */
+  questions      = _pgList.concat(_otherList).concat(_essayList);
+
   allQuestions = questions;
   _bangunNavigator(questions);
 
@@ -1513,6 +1625,8 @@ function _eksekusiSubmit() {
   /* Bersihkan semua interval */
   clearInterval(timerInterval);
   clearInterval(autosaveInterval);
+  clearInterval(_pingInterval);   // hentikan ping monitor
+
   acEnabled = false;
 
   var btn = document.getElementById('btnSubmit');
