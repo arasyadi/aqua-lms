@@ -886,8 +886,7 @@
 
 <div id="toastContainer" style="position:fixed;top:70px;right:20px;z-index:99999;display:flex;flex-direction:column;gap:8px;pointer-events:none;"></div>
 
-<div id="customConfirmOverlay" style="display:none;position:fixed;inset:0;z-index:100000;background:rgba(6,15,30,0.85);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:20px;">
-  <div class="glass-solid" style="width:100%;max-width:360px;text-align:center;padding:28px 24px;border-radius:20px;border:1px solid var(--border);animation:fadeUp 0.25s ease;">
+<div id="customConfirmOverlay" style="display:none;position:fixed;inset:0;z-index:100000;background:rgba(6,15,30,0.85);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:20px;flex-direction:column;">  <div class="glass-solid" style="width:100%;max-width:360px;text-align:center;padding:28px 24px;border-radius:20px;border:1px solid var(--border);animation:fadeUp 0.25s ease;">
     <div id="confirmIcon" style="font-size:36px;margin-bottom:10px;">⚠️</div>
     <h3 id="confirmTitle" style="font-family:'Lora',serif;color:var(--foam);font-size:17px;margin:0 0 8px;">Konfirmasi</h3>
     <p id="confirmMessage" style="color:#8ab8cc;font-size:13px;line-height:1.6;margin:0 0 22px;">Apakah Anda yakin?</p>
@@ -1559,7 +1558,7 @@ window.alert = function(pesan) {
       }
     }
   }
-  window.addEventListener('load', function() {
+    window.addEventListener('load', function() {
     checkSession();
 
     var imgUrlEl = document.getElementById('cbtImageUrl');
@@ -1583,8 +1582,22 @@ window.alert = function(pesan) {
         }, 600);
       });
     }
-  });
 
+    // ── Auto-update preview kunci PG saat teks diketik ──
+    ['A','B','C','D'].forEach(function(l) {
+      var el = document.getElementById('pgOpt_' + l);
+      if (el) {
+        el.addEventListener('input', function() {
+          var selected = document.querySelector('input[name="pgCorrect"]:checked');
+          if (selected && selected.value === l) {
+            var textEl = document.getElementById('pgCorrectText');
+            if (textEl) textEl.textContent = el.value.trim() || '(belum diisi)';
+          }
+        });
+      }
+    });
+  });
+  
   function logout() {
     localStorage.removeItem('lms_session');
     currentUserInfo = null; activeCourseId = null; activeCourseName = null;
@@ -2082,6 +2095,7 @@ function kembaliKeDashboardDosen() {
   });
 
   showView('lecturerDashboardView');
+  memuatDashboardDosen(); // ← tanpa ini daftar kelas tidak direfresh
 }
 
   // ── MATERI DOSEN ──
