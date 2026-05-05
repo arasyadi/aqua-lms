@@ -1734,10 +1734,20 @@ function _tampilkanErrorAnalitik(pesanHtml) {
   document.getElementById('loadingInactive').innerHTML = '<span style="color:var(--coral);">' + pesanHtml + '</span>';
 }
 
-  function kembaliKeDashboardDosen() {
-    activeCourseId=null; activeCourseName=null;
-    showView('lecturerDashboardView');
-  }
+function kembaliKeDashboardDosen() {
+  activeCourseId   = null;
+  activeCourseName = null;
+  globalRankings   = [];
+
+  var idsTabel = ['materiDosenBody','kuisDosenBody','lessonDosenBody',
+                  'enrolledBody','nilaiDosenBody','jadwalDosenBody','rankingBody'];
+  idsTabel.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.innerHTML = '';
+  });
+
+  showView('lecturerDashboardView');
+}
 
   // ── MATERI DOSEN ──
   function tambahMateriKelas() {
@@ -2037,17 +2047,20 @@ function _tampilkanPreviewNim(nimList) {
     ketEl.innerText = '— semua baru';
   }
 
-  // Render badge NIM
-  listEl.innerHTML = '';
+  // Render badge NIM (fix: gunakan array + join)
+  var badgeRows = [];
   nimList.forEach(function(nim) {
     var isDuplikat = enrolledNims.indexOf(nim) !== -1;
-    listEl.innerHTML += '<span style="'
+    // Bangun string badge dengan style dinamis
+    var badgeStyle = isDuplikat
+      ? 'background:rgba(92,200,240,0.08);color:#3a6a85;border:1px solid rgba(92,200,240,0.15);text-decoration:line-through;'
+      : 'background:rgba(52,201,138,0.18);color:var(--mint);border:1px solid rgba(52,201,138,0.3);';
+    badgeRows.push('<span style="'
       + 'display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;'
-      + (isDuplikat
-          ? 'background:rgba(92,200,240,0.08);color:#3a6a85;border:1px solid rgba(92,200,240,0.15);text-decoration:line-through;'
-          : 'background:rgba(52,201,138,0.18);color:var(--mint);border:1px solid rgba(52,201,138,0.3);')
-      + '">' + nim + '</span>';
+      + badgeStyle
+      + '">' + nim + '</span>');
   });
+  listEl.innerHTML = badgeRows.join('');  // satu kali assign, bukan += berulang
 
   // Update tombol: kirim hanya NIM yang belum terdaftar
   document.getElementById('btnKonfirmasiImportMhs').setAttribute('data-nim-baru', JSON.stringify(nimBaru));
@@ -2145,11 +2158,13 @@ function batalImportMhs() {
         container.innerHTML = rowsAvailable.join('');
     }
 
+    // ✅ FIX: Deklarasi variabel yang sebelumnya hilang
     var selectNilai = document.getElementById('inputNilaiUser');
-    selectNilai.innerHTML = '<option value="">-- Pilih Mahasiswa --</option>';
+    var optsNilai = ['<option value="">-- Pilih Mahasiswa --</option>'];
     enrolled.forEach(function(s) {
-        selectNilai.innerHTML += '<option value="' + s.user_id + '">' + s.user_id + ' - ' + s.nama + '</option>';
+      optsNilai.push('<option value="' + s.user_id + '">' + s.user_id + ' - ' + s.nama + '</option>');
     });
+    selectNilai.innerHTML = optsNilai.join('');
   }
 
   function renderRankings(rankings) {
@@ -2568,8 +2583,6 @@ function refreshDataKelas() {
   // ══════════════════════════════════════════
   // FITUR IMPOR KONTEN ANTAR KELAS
   // ══════════════════════════════════════════
-
-  // Modifikasi fungsi buka modal agar mereset tanggal
   function bukaModalImport() {
     document.getElementById('importTargetName').innerText = activeCourseName;
     document.getElementById('importSourceCourse').innerHTML = '<option value="">-- Memuat kelas... --</option>';
@@ -2577,13 +2590,16 @@ function refreshDataKelas() {
     document.getElementById('importModalOverlay').style.display = 'flex';
 
     google.script.run.withSuccessHandler(function(courses) {
-      var select = document.getElementById('importSourceCourse');
-      select.innerHTML = '<option value="">-- Pilih Kelas Sumber --</option>';
-      courses.forEach(function(c) {
-        if (c.course_id !== activeCourseId) {
-          select.innerHTML += '<option value="' + c.course_id + '">' + c.course_id + ' - ' + c.course_name + '</option>';
-        }
-      });
+        var select = document.getElementById('importSourceCourse');
+        // Kumpulkan semua option dalam array
+        var opts = ['<option value="">-- Pilih Kelas Sumber --</option>'];
+        courses.forEach(function(c) {
+            if (c.course_id !== activeCourseId) {
+                opts.push('<option value="' + c.course_id + '">' + c.course_id + ' - ' + c.course_name + '</option>');
+            }
+        });
+        // Render seluruh dropdown sekaligus
+        select.innerHTML = opts.join('');
     }).getLecturerCourses(currentUserInfo.userId);
   }
 
@@ -2912,7 +2928,6 @@ function refreshDataKelas() {
   }
 
   // -------- BAGIAN MAHASISWA --------
-  
   // Fungsi yang dipanggil saat mahasiswa klik tombol "Lihat Nilai Akhir"
   // Fungsi Super Cepat (Tanpa API Server)
   function lihatNilaiAkhirMahasiswa() {
@@ -2963,16 +2978,19 @@ function refreshDataKelas() {
 
     // Tampilkan ke layar (Instan, tanpa loading!)
     var tbody = document.getElementById('rincianNilaiBody');
-    tbody.innerHTML = '';
+    var rowsRincian = []; // Siapkan array untuk menampung string baris
     
     breakdown.forEach(function(item) {
-      tbody.innerHTML += `<tr>
-        <td style="color:#c0dbe8; font-weight:500;">` + item.jenis + `</td>
-        <td style="text-align:center;"><span class="badge badge-blue">` + item.nilai + `</span></td>
-        <td style="text-align:center;">` + item.bobot + `%</td>
-        <td style="text-align:center; color:var(--foam); font-weight:bold;">` + item.hasil.toFixed(2) + `</td>
-      </tr>`;
+      rowsRincian.push('<tr>'
+        + '<td style="color:#c0dbe8; font-weight:500;">' + item.jenis + '</td>'
+        + '<td style="text-align:center;"><span class="badge badge-blue">' + item.nilai + '</span></td>'
+        + '<td style="text-align:center;">' + item.bobot + '%</td>'
+        + '<td style="text-align:center; color:var(--foam); font-weight:bold;">' + item.hasil.toFixed(2) + '</td>'
+        + '</tr>');
     });
+    
+    // Satu kali assign ke DOM
+    tbody.innerHTML = rowsRincian.join('');
 
     document.getElementById('finalScoreNumber').innerText = totalAkhir.toFixed(2);
     document.getElementById('finalScoreLetter').innerText = angkaKeHuruf(totalAkhir);
