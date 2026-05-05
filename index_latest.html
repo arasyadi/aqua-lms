@@ -1122,66 +1122,96 @@ window.alert = function(pesan) {
   }
 
 // ══════════════════════════════════════════════
-// DEVICE TOKEN — DETERMINISTIK DAN STABIL
+// DEVICE TOKEN — DETERMINISTIK & SAFARI-PROOF
+// Multi-storage: localStorage + sessionStorage + cookie
 // ══════════════════════════════════════════════
 
-function dapatkanDeviceToken() {
-  // Coba ambil dari cache localStorage dulu
-  var cached = localStorage.getItem('aqua_lms_device_token');
-  if (cached && cached.split('_').length >= 3) return cached;
+  var _TOKEN_KEY = 'aqua_lms_device_token';
 
-  var ua      = navigator.userAgent.toLowerCase();
-  var os      = "unknown";
-  var browser = "unknown";
-
-  // Deteksi OS 
-  if      (ua.indexOf("android") > -1) os = "android";
-  else if (ua.indexOf("iphone")  > -1) os = "iphone";
-  else if (ua.indexOf("ipad")    > -1) os = "ipad";
-  else if (ua.indexOf("windows") > -1) os = "windows";
-  else if (ua.indexOf("mac")     > -1) os = "mac";
-  else if (ua.indexOf("linux")   > -1) os = "linux";
-
-  // Deteksi Browser 
-  if      (ua.indexOf("edg") > -1)                               browser = "edge";
-  else if (ua.indexOf("opr") > -1 || ua.indexOf("opera") > -1)   browser = "opera";
-  else if (ua.indexOf("crios") > -1 || ua.indexOf("chrome") > -1) browser = "chrome";  
-  else if (ua.indexOf("fxios") > -1 || ua.indexOf("firefox") > -1) browser = "firefox";
-  else if (ua.indexOf("safari") > -1)                            browser = "safari";
-
-  var tz = "UTC";
-  try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch(e) {}
-
-  // Mencegah token berubah kalau HP diputar (Landscape/Portrait)
-  var maxRes = Math.max(screen.width || 0, screen.height || 0);
-  var minRes = Math.min(screen.width || 0, screen.height || 0);
-
-  // Kumpulkan properti hardware yang stabil
-  var fingerprint = [
-    maxRes,
-    minRes,
-    screen.colorDepth   || 24,
-    navigator.language  || "xx",
-    navigator.hardwareConcurrency || 0,
-    tz
-  ].join("|");
-
-  var hash = _djb2Hash(fingerprint).toString(36);
-  var token = os + "_" + browser + "_" + hash;
-
-  try { localStorage.setItem("aqua_lms_device_token", token); } catch(e) {}
-
-  return token;
-}
-
-function _djb2Hash(str) {
-  var hash = 5381;
-  for (var i = 0; i < str.length; i++) {
-    hash = ((hash << 5) + hash) ^ str.charCodeAt(i);
-    hash = hash & hash; // Clamp ke 32-bit
+  function _getCookie(name) {
+    var match = document.cookie.match(
+      new RegExp('(^|;\\s*)' + name + '=([^;]+)')
+    );
+    return match ? match[2] : null;
   }
-  return Math.abs(hash);
-}
+
+  function _simpanTokenKeSemuaStorage(token) {
+    try { localStorage.setItem(_TOKEN_KEY, token); }   catch(e) {}
+    try { sessionStorage.setItem(_TOKEN_KEY, token); } catch(e) {}
+    try {
+      // Cookie 365 hari — paling tahan terhadap pembersihan Safari
+      var exp = new Date();
+      exp.setFullYear(exp.getFullYear() + 1);
+      document.cookie = _TOKEN_KEY + '=' + token
+        + '; expires=' + exp.toUTCString()
+        + '; path=/; SameSite=Strict';
+    } catch(e) {}
+  }
+
+  function dapatkanDeviceToken() {
+    // Cek tiga storage secara berurutan (fallback berantai)
+    var cached = localStorage.getItem(_TOKEN_KEY)
+              || sessionStorage.getItem(_TOKEN_KEY)
+              || _getCookie(_TOKEN_KEY);
+
+    if (cached && cached.split('_').length >= 3) {
+      // Temukan di salah satu storage — perbarui semua storage
+      // agar yang sudah hilang terisi kembali
+      _simpanTokenKeSemuaStorage(cached);
+      return cached;
+    }
+
+    // Tidak ada di mana-mana → buat token baru
+    var ua      = navigator.userAgent.toLowerCase();
+    var os      = 'unknown';
+    var browser = 'unknown';
+
+    // Deteksi OS
+    if      (ua.indexOf('android') > -1) os = 'android';
+    else if (ua.indexOf('iphone')  > -1) os = 'iphone';
+    else if (ua.indexOf('ipad')    > -1) os = 'ipad';
+    else if (ua.indexOf('windows') > -1) os = 'windows';
+    else if (ua.indexOf('mac')     > -1) os = 'mac';
+    else if (ua.indexOf('linux')   > -1) os = 'linux';
+
+    // Deteksi Browser
+    if      (ua.indexOf('edg')    > -1)                             browser = 'edge';
+    else if (ua.indexOf('opr')    > -1 || ua.indexOf('opera') > -1) browser = 'opera';
+    else if (ua.indexOf('crios')  > -1 || ua.indexOf('chrome') > -1) browser = 'chrome';
+    else if (ua.indexOf('fxios')  > -1 || ua.indexOf('firefox') > -1) browser = 'firefox';
+    else if (ua.indexOf('safari') > -1)                             browser = 'safari';
+
+    var tz = 'UTC';
+    try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch(e) {}
+
+    // Gunakan nilai yang paling stabil — hindari nilai yang bisa berubah di Safari
+    var maxRes = Math.max(screen.width  || 0, screen.height || 0);
+    var minRes = Math.min(screen.width  || 0, screen.height || 0);
+
+    var fingerprint = [
+      maxRes,
+      minRes,
+      screen.colorDepth          || 24,
+      navigator.language         || 'xx',
+      navigator.hardwareConcurrency || 0,
+      tz
+    ].join('|');
+
+    var hash  = _djb2Hash(fingerprint).toString(36);
+    var token = os + '_' + browser + '_' + hash;
+
+    _simpanTokenKeSemuaStorage(token);
+    return token;
+  }
+
+  function _djb2Hash(str) {
+    var hash = 5381;
+    for (var i = 0; i < str.length; i++) {
+      hash = ((hash << 5) + hash) ^ str.charCodeAt(i);
+      hash = hash & hash;
+    }
+    return Math.abs(hash);
+  }
 
   function checkSession() {
     var saved = localStorage.getItem('lms_session');
@@ -1733,15 +1763,20 @@ function _tampilkanErrorAnalitik(pesanHtml) {
   }
 
   function renderManajemenMateri(materials){
-    var tbody=document.getElementById('materiDosenBody');tbody.innerHTML='';
-    if(!materials||!materials.length){tbody.innerHTML='<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Belum ada materi</td></tr>';return;}
+    var tbody = document.getElementById('materiDosenBody');
+    if(!materials || !materials.length){
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Belum ada materi</td></tr>';
+        return;
+    }
+    var rows = [];
     materials.forEach(function(m){
-      tbody.innerHTML+='<tr>'
-        +'<td style="font-weight:500;color:#c0dbe8;">'+m.title+'</td>'
-        +'<td style="text-align:center;"><a href="'+m.url_drive+'" target="_blank" style="color:var(--foam);text-decoration:none;font-size:12px;">🔗 Buka</a></td>'
-        +'<td style="text-align:center;"><button class="btn btn-coral btn-sm" onclick="konfirmasiHapusMateri(\''+m.material_id+'\',\''+m.title+'\')">Hapus</button></td>'
-        +'</tr>';
+        rows.push('<tr>'
+            + '<td style="font-weight:500;color:#c0dbe8;">'+m.title+'</td>'
+            + '<td style="text-align:center;"><a href="'+m.url_drive+'" target="_blank" style="color:var(--foam);text-decoration:none;font-size:12px;">🔗 Buka</a></td>'
+            + '<td style="text-align:center;"><button class="btn btn-coral btn-sm" onclick="konfirmasiHapusMateri(\''+m.material_id+'\',\''+m.title+'\')">Hapus</button></td>'
+            + '</tr>');
     });
+    tbody.innerHTML = rows.join('');
   }
 
   // ── KUIS DOSEN ──
@@ -1768,26 +1803,28 @@ function _tampilkanErrorAnalitik(pesanHtml) {
   }
 
   function renderManajemenKuis(quizzes){
-    var tbody=document.getElementById('kuisDosenBody');tbody.innerHTML='';
-    if(!quizzes||!quizzes.length){tbody.innerHTML='<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Belum ada kuis / tugas</td></tr>';return;}
-    
+    var tbody = document.getElementById('kuisDosenBody');
+    if(!quizzes || !quizzes.length){
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Belum ada kuis / tugas</td></tr>';
+        return;
+    }
+    var rows = [];
     quizzes.forEach(function(q){
-      var aksiBuka = "";
-      if (q.url_form.indexOf('?page=cbt') > -1) {
-         var match = q.url_form.match(/quizId=([^&\s]+)/);
-         var extractedQuizId = match ? match[1] : '';
-         // Tombol ini memanggil fungsi bukaDashboardCbtTab()
-         aksiBuka = '<button class="btn btn-teal btn-sm" onclick="bukaDashboardCbtTab(\'' + extractedQuizId + '\')">📊 Dashboard CBT</button>';
-      } else {
-         aksiBuka = '<a href="'+q.url_form+'" target="_blank" style="color:var(--amber);text-decoration:none;font-size:12px;">🔗 Buka GForms</a>';
-      }
-
-      tbody.innerHTML+='<tr>'
-        +'<td style="font-weight:500;color:#c0dbe8;">'+q.title+'</td>'
-        +'<td style="text-align:center;">' + aksiBuka + '</td>'
-        +'<td style="text-align:center;"><button class="btn btn-coral btn-sm" onclick="konfirmasiHapusKuis(\''+q.quiz_id+'\',\''+q.title+'\')">Hapus</button></td>'
-        +'</tr>';
+        var aksiBuka = "";
+        if (q.url_form.indexOf('?page=cbt') > -1) {
+            var match = q.url_form.match(/quizId=([^&\s]+)/);
+            var extractedQuizId = match ? match[1] : '';
+            aksiBuka = '<button class="btn btn-teal btn-sm" onclick="bukaDashboardCbtTab(\'' + extractedQuizId + '\')">📊 Dashboard CBT</button>';
+        } else {
+            aksiBuka = '<a href="'+q.url_form+'" target="_blank" style="color:var(--amber);text-decoration:none;font-size:12px;">🔗 Buka GForms</a>';
+        }
+        rows.push('<tr>'
+            + '<td style="font-weight:500;color:#c0dbe8;">'+q.title+'</td>'
+            + '<td style="text-align:center;">' + aksiBuka + '</td>'
+            + '<td style="text-align:center;"><button class="btn btn-coral btn-sm" onclick="konfirmasiHapusKuis(\''+q.quiz_id+'\',\''+q.title+'\')">Hapus</button></td>'
+            + '</tr>');
     });
+    tbody.innerHTML = rows.join('');
   }
 
   // Mengirim perintah simpan deadline ke server
@@ -1849,15 +1886,20 @@ function _tampilkanErrorAnalitik(pesanHtml) {
   }
 
   function renderManajemenLesson(lessons){
-    var tbody=document.getElementById('lessonDosenBody');tbody.innerHTML='';
-    if(!lessons||!lessons.length){tbody.innerHTML='<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Belum ada tugas presensi</td></tr>';return;}
+    var tbody = document.getElementById('lessonDosenBody');
+    if(!lessons || !lessons.length){
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Belum ada tugas presensi</td></tr>';
+        return;
+    }
+    var rows = [];
     lessons.forEach(function(l){
-      tbody.innerHTML+='<tr>'
-        +'<td style="font-weight:500;color:#c0dbe8;">'+l.topic+'</td>'
-        +'<td><span class="badge badge-mint">'+formatDeadlineWITA(l.deadline)+'</span></td>'
-        +'<td><button class="btn btn-coral btn-sm" onclick="konfirmasiHapusLesson(\''+l.assign_id+'\',\''+l.topic+'\')">Hapus</button></td>'
-        +'</tr>';
+        rows.push('<tr>'
+            + '<td style="font-weight:500;color:#c0dbe8;">'+l.topic+'</td>'
+            + '<td><span class="badge badge-mint">'+formatDeadlineWITA(l.deadline)+'</span></td>'
+            + '<td><button class="btn btn-coral btn-sm" onclick="konfirmasiHapusLesson(\''+l.assign_id+'\',\''+l.topic+'\')">Hapus</button></td>'
+            + '</tr>');
     });
+    tbody.innerHTML = rows.join('');
   }
 
   // ── MAHASISWA MANAGEMENT ──
@@ -2064,7 +2106,6 @@ function batalImportMhs() {
   _nimDariExcel = [];
 }
   
-
   function keluarkanMahasiswa(userId,nama){
     if(confirm('Keluarkan "'+nama+'" dari kelas ini?')){
       google.script.run.withSuccessHandler(function(r){
@@ -2074,34 +2115,40 @@ function batalImportMhs() {
   }
 
   function renderManajemenMahasiswa(data){
-    var enrolled=data.enrolled;var all=data.all;
-    var tbody=document.getElementById('enrolledBody');tbody.innerHTML='';
+    var enrolled = data.enrolled;
+    var all = data.all;
+    var tbody = document.getElementById('enrolledBody');
+    var rowsEnrolled = [];
     if(!enrolled.length){
-      tbody.innerHTML='<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Belum ada mahasiswa.</td></tr>';
+        rowsEnrolled.push('<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Belum ada mahasiswa.</td></tr>');
     } else {
-      enrolled.forEach(function(s){
-        tbody.innerHTML+='<tr>'
-          +'<td style="text-align:center;"><span class="badge badge-blue">'+s.user_id+'</span></td>'
-          +'<td style="color:#c0dbe8;font-weight:500;">'+s.nama+'</td>'
-          +'<td style="text-align:center;"><button class="btn btn-coral btn-sm" onclick="keluarkanMahasiswa(\''+s.user_id+'\',\''+s.nama+'\')">Keluarkan</button></td>'
-          +'</tr>';
-      });
+        enrolled.forEach(function(s){
+            rowsEnrolled.push('<tr>'
+                + '<td style="text-align:center;"><span class="badge badge-blue">'+s.user_id+'</span></td>'
+                + '<td style="color:#c0dbe8;font-weight:500;">'+s.nama+'</td>'
+                + '<td style="text-align:center;"><button class="btn btn-coral btn-sm" onclick="keluarkanMahasiswa(\''+s.user_id+'\',\''+s.nama+'\')">Keluarkan</button></td>'
+                + '</tr>');
+        });
     }
-    var container=document.getElementById('studentCheckboxList');
-    container.innerHTML='';
-    var available=all.filter(function(s){return !enrolled.some(function(e){return e.user_id===s.user_id;});});
+    tbody.innerHTML = rowsEnrolled.join('');
+
+    var container = document.getElementById('studentCheckboxList');
+    container.innerHTML = '';
+    var available = all.filter(function(s){ return !enrolled.some(function(e){ return e.user_id === s.user_id; }); });
     if(!available.length){
-      container.innerHTML='<p style="color:var(--mint);font-size:13px;padding:8px;">✅ Semua mahasiswa telah terdaftar.</p>';
+        container.innerHTML = '<p style="color:var(--mint);font-size:13px;padding:8px;">✅ Semua mahasiswa telah terdaftar.</p>';
     } else {
-      available.forEach(function(s){
-        container.innerHTML+='<label class="check-item"><input type="checkbox" class="mhs-checkbox" value="'+s.user_id+'"><b style="color:var(--foam);">'+s.user_id+'</b> — '+s.nama_lengkap+'</label>';
-      });
+        var rowsAvailable = [];
+        available.forEach(function(s){
+            rowsAvailable.push('<label class="check-item"><input type="checkbox" class="mhs-checkbox" value="'+s.user_id+'"><b style="color:var(--foam);">'+s.user_id+'</b> — '+s.nama_lengkap+'</label>');
+        });
+        container.innerHTML = rowsAvailable.join('');
     }
-    // Isi dropdown nilai dengan mahasiswa yang terdaftar
+
     var selectNilai = document.getElementById('inputNilaiUser');
     selectNilai.innerHTML = '<option value="">-- Pilih Mahasiswa --</option>';
     enrolled.forEach(function(s) {
-      selectNilai.innerHTML += '<option value="' + s.user_id + '">' + s.user_id + ' - ' + s.nama + '</option>';
+        selectNilai.innerHTML += '<option value="' + s.user_id + '">' + s.user_id + ' - ' + s.nama + '</option>';
     });
   }
 
@@ -2109,33 +2156,31 @@ function batalImportMhs() {
     document.getElementById('loadingRanking').style.display = 'none';
     document.getElementById('rankingContainer').style.display = 'block';
 
-    // Simpan data untuk keperluan export
     globalRankings = rankings || [];
 
-    // Tampilkan / sembunyikan tombol export
     var btnExport = document.getElementById('btnExportAktivitas');
     if (btnExport) {
-      btnExport.style.display = globalRankings.length > 0 ? 'inline-flex' : 'none';
+        btnExport.style.display = globalRankings.length > 0 ? 'inline-flex' : 'none';
     }
 
     var tbody = document.getElementById('rankingBody');
-    tbody.innerHTML = '';
-
     if (!rankings || !rankings.length) {
-      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Belum ada data aktivitas</td></tr>';
-      return;
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Belum ada data aktivitas</td></tr>';
+        return;
     }
 
     var medals = ['🥇','🥈','🥉'];
+    var rows = [];
     rankings.forEach(function(r, i) {
-      var cls  = i === 0 ? 'rank-gold' : i === 1 ? 'rank-silver' : i === 2 ? 'rank-bronze' : '';
-      var icon = i < 3 ? medals[i] : (i + 1);
-      tbody.innerHTML += '<tr class="' + cls + '">'
-        + '<td style="text-align:center;font-size:17px;"><b>' + icon + '</b></td>'
-        + '<td>' + r.nama + '</td>'
-        + '<td style="text-align:center;"><b>' + r.skor + ' Pts</b></td>'
-        + '</tr>';
+        var cls  = i === 0 ? 'rank-gold' : i === 1 ? 'rank-silver' : i === 2 ? 'rank-bronze' : '';
+        var icon = i < 3 ? medals[i] : (i + 1);
+        rows.push('<tr class="' + cls + '">'
+            + '<td style="text-align:center;font-size:17px;"><b>' + icon + '</b></td>'
+            + '<td>' + r.nama + '</td>'
+            + '<td style="text-align:center;"><b>' + r.skor + ' Pts</b></td>'
+            + '</tr>');
     });
+    tbody.innerHTML = rows.join('');
   }
 
   function renderInactive(inactiveStudents){
@@ -2172,23 +2217,23 @@ function batalImportMhs() {
     }).tambahNilaiMahasiswa(activeCourseId, userId, jenisNilai, nilai);
   }
 
-  // Menggambar tabel nilai di panel dosen
   function renderTabelNilaiDosen(dataNilai) {
     var tbody = document.getElementById('nilaiDosenBody');
-    tbody.innerHTML = '';
     if (!dataNilai || dataNilai.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#3a6a85;">Belum ada nilai yang diinput di kelas ini.</td></tr>';
-      return;
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#3a6a85;">Belum ada nilai yang diinput di kelas ini.</td></tr>';
+        return;
     }
+    var rows = [];
     dataNilai.forEach(function(n) {
-      tbody.innerHTML += '<tr>'
-        + '<td style="text-align:center;"><span class="badge badge-blue">' + n.user_id + '</span></td>'
-        + '<td style="color:#c0dbe8;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0;">' + n.nama + '</td>'
-        + '<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0;">' + n.jenis_nilai + '</td>'
-        + '<td style="text-align:center;"><span class="badge badge-mint" style="font-size:13px;font-weight:700;">' + n.nilai + '</span></td>'
-        + '<td style="text-align:center;"><button class="btn btn-coral btn-sm" onclick="konfirmasiHapusNilai(\'' + n.user_id + '\', \'' + n.jenis_nilai_key + '\', \'' + n.nama + '\')">Hapus</button></td>'
-        + '</tr>';
+        rows.push('<tr>'
+            + '<td style="text-align:center;"><span class="badge badge-blue">' + n.user_id + '</span></td>'
+            + '<td style="color:#c0dbe8;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0;">' + n.nama + '</td>'
+            + '<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0;">' + n.jenis_nilai + '</td>'
+            + '<td style="text-align:center;"><span class="badge badge-mint" style="font-size:13px;font-weight:700;">' + n.nilai + '</span></td>'
+            + '<td style="text-align:center;"><button class="btn btn-coral btn-sm" onclick="konfirmasiHapusNilai(\'' + n.user_id + '\', \'' + n.jenis_nilai_key + '\', \'' + n.nama + '\')">Hapus</button></td>'
+            + '</tr>');
     });
+    tbody.innerHTML = rows.join('');
   }
 
   // Menghapus nilai
@@ -2373,25 +2418,27 @@ function _bacaExcelNilai(file, jenisNilai, btn) {
   function renderTabelJadwalDosen(jadwal) {
     var tbody = document.getElementById('jadwalDosenBody');
     if (!tbody) return;
-    tbody.innerHTML = '';
     if (!jadwal || !jadwal.length) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#3a6a85;">Belum ada jadwal pertemuan.</td></tr>'; return;
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#3a6a85;">Belum ada jadwal pertemuan.</td></tr>';
+        return;
     }
+    var rows = [];
     jadwal.forEach(function(j) {
-      var badgeMode = j.mode === 'Daring'
-        ? '<span class="badge badge-mint">Daring</span>'
-        : '<span class="badge badge-amber">Luring</span>';
-      var lokasiDisplay = j.mode === 'Daring'
-        ? '<a href="'+j.lokasi_link+'" target="_blank" style="color:var(--foam);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;">🔗 Buka Link</a>'
-        : '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;">'+j.lokasi_link+'</span>';
-      tbody.innerHTML += '<tr>'
-        + '<td style="color:#c0dbe8;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0;">'+j.pertemuan+'</td>'
-        + '<td>'+j.tanggal+'<br><span style="font-size:11px;color:#5a8fa8;">⏰ '+j.waktu+'</span></td>'
-        + '<td style="text-align:center;">'+badgeMode+'</td>'
-        + '<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0;">'+lokasiDisplay+'</td>'
-        + '<td style="text-align:center;"><button class="btn btn-coral btn-sm" onclick="konfirmasiHapusJadwal(\'' + j.jadwal_id + '\')">Hapus</button></td>'
-        + '</tr>';
+        var badgeMode = j.mode === 'Daring'
+            ? '<span class="badge badge-mint">Daring</span>'
+            : '<span class="badge badge-amber">Luring</span>';
+        var lokasiDisplay = j.mode === 'Daring'
+            ? '<a href="'+j.lokasi_link+'" target="_blank" style="color:var(--foam);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;">🔗 Buka Link</a>'
+            : '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;">'+j.lokasi_link+'</span>';
+        rows.push('<tr>'
+            + '<td style="color:#c0dbe8;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0;">'+j.pertemuan+'</td>'
+            + '<td>'+j.tanggal+'<br><span style="font-size:11px;color:#5a8fa8;">⏰ '+j.waktu+'</span></td>'
+            + '<td style="text-align:center;">'+badgeMode+'</td>'
+            + '<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0;">'+lokasiDisplay+'</td>'
+            + '<td style="text-align:center;"><button class="btn btn-coral btn-sm" onclick="konfirmasiHapusJadwal(\'' + j.jadwal_id + '\')">Hapus</button></td>'
+            + '</tr>');
     });
+    tbody.innerHTML = rows.join('');
   }
 
   function konfirmasiHapusJadwal(jadwalId) {
