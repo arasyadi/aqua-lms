@@ -1,0 +1,747 @@
+// File: cbt_backend.gs
+// Semua operasi database telah dimigrasi ke Firebase.
+// Fungsi fbGet, fbPut, fbPatch, fbDelete tersedia di firebase_backend.gs
+
+// ============================================================
+// KONFIGURASI GLOBAL
+// ============================================================
+var GEMINI_API_KEY     = "GEMINI API";
+var TELEGRAM_BOT_TOKEN = "TELE BOT";
+var TELEGRAM_CHAT_ID   = "TELE ID";
+
+// ============================================================
+// 1. Mengambil soal untuk ditampilkan ke mahasiswa
+//    (Kunci jawaban dihilangkan demi keamanan)
+// ============================================================
+function getCbtQuestions(quizId) {
+  var data = fbGet("aqualearn/cbt_questions/" + quizId);
+  if (!data) return [];
+
+  var questions = [];
+  for (var qId in data) {
+    questions.push({
+      question_id: qId,
+      type:        data[qId].type,
+      text:        data[qId].text,
+      options:     data[qId].options   || [],
+      points:      data[qId].points    || 0,
+      image_url:   data[qId].image_url || ""
+    });
+  }
+  return questions;
+}
+
+// ============================================================
+// 2. Memproses pengumpulan ujian
+// ============================================================
+function submitCbtExam(quizId, userId, answersObj) {
+  var dataSoal   = fbGet("aqualearn/cbt_questions/" + quizId) || {};
+  var totalScore = 0;
+  var maxScore   = 0;
+
+  for (var qId in dataSoal) {
+    var type          = dataSoal[qId].type;
+    var correctAnswer = String(dataSoal[qId].correct_answer).trim();
+    var maxPoint      = parseFloat(dataSoal[qId].points) || 0;
+    maxScore += maxPoint;
+
+    var userAnswer = answersObj[qId] || "";
+    if (type === "PG") {
+      if (String(userAnswer).trim().toLowerCase() === correctAnswer.toLowerCase()) {
+        totalScore += maxPoint;
+      }
+    }
+  }
+
+  var finalGrade = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
+  finalGrade = Math.round(finalGrade * 100) / 100;
+
+  var jumlahPelanggaran = parseInt(answersObj._violations) || 0;
+  delete answersObj._violations;
+
+  var submitData = {
+    submit_id:      "CBT-SUB-" + new Date().getTime(),
+    quiz_id:        quizId,
+    user_id:        userId,
+    answers_json:   JSON.stringify(answersObj),
+    total_score:    finalGrade,
+    timestamp:      new Date().toISOString(),
+    violations:     jumlahPelanggaran,
+    essay_feedback: ""
+  };
+
+  fbPut("aqualearn/cbt_submissions/" + quizId + "/" + userId, submitData);
+
+  return { success: true, score: finalGrade, message: "Ujian berhasil diselesaikan!" };
+}
+
+// ============================================================
+// 3. Menyimpan soal baru
+// ============================================================
+function saveCbtQuestion(data) {
+  var questionId   = "Q-" + new Date().getTime();
+  var questionData = {
+    quiz_id:        data.quizId,
+    type:           data.type,
+    text:           data.text,
+    options:        data.options      || [],
+    correct_answer: data.correctAnswer,
+    points:         data.points,
+    image_url:      data.imageUrl     || ""
+  };
+
+  fbPut("aqualearn/cbt_questions/" + data.quizId + "/" + questionId, questionData);
+
+  return { success: true, message: "Soal berhasil ditambahkan ke " + data.quizId + "!" };
+}
+
+// ============================================================
+// 4. Menyimpan deadline dan durasi
+// ============================================================
+function saveCbtSettings(quizId, deadlineStr, durationMinutes) {
+  var settingData = {
+    deadline:         deadlineStr    || "",
+    duration_minutes: durationMinutes || 0
+  };
+
+  fbPut("aqualearn/cbt_settings/" + quizId, settingData);
+  return { success: true, message: "Pengaturan waktu kuis " + quizId + " disimpan!" };
+}
+
+
+// ============================================================
+// 5. Catat waktu mulai & kembalikan sisa durasi
+// ============================================================
+function startCbtSession(quizId, userId) {
+  var setting     = fbGet("aqualearn/cbt_settings/" + quizId) || {};
+  var durasiMenit = parseInt(setting.duration_minutes) || 0;
+
+  var sesiData  = fbGet("aqualearn/cbt_sessions/" + quizId + "/" + userId);
+  var startTime = null;
+
+  if (sesiData && sesiData.start_time) {
+    // Sesi lama ditemukan — jangan reset timer
+    startTime = new Date(sesiData.start_time).getTime();
+  } else {
+    // Buat sesi baru
+    startTime = new Date().getTime();
+    fbPut("aqualearn/cbt_sessions/" + quizId + "/" + userId, {
+      session_id: "SESS-" + startTime,
+      start_time: new Date(startTime).toISOString()
+    });
+  }
+
+  var now    = new Date().getTime();
+  var sisaMs = durasiMenit > 0
+    ? (startTime + durasiMenit * 60 * 1000) - now
+    : -1; // -1 = tidak ada batas durasi
+
+  return {
+    startTime:   startTime,
+    durationMs:  durasiMenit * 60 * 1000,
+    remainingMs: sisaMs,
+    hasDuration: durasiMenit > 0
+  };
+}
+
+// ============================================================
+// 6. Validasi akses mahasiswa (Double Submit, Deadline, Timeout)
+// ============================================================
+function validateCbtAccess(quizId, userId) {
+  // Cek double submit
+  var submission = fbGet("aqualearn/cbt_submissions/" + quizId + "/" + userId);
+  if (submission) {
+    return { allowed: false, reason: "submitted", score: submission.total_score };
+  }
+
+  // Cek deadline & durasi dari settings
+  var setting     = fbGet("aqualearn/cbt_settings/" + quizId) || {};
+  var deadline    = setting.deadline ? new Date(setting.deadline).getTime() : null;
+  var durasiMenit = parseInt(setting.duration_minutes) || 0;
+
+  if (deadline && new Date().getTime() > deadline) {
+    return { allowed: false, reason: "deadline" };
+  }
+
+  // Cek apakah sesi durasi sudah habis
+  if (durasiMenit > 0) {
+    var sesiData = fbGet("aqualearn/cbt_sessions/" + quizId + "/" + userId);
+    if (sesiData && sesiData.start_time) {
+      var startTime  = new Date(sesiData.start_time).getTime();
+      var expireTime = startTime + durasiMenit * 60 * 1000;
+      if (new Date().getTime() > expireTime) {
+        return { allowed: false, reason: "timeout" };
+      }
+    }
+  }
+
+  return { allowed: true };
+}
+
+// ============================================================
+// 7. Ambil analitik kuis untuk dashboard dosen
+// ============================================================
+function getCbtAnalytics(quizId, courseIdParams) {
+  var safeCourseId = courseIdParams ? String(courseIdParams).trim() : null;
+
+  // Fallback: cari course_id dari node quiz jika tidak dikirim
+  if (!safeCourseId) {
+    var allQuiz = fbGet("aqualearn/quiz") || {};
+    for (var docKey in allQuiz) {
+      var q = allQuiz[docKey];
+      if (q.url_form && q.url_form.indexOf("quizId=" + quizId) > -1) {
+        if (q.course_id) { safeCourseId = q.course_id; break; }
+      }
+    }
+  }
+
+  var usersData       = fbGet("aqualearn/users")       || {};
+  var enrollmentsData = fbGet("aqualearn/enrollments") || {};
+  var allStudents     = [];
+
+  // Bangun daftar mahasiswa dari enrollments kelas
+  if (safeCourseId) {
+    var cKey    = safeKey(safeCourseId);
+    var members = enrollmentsData[cKey] || {};
+    for (var uKey in members) {
+      var namaMhs = (usersData[uKey] && usersData[uKey].nama_lengkap)
+                  ? usersData[uKey].nama_lengkap
+                  : "Unknown";
+      allStudents.push({ userId: uKey, nama: namaMhs, status: 'Belum', score: '-', violations: 0 });
+    }
+  }
+
+  var submissionsData = fbGet("aqualearn/cbt_submissions/" + quizId) || {};
+  var totalSudah      = 0;
+
+  for (var sUid in submissionsData) {
+    var sub   = submissionsData[sUid];
+    var found = false;
+
+    for (var k = 0; k < allStudents.length; k++) {
+      if (allStudents[k].userId === sUid) {
+        allStudents[k].status     = 'Sudah';
+        allStudents[k].score      = sub.total_score;
+        allStudents[k].violations = sub.violations || 0;
+        totalSudah++;
+        found = true;
+        break;
+      }
+    }
+
+    // Mahasiswa submit tapi tidak terdaftar di kelas (tampilkan saja)
+    if (!found) {
+      var namaAsli = (usersData[sUid] && usersData[sUid].nama_lengkap)
+                   ? usersData[sUid].nama_lengkap
+                   : "Tidak Terdaftar";
+      allStudents.push({
+        userId:     sUid,
+        nama:       namaAsli,
+        status:     'Sudah',
+        score:      sub.total_score,
+        violations: sub.violations || 0
+      });
+      totalSudah++;
+    }
+  }
+
+  return { total: allStudents.length, sudah: totalSudah, students: allStudents };
+}
+
+// ============================================================
+// 8b. Proses penilaian essay SATU mahasiswa — batch 1 request
+// ============================================================
+function prosesSatuMahasiswaEssay(quizId, userId) {
+  var soalData   = fbGet("aqualearn/cbt_questions/"  + quizId);
+  var submitData = fbGet("aqualearn/cbt_submissions/" + quizId + "/" + userId);
+
+  if (!soalData || !submitData) {
+    return { success: false, skipped: false, message: "Data tidak ditemukan untuk " + userId };
+  }
+
+  var answersObj = {};
+  try { answersObj = JSON.parse(submitData.answers_json); } catch(e) {}
+
+  if (answersObj._essayGraded) {
+    return { success: true, skipped: true, userId: userId, message: "Sudah dinilai sebelumnya." };
+  }
+
+  var daftarEssay       = [];
+  var totalMaxScoreKuis = 0;
+
+  for (var qId in soalData) {
+    var poin = parseFloat(soalData[qId].points) || 0;
+    totalMaxScoreKuis += poin;
+    if (soalData[qId].type === "ESSAY") {
+      daftarEssay.push({
+        qId:     qId,
+        text:    soalData[qId].text,
+        rubrik:  soalData[qId].correct_answer,
+        maxPoin: poin,
+        jawaban: (answersObj[qId] || "").trim()
+      });
+    }
+  }
+
+  if (daftarEssay.length === 0) {
+    return { success: true, skipped: true, userId: userId, message: "Tidak ada soal essay." };
+  }
+
+  // 1 request Gemini untuk semua soal essay sekaligus
+  var hasilBatch        = _panggilGeminiBatch(daftarEssay);
+  var currentTotalScore = parseFloat(submitData.total_score) || 0;
+  var poinPgMentah      = (currentTotalScore / 100) * totalMaxScoreKuis;
+  var tambahanSkorEssay = 0;
+  var kumpulanAlasanAI  = "";
+
+  for (var i = 0; i < daftarEssay.length; i++) {
+    var qId   = daftarEssay[i].qId;
+    var hasil = hasilBatch[qId] || { skor: 0, alasan: "Tidak ada response AI." };
+    tambahanSkorEssay += hasil.skor;
+    kumpulanAlasanAI  += "Essay " + (i+1) + ": " + hasil.alasan + "\n\n";
+  }
+
+  var finalPoin  = poinPgMentah + tambahanSkorEssay;
+  var finalSkor  = totalMaxScoreKuis > 0
+                 ? Math.round((finalPoin / totalMaxScoreKuis) * 10000) / 100
+                 : 0;
+
+  answersObj._essayGraded = true;
+
+  fbPatch("aqualearn/cbt_submissions/" + quizId + "/" + userId, {
+    answers_json:   JSON.stringify(answersObj),
+    total_score:    finalSkor,
+    essay_feedback: kumpulanAlasanAI
+  });
+
+  return { success: true, skipped: false, userId: userId, finalScore: finalSkor, message: "Berhasil. Skor: " + finalSkor };
+}
+
+// ============================================================
+// Helper — Kirim SEMUA soal essay dalam 1 prompt ke Gemini
+// Return: { qId: { skor, alasan }, ... }
+// ============================================================
+function _panggilGeminiBatch(soalList) {
+  var promptLines = [
+    "Kamu adalah sistem CBT penilai otomatis. Adil dan objektif.",
+    "Nilai setiap jawaban mahasiswa berikut berdasarkan rubrik masing-masing.",
+    ""
+  ];
+
+  soalList.forEach(function(s, i) {
+    promptLines.push("=== SOAL " + (i+1) + " (ID: " + s.qId + ", Maks: " + s.maxPoin + " poin) ===");
+    promptLines.push("Pertanyaan: " + s.text);
+    promptLines.push("Rubrik: " + s.rubrik);
+    promptLines.push("Jawaban Mahasiswa: " + (s.jawaban || "(kosong)"));
+    promptLines.push("");
+  });
+
+  promptLines.push("Balas HANYA dalam format JSON berikut, tanpa teks lain:");
+  promptLines.push("{");
+  soalList.forEach(function(s, i) {
+    var comma = i < soalList.length - 1 ? "," : "";
+    promptLines.push('  "' + s.qId + '": { "nilai": [angka 0-' + s.maxPoin + '], "alasan": "[maks 2 kalimat]" }' + comma);
+  });
+  promptLines.push("}");
+
+  var promptText = promptLines.join("\n");
+  var url        = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=" + GEMINI_API_KEY;
+  var MAX_RETRY  = 4;
+  var lastError  = "";
+
+  for (var attempt = 1; attempt <= MAX_RETRY; attempt++) {
+    try {
+      var response = UrlFetchApp.fetch(url, {
+        method:             "post",
+        contentType:        "application/json",
+        payload:            JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] }),
+        muteHttpExceptions: true
+      });
+
+      var json = JSON.parse(response.getContentText());
+
+      if (json.error) {
+        lastError    = json.error.message;
+        var retrySec = _parseRetryDelay(lastError);
+        var sleepMs  = retrySec > 0 ? (retrySec * 1000 + 1000) : (6000 * Math.pow(2, attempt));
+        Logger.log('[GeminiBatch Retry] Attempt ' + attempt + '/' + MAX_RETRY + ' — sleep ' + (sleepMs/1000).toFixed(1) + 's');
+        if (attempt < MAX_RETRY) Utilities.sleep(sleepMs);
+        continue;
+      }
+
+      var rawText   = json.candidates[0].content.parts[0].text;
+      var cleanText = rawText.replace(/```json|```/gi, '').trim();
+      var parsed    = JSON.parse(cleanText);
+
+      var hasil = {};
+      soalList.forEach(function(s) {
+        var entry = parsed[s.qId];
+        if (entry && typeof entry.nilai !== 'undefined') {
+          hasil[s.qId] = {
+            skor:   Math.min(Math.max(parseFloat(entry.nilai) || 0, 0), s.maxPoin),
+            alasan: entry.alasan || ""
+          };
+        } else {
+          hasil[s.qId] = { skor: 0, alasan: "Tidak ada response untuk soal ini." };
+        }
+      });
+
+      return hasil;
+
+    } catch(e) {
+      lastError = e.toString();
+      var sleepMs = 6000 * Math.pow(2, attempt);
+      Logger.log('[GeminiBatch Error] Attempt ' + attempt + ' — ' + lastError);
+      if (attempt < MAX_RETRY) Utilities.sleep(sleepMs);
+    }
+  }
+
+  // Gagal total — return skor 0 semua
+  var fallback = {};
+  soalList.forEach(function(s) {
+    fallback[s.qId] = { skor: 0, alasan: "Gagal setelah " + MAX_RETRY + " percobaan." };
+  });
+  return fallback;
+}
+
+// ============================================================
+// Helper — Ekstrak angka detik dari pesan "Please retry in X.XXs"
+// ============================================================
+function _parseRetryDelay(pesanError) {
+  if (!pesanError) return 0;
+  var match = pesanError.match(/retry in\s+([\d.]+)s/i);
+  return match ? Math.ceil(parseFloat(match[1])) : 0;
+}
+
+// ============================================================
+// 9. Helper — ambil semua CBT settings sebagai Map
+// ============================================================
+function getCbtSettingsMap() {
+  return fbGet("aqualearn/cbt_settings") || {};
+}
+
+// ============================================================
+// 10. Ambil kuis milik kelas + enrich dengan deadline & durasi CBT
+// ============================================================
+function getCourseQuizzesWithCbtInfo(courseId) {
+  var quizzesData = fbGet("aqualearn/quiz") || {};
+  var cbtSettings = getCbtSettingsMap();
+  var quizzes     = [];
+
+  for (var quizId in quizzesData) {
+    var q = quizzesData[quizId];
+    if (q.course_id !== courseId) continue;
+
+    var urlForm   = q.url_form || "";
+    var cbtQuizId = "";
+    var deadline  = "";
+    var duration  = 0;
+
+    var match = urlForm.match(/quizId=([^&\s]+)/);
+    if (match && match[1]) cbtQuizId = match[1].trim();
+
+    if (cbtQuizId && cbtSettings[cbtQuizId]) {
+      deadline = cbtSettings[cbtQuizId].deadline          || "";
+      duration = parseInt(cbtSettings[cbtQuizId].duration_minutes) || 0;
+    }
+
+    quizzes.push({
+      quiz_id:            quizId,
+      course_id:          courseId,
+      title:              q.title || "",
+      url_form:           urlForm,
+      dikerjakan:         false, // di-enrich oleh getPaketDataRuangKelas
+      cbt_deadline:       deadline,
+      cbt_duration_menit: duration
+    });
+  }
+
+  return quizzes;
+}
+
+// ============================================================
+// 10b. Ambil daftar kuis CBT milik kelas (untuk dropdown modal soal)
+// ============================================================
+function getQuizzesForCourse(courseId) {
+  var quizzesData = fbGet("aqualearn/quiz") || {};
+  var quizArray   = [];
+
+  for (var docKey in quizzesData) {
+    var q = quizzesData[docKey];
+    if (q.course_id !== courseId) continue;
+
+    if (q.url_form && q.url_form.indexOf("quizId=") > -1) {
+      var match = q.url_form.match(/quizId=([^&\s]+)/);
+      if (!match || !match[1]) continue;
+      quizArray.push({ quizId: match[1].trim(), title: q.title || match[1].trim() });
+    }
+  }
+
+  return quizArray;
+}
+
+// ============================================================
+// 11. Sinkronisasi nilai CBT ke rekap nilai kelas
+// ============================================================
+function submitNilaiCbtKeGrades(quizId, courseIdParam, jenisNilai) {
+  var safeCourseId = courseIdParam ? String(courseIdParam).trim() : null;
+
+  if (!safeCourseId) {
+    var allQuiz = fbGet("aqualearn/quiz") || {};
+    for (var docKey in allQuiz) {
+      var q = allQuiz[docKey];
+      if (q.url_form && q.url_form.indexOf("quizId=" + quizId) > -1) {
+        if (q.course_id) { safeCourseId = q.course_id; break; }
+      }
+    }
+  }
+
+  if (!safeCourseId) {
+    return { success: false, message: "Gagal mendeteksi ID Kelas." };
+  }
+
+  var cKey    = safeKey(safeCourseId);
+  var members = fbGet("aqualearn/enrollments/" + cKey) || {};
+
+  if (Object.keys(members).length === 0) {
+    return { success: false, message: "Tidak ada mahasiswa terdaftar di kelas " + safeCourseId + "." };
+  }
+
+  var submissionsData  = fbGet("aqualearn/cbt_submissions/" + quizId) || {};
+  var updateNilaiCount = 0;
+  var jKey             = safeJenisNilai(jenisNilai);
+
+  for (var uid in submissionsData) {
+    var uKey = safeKey(uid);
+    if (!members[uKey]) continue;
+
+    var score = parseFloat(submissionsData[uid].total_score) || 0;
+    fbPut("aqualearn/nilai/" + cKey + "/" + uKey + "/" + jKey, { jenis: jenisNilai, nilai: score });
+
+    cacheRemove('paket_personal_' + safeCourseId + '_' + uid);
+    updateNilaiCount++;
+  }
+
+  invalidateCourseCache(safeCourseId);
+
+  return {
+    success: true,
+    message: "✅ Berhasil! " + updateNilaiCount + " nilai disinkronkan. (Kelas: " + safeCourseId + ")"
+  };
+}
+
+// ============================================================
+// 12. Reset ujian mahasiswa (submission + session + quiz_track)
+// ============================================================
+function resetUjianMahasiswaCBT(quizId, userId, courseId) {
+  var count = 0;
+
+  if (fbGet("aqualearn/cbt_submissions/" + quizId + "/" + userId)) {
+    fbDelete("aqualearn/cbt_submissions/" + quizId + "/" + userId);
+    count++;
+  }
+  if (fbGet("aqualearn/cbt_sessions/" + quizId + "/" + userId)) {
+    fbDelete("aqualearn/cbt_sessions/" + quizId + "/" + userId);
+    count++;
+  }
+  if (fbGet("aqualearn/quiz_track/" + safeKey(courseId) + "/" + safeKey(userId) + "/" + safeKey(quizId))) {
+    fbDelete("aqualearn/quiz_track/" + safeKey(courseId) + "/" + safeKey(userId) + "/" + safeKey(quizId));
+    count++;
+  }
+
+  if (courseId && userId) {
+    cacheRemove('paket_personal_' + String(courseId).trim() + '_' + String(userId).trim());
+    invalidateCourseCache(courseId);
+  }
+
+  return count > 0
+    ? { success: true,  message: "Data ujian berhasil direset!" }
+    : { success: false, message: "Mahasiswa ini belum memiliki riwayat pengerjaan." };
+}
+
+// ============================================================
+// 13. Hapus seluruh data sebuah kuis
+// ============================================================
+function hapusKuisDiBackend(quizId) {
+  if (!quizId) throw new Error("ID Kuis kosong, penghapusan dibatalkan.");
+
+  fbDelete("aqualearn/cbt_questions/"   + quizId);
+  fbDelete("aqualearn/cbt_sessions/"    + quizId);
+  fbDelete("aqualearn/cbt_submissions/" + quizId);
+  fbDelete("aqualearn/cbt_settings/"    + quizId);
+
+  return { success: true, message: "Kuis beserta semua data soal, sesi, dan jawaban berhasil dihapus." };
+}
+
+// ============================================================
+// 14. Sistem keamanan — One-Time Token
+// ============================================================
+function buatTokenSesiCbt(userObj) {
+  var tokenRahasisa = Utilities.getUuid();
+  var expiredMs     = new Date().getTime() + (2 * 60 * 1000); // 2 menit
+
+  fbPut("aqualearn/auth_tokens/" + tokenRahasisa, { user: userObj, expired: expiredMs });
+
+  return tokenRahasisa;
+}
+
+function validasiDanGunakanToken(tokenInput) {
+  var tokenData = fbGet("aqualearn/auth_tokens/" + tokenInput);
+
+  if (!tokenData) {
+    return { success: false, message: "Akses Ditolak: Token tidak valid atau sudah hangus dipakai." };
+  }
+
+  fbDelete("aqualearn/auth_tokens/" + tokenInput); // One-time token — hapus segera
+
+  if (new Date().getTime() > tokenData.expired) {
+    return { success: false, message: "Token sudah kedaluwarsa. Silakan buka ulang dari LMS." };
+  }
+
+  return { success: true, user: tokenData.user };
+}
+
+// ============================================================
+// NOTIFIKASI TELEGRAM
+// ============================================================
+function _kirimNotifTelegramCBT(quizId, deadlineStr) {
+  try {
+    var subData = fbGet("aqualearn/cbt_submissions/" + quizId);
+    if (!subData) return false;
+
+    // Cari judul kuis & courseId dengan iterate node quiz
+    var judulKuis = quizId; // fallback ke ID jika tidak ketemu
+    var courseId  = "";
+
+    var allQuiz = fbGet("aqualearn/quiz") || {};
+    for (var docKey in allQuiz) {
+      var q = allQuiz[docKey];
+      if (q.url_form && q.url_form.indexOf("quizId=" + quizId) > -1) {
+        if (q.title)     judulKuis = q.title;
+        if (q.course_id) courseId  = q.course_id;
+        break;
+      }
+    }
+
+    var submissions = [];
+    for (var uid in subData) {
+      submissions.push({ score: parseFloat(subData[uid].total_score) || 0 });
+    }
+
+    var jumlahMhs = submissions.length;
+    if (jumlahMhs === 0) return false;
+
+    var scores    = submissions.map(function(s) { return s.score; });
+    var rataRata  = (scores.reduce(function(a, b) { return a + b; }, 0) / jumlahMhs).toFixed(1);
+    var tertinggi = Math.max.apply(null, scores);
+
+    var dlFormatted = new Date(deadlineStr).toLocaleString('id-ID', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar'
+    }) + ' WITA';
+
+    // Gunakan URL production dari Script Properties (set via setProductionUrl)
+    var baseUrl      = PropertiesService.getScriptProperties().getProperty('AQUALEARN_PRODUCTION_URL')
+                       || ScriptApp.getService().getUrl();
+    var dashboardUrl = baseUrl + "?page=cbt_dashboard&quizId=" + quizId;
+    if (courseId) dashboardUrl += "&courseId=" + courseId;
+
+    var pesanTeks =
+      "🔔 <b>LAPORAN PENUTUPAN UJIAN / KUIS</b>\n" +
+      "📚 <b>" + judulKuis + "</b>\n\n" +
+      "⏳ <b>Deadline:</b> " + dlFormatted + "\n\n" +
+      "📊 <b>RINGKASAN HASIL:</b>\n" +
+      "👥 <b>Mhs Submit:</b> " + jumlahMhs + "\n" +
+      "📈 <b>Rata-rata:</b> " + rataRata + "\n" +
+      "🏆 <b>Nilai Tertinggi:</b> " + tertinggi + "\n\n" +
+      "<a href=\"" + dashboardUrl + "\">Buka Dashboard Analitik ➡️</a>";
+
+    UrlFetchApp.fetch("https://api.telegram.org/bot" + TELEGRAM_BOT_TOKEN + "/sendMessage", {
+      "method":      "POST",
+      "contentType": "application/json",
+      "payload":     JSON.stringify({
+        "chat_id":                  TELEGRAM_CHAT_ID,
+        "text":                     pesanTeks,
+        "parse_mode":               "HTML",
+        "disable_web_page_preview": true
+      })
+    });
+
+    return true;
+
+  } catch(err) {
+    Logger.log("Error Telegram: " + err.toString());
+    return false;
+  }
+}
+
+// ============================================================
+// TRIGGER OTOMATIS: PENGECEKAN DEADLINE UNTUK TELEGRAM
+// ============================================================
+function cekDanKirimNotifTelegramCBT() {
+  var now      = new Date().getTime();
+  var settings = fbGet("aqualearn/cbt_settings") || {};
+
+  var props      = PropertiesService.getScriptProperties();
+  var sudahKirim = JSON.parse(props.getProperty('notifTelegramTerkirim') || '{}');
+
+  for (var quizId in settings) {
+    var deadlineStr = settings[quizId].deadline;
+    if (!quizId || !deadlineStr) continue;
+
+    var deadlineMs = new Date(deadlineStr).getTime();
+    if (isNaN(deadlineMs)) continue;
+
+    if (now > deadlineMs && !sudahKirim[quizId]) {
+      var berhasil = _kirimNotifTelegramCBT(quizId, deadlineStr);
+      if (berhasil) {
+        sudahKirim[quizId] = new Date().toISOString();
+        props.setProperty('notifTelegramTerkirim', JSON.stringify(sudahKirim));
+      }
+    }
+  }
+}
+
+// ============================================================
+// SETUP & DEBUG — Jalankan sekali manual dari Editor
+// ============================================================
+
+// Wajib dijalankan sekali setelah deployment untuk menyimpan URL production
+function setProductionUrl() {
+  PropertiesService.getScriptProperties().setProperty(
+    'AQUALEARN_PRODUCTION_URL',
+    'https://script.google.com/macros/s/AKfycbyRKpsBY1OmA4keRIlogKvgJFzrJVGlvAn0ZFnYG7XSJ_7phAO3jc9IRLpHbNFRv7k1/exec'
+  );
+  Logger.log('✅ Production URL tersimpan.');
+}
+
+// Daftarkan trigger pengecekan deadline setiap jam
+function setupTriggerTelegramCBT() {
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'cekDanKirimNotifTelegramCBT') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+
+  ScriptApp.newTrigger('cekDanKirimNotifTelegramCBT')
+    .timeBased()
+    .everyHours(1)
+    .create();
+
+  Logger.log('✅ Trigger Telegram berhasil dibuat!');
+}
+
+// Tes kirim notifikasi Telegram secara manual
+function tesKirimNotifTelegram() {
+  var QUIZ_ID_TES  = "KUIS-1775231936601"; // Ganti dengan quizId yang ada submission-nya
+  var DEADLINE_TES = "2025-04-12T23:59:00+08:00";
+
+  Logger.log("🚀 Memulai tes notifikasi Telegram...");
+  Logger.log("   Quiz ID  : " + QUIZ_ID_TES);
+  Logger.log("   Deadline : " + DEADLINE_TES);
+
+  var hasil = _kirimNotifTelegramCBT(QUIZ_ID_TES, DEADLINE_TES);
+
+  Logger.log(hasil ? "✅ SUKSES — Pesan berhasil dikirim ke Telegram!" : "❌ GAGAL — Cek log di atas.");
+}
