@@ -903,25 +903,37 @@ function initAntiCheatSensors() {
   document.addEventListener('drop',      function(e) { e.preventDefault(); });
   document.addEventListener('dragover',  function(e) { e.preventDefault(); });
 
-  /* L4: Kursor keluar halaman — dicatat sebagai pelanggaran ringan tanpa full overlay */
+  /* L4: Kursor keluar halaman — WARNING SAJA, bukan pelanggaran resmi.
+     Fix: (1) skip jika user sedang mengetik di textarea/input,
+          (2) debounce 800ms agar geser ke scrollbar tidak langsung trigger,
+          (3) batalkan jika kursor kembali masuk sebelum debounce selesai.       */
+  var _mouseleaveTimeout = null;
   document.addEventListener('mouseleave', function() {
     if (!acEnabled) return;
-    tambahPelanggaran('Kursor keluar dari area halaman ujian');
-    tampilToast('⚠ Kursor keluar! Harap tetap di halaman ujian.', 'warn', 2500);
+    /* Skip saat focus ada di textarea (essay) atau input — kursor boleh drift */
+    var aktif = document.activeElement;
+    if (aktif && (aktif.tagName === 'TEXTAREA' || aktif.tagName === 'INPUT')) return;
+    clearTimeout(_mouseleaveTimeout);
+    _mouseleaveTimeout = setTimeout(function() {
+      tampilToast('⚠ Kursor keluar area ujian. Harap tetap di halaman.', 'warn', 2500);
+      /* TIDAK memanggil tambahPelanggaran() — ini hanya peringatan pasif */
+    }, 800);
+  });
+  document.addEventListener('mouseenter', function() {
+    /* Kursor kembali masuk — batalkan warning sebelum tampil */
+    clearTimeout(_mouseleaveTimeout);
   });
 
   /* L5: Pemantauan DOM PASIF — catat saja, jangan hapus paksa.
-         Penghapusan paksa berisiko mengganggu komponen aksesibilitas atau LMS. */
+     Penghapusan paksa berisiko mengganggu komponen aksesibilitas atau LMS. */
   var extensionObserver = new MutationObserver(function(mutations) {
     mutations.forEach(function(mut) {
       mut.addedNodes.forEach(function(node) {
         if (node.nodeType !== 1) return;
-        /* Heuristik: node dengan data-extension-id atau shadow root yang tidak dikenal */
         var isSuspect =
           node.getAttribute && node.getAttribute('data-extension-id') ||
           (node.shadowRoot && !['ac-fullscreen-gate','ac-reenter-overlay'].includes(node.id));
         if (isSuspect) {
-          /* Cukup catat — jangan manipulasi DOM ekstensi karena bisa crash halaman */
           tambahPelanggaran('Aktivitas ekstensi browser terdeteksi (' + (node.id || node.tagName) + ')');
           tampilToast('⚠ Ekstensi browser terdeteksi. Pelanggaran dicatat.', 'danger', 4000);
         }
@@ -938,7 +950,6 @@ function initAntiCheatSensors() {
   window.addEventListener('online', function() {
     document.getElementById('ac-offline-overlay').classList.remove('visible');
     tampilToast('✓ Koneksi kembali. Ujian dilanjutkan.', 'ok', 3000);
-    /* Flush antrian pelanggaran yang tertunda karena offline */
     _kirimPelanggaranKeBelakang();
   });
 }
