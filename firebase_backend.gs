@@ -3,8 +3,8 @@
 // Pengganti database.gs — semua operasi kini ke Firebase
 // ============================================================
 
-var FB_URL = "FIREBASE URL";
-var FB_SECRET = "FIREBASE SECRET";
+var FB_URL = "FB URL";
+var FB_SECRET = "FB Secret";
 
 // ══════════════════════════════════════════════
 // FIREBASE REST HELPERS — v4 (+ Auth Secret)
@@ -98,66 +98,96 @@ function checkLogin(username, password) {
 
 function verifikasiDeviceBinding(userId, deviceToken) {
   var key      = safeKey(userId);
+  var tokenKey = safeKey(deviceToken);
+
+  // ── CEK BARU: Apakah device ini sudah dipakai akun LAIN? ──
+  var reverseBinding = fbGet('aqualearn/device_token_map/' + tokenKey);
+  if (reverseBinding && reverseBinding.user_id && reverseBinding.user_id !== userId) {
+    return {
+      success: false,
+      message: '⛔ Akses Ditolak: Perangkat ini sudah terdaftar untuk akun mahasiswa lain.\n\n'
+             + 'Satu perangkat hanya boleh digunakan oleh SATU akun.\n'
+             + 'Hubungi dosen jika Anda merasa ini kesalahan.'
+    };
+  }
+
   var existing = fbGet('aqualearn/device_binding/' + key);
 
-  // ── LOGIN PERTAMA: Ikat perangkat ──
+  // ── LOGIN PERTAMA: Ikat perangkat ke akun DAN akun ke perangkat ──
   if (!existing) {
     fbPut('aqualearn/device_binding/' + key, {
       device_token:  deviceToken,
       waktu_tertaut: new Date().toISOString()
     });
+    // Tulis reverse mapping
+    fbPut('aqualearn/device_token_map/' + tokenKey, {
+      user_id:       userId,
+      waktu_tertaut: new Date().toISOString()
+    });
     return { success: true, isNewBind: true };
   }
 
-  // ── PENGECEKAN 1: Exact match — langsung lolos ──
+  // ── Exact match: lolos ──
   if (existing.device_token === deviceToken) {
     return { success: true, isNewBind: false };
   }
 
-  // ── PENGECEKAN 2: Partial match OS+Browser ──
-  // Menangani kasus Safari/iOS yang membersihkan localStorage secara berkala.
-  // Jika OS dan Browser sama, anggap perangkat yang sama; perbarui token.
+  // ── Partial match OS+Browser (Safari ITP workaround) ──
   var savedParts = String(existing.device_token).split('_');
   var newParts   = String(deviceToken).split('_');
-
   var savedOs      = savedParts[0] || '';
   var savedBrowser = savedParts[1] || '';
   var newOs        = newParts[0]   || '';
   var newBrowser   = newParts[1]   || '';
 
   if (savedOs === newOs && savedBrowser === newBrowser && savedOs !== 'unknown') {
-    // Perangkat sama — token lama kemungkinan terhapus oleh Safari ITP
-    // Perbarui token di database agar sesi berikutnya bisa exact match lagi
+    // Hapus reverse mapping lama, tulis yang baru
+    var oldTokenKey = safeKey(existing.device_token);
+    fbDelete('aqualearn/device_token_map/' + oldTokenKey);
+    
     fbPut('aqualearn/device_binding/' + key, {
-      device_token:       deviceToken,       // token baru
-      waktu_tertaut:      existing.waktu_tertaut, // pertahankan tanggal awal
-      waktu_diperbarui:   new Date().toISOString()
+      device_token:     deviceToken,
+      waktu_tertaut:    existing.waktu_tertaut,
+      waktu_diperbarui: new Date().toISOString()
+    });
+    fbPut('aqualearn/device_token_map/' + tokenKey, {
+      user_id:          userId,
+      waktu_tertaut:    existing.waktu_tertaut,
+      waktu_diperbarui: new Date().toISOString()
     });
     return { success: true, isNewBind: false, wasRebound: true };
   }
 
-  // ── PENGECEKAN 3: Benar-benar perangkat berbeda — tolak ──
+  // ── Benar-benar device berbeda: tolak ──
   function cap(t) {
     return t ? t.charAt(0).toUpperCase() + t.slice(1) : 'Tidak Dikenali';
   }
-
   return {
     success: false,
     message: '⛔ Akses Ditolak: Akun ini sudah tertaut dengan perangkat lain.\n\n'
            + '📱 Perangkat Terdaftar:\n'
            + 'OS: '      + cap(savedOs)      + '\n'
            + 'Browser: ' + cap(savedBrowser) + '\n\n'
-           + 'Hubungi dosen jika Anda berganti perangkat atau mereset HP.'
+           + 'Hubungi dosen jika Anda berganti perangkat.'
   };
 }
 
 function resetDeviceBindingBatch(nimArray) {
   var count = 0;
   nimArray.forEach(function(nim) {
-    fbDelete("aqualearn/device_binding/" + safeKey(nim));
+    var key      = safeKey(nim);
+    var existing = fbGet('aqualearn/device_binding/' + key);
+    
+    // Hapus reverse mapping dulu jika ada
+    if (existing && existing.device_token) {
+      fbDelete('aqualearn/device_token_map/' + safeKey(existing.device_token));
+    }
+    
+    // Hapus forward binding
+    fbDelete('aqualearn/device_binding/' + key);
     count++;
   });
-  return { success: true, message: "✅ Berhasil mereset " + count + " perangkat." };
+  return { success: true, message: '✅ Berhasil mereset ' + count + ' perangkat.' };
 }
 
 // ══════════════════════════════════════════════
@@ -417,7 +447,6 @@ function getCourseQuizzes(courseId, userId) {
   var all    = fbGet("aqualearn/quiz") || {};
   var result = [];
 
-  // Kumpulkan quiz_id yang sudah diklik user
   var doneIds = {};
   if (userId) {
     var tracks = fbGet("aqualearn/quiz_track/" + safeKey(courseId)
@@ -429,10 +458,11 @@ function getCourseQuizzes(courseId, userId) {
     var q = all[qKey];
     if (q.course_id !== courseId) return;
     result.push({
-      quiz_id:   qKey,
-      course_id: q.course_id,
-      title:     q.title,
-      url_form:  q.url_form,
+      quiz_id:    qKey,
+      course_id:  q.course_id,
+      title:      q.title,
+      url_form:   q.url_form,
+      tipe_kuis:  q.tipe_kuis || 'kuis',   // ← tambahkan ini
       dikerjakan: !!doneIds[qKey]
     });
   });
@@ -440,10 +470,13 @@ function getCourseQuizzes(courseId, userId) {
   return result;
 }
 
-function tambahKuis(courseId, title, urlForm) {
+function tambahKuis(courseId, title, urlForm, tipeKuis) {
   var qId = "Q-" + new Date().getTime();
   fbPut("aqualearn/quiz/" + safeKey(qId), {
-    course_id: courseId, title: title, url_form: urlForm
+    course_id:  courseId,
+    title:      title,
+    url_form:   urlForm,
+    tipe_kuis:  tipeKuis || "kuis"   // default: kuis biasa
   });
   invalidateCourseCache(courseId);
   return { success: true };
@@ -485,6 +518,21 @@ function logQuizAccess(userId, quizId) {
   return true;
 }
 
+// Fungsi baru: Dosen menandai seluruh anggota kelompok sekaligus
+function tandaiAnggotaKelompok(courseId, quizId, anggotaIds) {
+  var count = 0;
+  anggotaIds.forEach(function(uid) {
+    var path = "aqualearn/quiz_track/"
+             + safeKey(courseId) + "/"
+             + safeKey(uid) + "/"
+             + safeKey(quizId);
+    fbPut(path, new Date().toISOString());
+    cacheRemove('paket_personal_' + courseId + '_' + uid);
+    count++;
+  });
+  invalidateCourseCache(courseId);
+  return { success: true, message: count + " anggota kelompok berhasil ditandai." };
+}
 
 // ══════════════════════════════════════════════
 // LESSON LEARN
@@ -875,7 +923,8 @@ function getPaketDataRuangKelas(courseId, userId) {
       quiz_id: k, 
       course_id: courseId, 
       title: q.title || '',
-      url_form: urlForm, 
+      url_form: urlForm,
+      tipe_kuis: q.tipe_kuis || "kuis",   // ← tambahan field
       dikerjakan: !!doneQuizIds[safeKey(k)],
       cbt_deadline: deadline, 
       cbt_duration_menit: duration 
@@ -1001,7 +1050,16 @@ function getPaketDataAnalitikKelas(courseId) {
       deadline = cbtSet[cbtQuizId].deadline || '';
       duration = parseInt(cbtSet[cbtQuizId].duration_minutes) || 0;
     }
-    quizzes.push({ quiz_id: k, course_id: courseId, title: q.title || '', url_form: urlForm, dikerjakan: false, cbt_deadline: deadline, cbt_duration_menit: duration });
+    quizzes.push({ 
+      quiz_id: k, 
+      course_id: courseId, 
+      title: q.title || '', 
+      url_form: urlForm,
+      tipe_kuis: q.tipe_kuis || "kuis",   // ← tambahan field
+      dikerjakan: false, 
+      cbt_deadline: deadline, 
+      cbt_duration_menit: duration 
+    });
   });
 
   // ── 4. Format lesson ──
@@ -1084,49 +1142,108 @@ function getPaketDataAnalitikKelas(courseId) {
 // ══════════════════════════════════════════════
 
 function importKontenKelas(sourceCourseId, targetCourseId, newDeadline) {
-  var srcMat   = getCourseMaterials(sourceCourseId);
-  var srcQuiz  = getCourseQuizzes(sourceCourseId);
+  var srcMat    = getCourseMaterials(sourceCourseId);
+  var srcQuiz   = getCourseQuizzes(sourceCourseId);
   var srcLesson = getCourseLessons(sourceCourseId);
 
   var tgtMat    = getCourseMaterials(targetCourseId).map(function(m){ return m.title.toLowerCase(); });
   var tgtQuiz   = getCourseQuizzes(targetCourseId).map(function(q){ return q.title.toLowerCase(); });
   var tgtLesson = getCourseLessons(targetCourseId).map(function(l){ return l.topic.toLowerCase(); });
 
-  var t    = new Date().getTime();
-  var cMat = 0, cQuiz = 0, cLesson = 0;
+  var t        = new Date().getTime();
+  var cMat     = 0;
+  var cQuiz    = 0;
+  var cLesson  = 0;
+  var cbtGagal = 0;
 
+  // ── 1. Salin Materi ──
   srcMat.forEach(function(m, i) {
     if (tgtMat.indexOf(m.title.toLowerCase()) !== -1) return;
-    var id = "M-" + t + "-IMP" + i;
-    fbPut("aqualearn/materials/" + safeKey(id), {
-      course_id: targetCourseId, title: m.title, url_drive: m.url_drive
+
+    fbPut("aqualearn/materials/" + safeKey("M-" + t + "-IMP" + i), {
+      course_id: targetCourseId,
+      title:     m.title,
+      url_drive: m.url_drive
     });
     cMat++;
   });
 
+  // ── 2. Salin Kuis / Tugas ──
   srcQuiz.forEach(function(q, i) {
     if (tgtQuiz.indexOf(q.title.toLowerCase()) !== -1) return;
-    var id = "Q-" + t + "-IMP" + i;
-    fbPut("aqualearn/quiz/" + safeKey(id), {
-      course_id: targetCourseId, title: q.title, url_form: q.url_form
+
+    var newQuizDocId = "Q-" + t + "-IMP" + i;
+    var urlFormBaru  = q.url_form;
+    var tipeKuis     = q.tipe_kuis || 'kuis';
+    var isCbt        = q.url_form && q.url_form.indexOf('quizId=') > -1;
+
+    if (isCbt) {
+      // ── CBT: Kloning soal & settings ke quizId baru ──
+      var matchId = q.url_form.match(/quizId=([^&\s]+)/);
+      if (matchId && matchId[1]) {
+        var srcCbtId = matchId[1].trim();
+        var newCbtId = "KUIS-" + t + "-IMP" + i;
+
+        // Kloning soal (termasuk kunci jawaban & gambar)
+        var srcQuestions = fbGet("aqualearn/cbt_questions/" + srcCbtId);
+        if (srcQuestions) {
+          fbPut("aqualearn/cbt_questions/" + newCbtId, srcQuestions);
+        } else {
+          cbtGagal++;
+          Logger.log("[IMPORT] Soal CBT tidak ditemukan untuk: " + srcCbtId);
+        }
+
+        // Kloning settings: durasi dipertahankan, deadline dikosongkan
+        // (dosen harus set deadline sendiri untuk kelas baru)
+        var srcSettings = fbGet("aqualearn/cbt_settings/" + srcCbtId) || {};
+        fbPut("aqualearn/cbt_settings/" + newCbtId, {
+          deadline:         "",
+          duration_minutes: srcSettings.duration_minutes || 0
+        });
+
+        // Ganti quizId lama dengan quizId baru di URL
+        urlFormBaru = q.url_form.replace(srcCbtId, newCbtId);
+        tipeKuis    = 'cbt'; // pastikan tipe tidak berubah
+      }
+    }
+
+    fbPut("aqualearn/quiz/" + safeKey(newQuizDocId), {
+      course_id: targetCourseId,
+      title:     q.title,
+      url_form:  urlFormBaru,
+      tipe_kuis: tipeKuis
     });
     cQuiz++;
   });
 
+  // ── 3. Salin Lesson Learn ──
   srcLesson.forEach(function(l, i) {
     if (tgtLesson.indexOf(l.topic.toLowerCase()) !== -1) return;
-    var id = "L-" + t + "-IMP" + i;
-    fbPut("aqualearn/lesson_assign/" + safeKey(id), {
-      course_id: targetCourseId, topic: l.topic, deadline: newDeadline
+
+    fbPut("aqualearn/lesson_assign/" + safeKey("L-" + t + "-IMP" + i), {
+      course_id: targetCourseId,
+      topic:     l.topic,
+      deadline:  newDeadline
     });
     cLesson++;
   });
 
   if (cMat + cQuiz + cLesson > 0) invalidateCourseCache(targetCourseId);
 
+  var pesanCbt = '';
+  if (cbtGagal > 0) {
+    pesanCbt = ' (⚠ ' + cbtGagal + ' soal CBT gagal diklon, cek log)';
+  } else if (cQuiz > 0) {
+    var adaCbt = srcQuiz.some(function(q) {
+      return q.url_form && q.url_form.indexOf('quizId=') > -1;
+    });
+    if (adaCbt) pesanCbt = ' (soal CBT berhasil dikloning ke ID baru)';
+  }
+
   return {
     success: true,
-    message: "Berhasil: " + cMat + " Materi, " + cQuiz + " Kuis, " + cLesson + " Presensi diimpor."
+    message: "Berhasil: " + cMat + " Materi, " + cQuiz + " Kuis/Tugas, "
+           + cLesson + " Presensi diimpor." + pesanCbt
   };
 }
 
