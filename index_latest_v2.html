@@ -7,6 +7,16 @@
   <title>AquaLearn LMS</title>
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Lora:wght@600;700&display=swap" rel="stylesheet">
   <style>
+    /* ── Quiz action button hover glow ── */
+    .quiz-action-btn:hover:not([disabled]) {
+      filter: brightness(1.14);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(33,150,211,0.35);
+    }
+    .quiz-action-btn:active:not([disabled]) {
+      transform: translateY(0px);
+    filter: brightness(0.96);
+    }
     @keyframes pulse-amber {
       0%, 100% { box-shadow: 0 0 0 0 rgba(232,168,58,0.4); }
       50%       { box-shadow: 0 0 0 6px rgba(232,168,58,0); }
@@ -563,12 +573,15 @@
       </div>
     </div>
 
-    <div style="display:flex; gap:10px;">
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
       <button class="btn btn-amber btn-sm" id="btnTambahKuis"
               onclick="tambahKuisKelas()">+ Tambah Kuis / Tugas</button>
       <button class="btn btn-ocean btn-sm"
               onclick="bukaModalCbt(activeCourseId)"
               style="background-color:#1565a8; color:white;">⚙️ Kelola Soal CBT</button>
+      <button class="btn btn-teal btn-sm"
+              onclick="bukaAquaTask(activeCourseId)"
+              style="background-color:#0d7a6b; color:white;">📋 Kelola Pengumpulan Tugas</button>
     </div>
 
     <div class="tbl-wrap mt-4">
@@ -1415,43 +1428,46 @@ window.alert = function(pesan) {
 
   function handleLoginResponse(response) {
     if (response.success) {
-      
+
       // ─── 1. CEK JIKA YANG LOGIN ADALAH MAHASISWA ───
       if (response.role === 'Mahasiswa') {
-        
-        document.getElementById('message').innerText = 'Memverifikasi keamanan perangkat... 🔒';
-        
-        var userIdInput = document.getElementById('username').value.trim();
-        var tokenHP = dapatkanDeviceToken(); // Memanggil fungsi pembuat token yang kita buat sebelumnya
 
-        // Kirim token ke server untuk dicocokkan
-        google.script.run.withSuccessHandler(function(cekDevice) {
-          
-          if (!cekDevice.success) {
-            // ❌ GAGAL: Perangkat berbeda (indikasi joki)
-            document.getElementById('message').innerText = "Akses Ditolak: Perangkat tidak dikenali.";
-            alert(cekDevice.message); // Munculkan peringatan ke mahasiswa
-            return; // Hentikan proses, jangan biarkan masuk dashboard
-          } 
-          else {
-            // ✅ SUKSES: Perangkat sama ATAU baru pertama kali login
+        document.getElementById('message').innerText = 'Memverifikasi keamanan perangkat... 🔒';
+
+        var userIdInput = document.getElementById('username').value.trim();
+        var tokenHP = dapatkanDeviceToken();
+
+        google.script.run
+          .withSuccessHandler(function(cekDevice) {
+
+            if (!cekDevice.success) {
+              document.getElementById('message').innerText = 'Akses Ditolak: Perangkat tidak dikenali.';
+              alert(cekDevice.message);
+              return;
+            }
+
             if (cekDevice.isNewBind) {
-               alert("✅ Perangkat (Browser) ini sekarang telah ditautkan secara permanen dengan akun Anda. Jangan gunakan mode Samaran (Incognito) atau menghapus Cache Browser.");
+              alert('✅ Perangkat (Browser) ini sekarang telah ditautkan secara permanen dengan akun Anda. Jangan gunakan mode Samaran (Incognito) atau menghapus Cache Browser.');
             }
             if (cekDevice.wasRebound) {
-                console.log("[LMS] Token diperbarui otomatis — device sama terdeteksi.");
+              console.log('[LMS] Token diperbarui otomatis — device sama terdeteksi.');
             }
-            
-            // Lanjutkan proses login normal
+
             document.getElementById('message').innerText = 'Berhasil masuk...';
             currentUserInfo = response;
             localStorage.setItem('lms_session', JSON.stringify(response));
             applySession(response);
-          }
-          
-        }).verifikasiDeviceBinding(userIdInput, tokenHP);
 
-      } 
+          })
+          .withFailureHandler(function(err) {
+            // GAS call gagal total (exception di server, timeout, dsb.)
+            document.getElementById('message').innerText = 'Verifikasi gagal. Coba lagi.';
+            console.error('[LMS] verifikasiDeviceBinding error:', err.message);
+            alert('❌ Gagal terhubung ke server saat verifikasi perangkat.\n\nDetail: ' + err.message + '\n\nSolusi:\n• Refresh halaman dan coba lagi\n• Pastikan koneksi internet stabil\n• Coba browser lain (Chrome / Firefox)\n• Hubungi dosen jika masalah berlanjut');
+          })
+          .verifikasiDeviceBinding(userIdInput, tokenHP);
+
+      }
       // ─── 2. JIKA YANG LOGIN ADALAH DOSEN (BEBAS DEVICE) ───
       else {
         currentUserInfo = response;
@@ -1460,7 +1476,6 @@ window.alert = function(pesan) {
       }
 
     } else {
-      // Jika password atau username salah dari awal
       document.getElementById('message').innerText = response.message;
     }
   }
@@ -1940,9 +1955,10 @@ function renderQuizzes(quizzes) {
 
       // Tombol
       + '<button id="' + btnId + '" '
+      + 'class="quiz-action-btn" '
       + 'style="width:100%;padding:10px 12px;border-radius:9px;'
       + 'font-family:\'Sora\',sans-serif;font-size:12px;font-weight:700;'
-      + 'cursor:pointer;transition:filter .18s,transform .12s;margin-top:auto;'
+      + 'cursor:pointer;transition:filter .18s,transform .12s,box-shadow .18s;margin-top:auto;'
       + btnStyle + '" '
       + 'onclick="bukaKuis(\'' + q.quiz_id + '\',\'' + q.url_form + '\',\'' + tipe + '\',\'' + btnId + '\')">'
       + btnTxt
@@ -3704,6 +3720,28 @@ function _prosesExportAktivitas() {
     .replace(/\s+/g, '_');
 
   XLSX.writeFile(wb, 'NilaiAktivitas_' + safeNama + '.xlsx');
+}
+
+function bukaAquaTask(courseId) {
+  var saved = localStorage.getItem('lms_session');
+  if (!saved) { alert('Anda belum login.'); return; }
+
+  var sess;
+  try { sess = JSON.parse(saved); }
+  catch(e) { alert('Sesi tidak valid.'); return; }
+
+  google.script.run
+    .withSuccessHandler(function(baseUrl) {
+      var params = [
+        'page=aquatask',
+        'courseId='  + encodeURIComponent(courseId),
+        'userId='    + encodeURIComponent(sess.userId || ''),
+        'userName='  + encodeURIComponent(sess.name   || ''),
+        'userRole='  + encodeURIComponent(sess.role   || '')
+      ].join('&');
+      window.open(baseUrl + '?' + params, '_blank');
+    })
+    .getScriptUrl();
 }
 
 </script>
