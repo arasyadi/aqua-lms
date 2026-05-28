@@ -52,6 +52,7 @@
     select.form-input{padding:9px 14px;cursor:pointer;}
     select.form-input option{background:#0b1f3a;}
     textarea.form-input{resize:vertical;min-height:80px;}
+    .form-hint{font-size:11px;color:var(--slate);margin-top:5px;line-height:1.5;}
 
     /* BUTTONS */
     .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;
@@ -82,16 +83,17 @@
     .badge-coral{background:rgba(242,109,81,0.15);color:var(--coral);border:1px solid rgba(242,109,81,0.3);}
     .badge-purple{background:rgba(156,39,176,0.18);color:#ce93d8;border:1px solid rgba(156,39,176,0.35);}
 
-    /* TABLE — full width, no split */
+    /* TABLE */
     .tbl-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border);}
     table{width:100%;border-collapse:collapse;}
     thead th{background:rgba(13,61,107,0.9);color:var(--foam);padding:11px 14px;
       font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;
       border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;}
     tbody td{padding:10px 14px;font-size:13px;border-bottom:1px solid rgba(92,200,240,0.07);
-      color:#c0dbe8;vertical-align:middle;}
+      color:#c0dbe8;vertical-align:middle;transition:opacity 0.4s,background-color 0.4s;}
     tbody tr:last-child td{border-bottom:none;}
     tbody tr:hover td{background:rgba(33,150,211,0.06);}
+    tr.row-deleting td{opacity:0.25 !important;pointer-events:none;background-color:rgba(242,109,81,0.06) !important;}
 
     /* TASK CARD */
     .task-card{border-radius:14px;padding:18px 20px;background:rgba(13,61,107,0.25);
@@ -124,9 +126,28 @@
     .file-drop .text{font-size:13px;color:var(--slate);}
     .file-drop .fname{font-size:13px;font-weight:600;color:var(--foam);margin-top:6px;}
     .upload-progress{height:6px;border-radius:99px;margin-top:12px;
-      background:rgba(33,150,211,0.12);overflow:hidden;display:none;}
+      background:rgba(33,150,211,0.12);overflow:hidden;display:none;position:relative;}
     .upload-progress-fill{height:100%;border-radius:99px;width:0%;
-      background:linear-gradient(90deg,var(--sea),var(--foam));transition:width .3s ease;}
+      background:linear-gradient(90deg,var(--sea),var(--foam));transition:width .4s ease;}
+
+    /* INDETERMINATE / SHIMMER */
+    .upload-progress-fill.shimmer{
+      width:100% !important;
+      background:linear-gradient(90deg,transparent 0%,var(--foam) 50%,transparent 100%);
+      background-size:200% 100%;
+      animation:shimmer 1.5s infinite;
+      transition:none !important;
+    }
+    @keyframes shimmer{
+      0%  {background-position:200% center;}
+      100%{background-position:-200% center;}
+    }
+
+    /* BATCH PROGRESS BAR */
+    .batch-progress-wrap{margin-bottom:12px;display:none;}
+    .batch-progress-track{height:5px;border-radius:99px;background:rgba(33,150,211,0.12);overflow:hidden;margin-top:6px;}
+    .batch-progress-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--sea),var(--mint));transition:width .35s ease;}
+    .batch-progress-label{font-size:11px;color:var(--slate);display:flex;justify-content:space-between;margin-bottom:2px;}
 
     /* ANGGOTA LIST */
     .anggota-list{max-height:200px;overflow-y:auto;background:rgba(6,15,30,0.5);
@@ -150,6 +171,10 @@
       border:1px solid rgba(33,150,211,0.15);border-radius:11px;padding:14px 10px;text-align:center;}
     .stat-mini-box .val{font-family:'Lora',serif;font-size:26px;color:var(--foam);line-height:1;}
     .stat-mini-box .lbl{font-size:10px;color:var(--slate);text-transform:uppercase;letter-spacing:0.5px;margin-top:4px;}
+
+    /* STALE BADGE */
+    .stale-badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--amber);
+      padding:2px 8px;border-radius:20px;background:rgba(232,168,58,0.1);border:1px solid rgba(232,168,58,0.25);}
 
     /* ACCORDION */
     .accordion{border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:10px;}
@@ -190,6 +215,14 @@
     .dl-warn{background:rgba(232,168,58,0.15);color:var(--amber);border:1px solid rgba(232,168,58,0.3);}
     .dl-closed{background:rgba(242,109,81,0.12);color:var(--coral);border:1px solid rgba(242,109,81,0.3);}
 
+    /* FILE LINK */
+    .file-link{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--foam);
+      text-decoration:none;padding:5px 9px;border-radius:7px;
+      background:rgba(92,200,240,0.07);border:1px solid rgba(92,200,240,0.18);
+      transition:background .15s;}
+    .file-link:hover{background:rgba(92,200,240,0.15);}
+    .file-link .file-ext{font-size:10px;color:var(--slate);}
+
     /* LOADING */
     .loading-wrap{text-align:center;padding:40px;color:var(--slate);font-size:13px;}
     .spinner{display:inline-block;width:32px;height:32px;border:3px solid rgba(92,200,240,0.2);
@@ -199,17 +232,26 @@
     #toast-container{position:fixed;top:70px;right:18px;z-index:9999;
       display:flex;flex-direction:column;gap:8px;pointer-events:none;}
     .toast{display:flex;align-items:flex-start;gap:9px;padding:11px 15px;border-radius:11px;
-      min-width:240px;max-width:300px;backdrop-filter:blur(12px);
+      min-width:240px;max-width:320px;backdrop-filter:blur(12px);
       animation:toastIn .3s cubic-bezier(.175,.885,.32,1.275);transition:opacity .3s,transform .3s;pointer-events:all;}
     .toast.hide{opacity:0;transform:translateX(20px);}
     .toast-success{background:rgba(52,201,138,0.15);border:1px solid rgba(52,201,138,0.35);}
     .toast-error{background:rgba(242,109,81,0.15);border:1px solid rgba(242,109,81,0.35);}
     .toast-info{background:rgba(92,200,240,0.12);border:1px solid rgba(92,200,240,0.3);}
+    .toast-warn{background:rgba(232,168,58,0.12);border:1px solid rgba(232,168,58,0.3);}
     .toast-title{font-size:12px;font-weight:700;margin-bottom:1px;}
     .toast-msg{font-size:11px;opacity:.85;line-height:1.4;}
     .toast-success .toast-title,.toast-success .toast-msg{color:var(--mint);}
     .toast-error   .toast-title,.toast-error   .toast-msg{color:var(--coral);}
     .toast-info    .toast-title,.toast-info    .toast-msg{color:var(--foam);}
+    .toast-warn    .toast-title,.toast-warn    .toast-msg{color:var(--amber);}
+    /* Undo toast */
+    .toast-undo-btn{display:inline-flex;align-items:center;margin-top:6px;
+      font-size:10px;font-family:'Sora',sans-serif;font-weight:700;
+      padding:3px 9px;border-radius:5px;border:1px solid rgba(242,109,81,0.45);
+      background:rgba(242,109,81,0.15);color:var(--coral);cursor:pointer;
+      transition:background .15s;}
+    .toast-undo-btn:hover{background:rgba(242,109,81,0.3);}
 
     /* UTILS */
     .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
@@ -234,6 +276,7 @@
     <div class="topbar-sub">Portal Pengumpulan Tugas · AquaLearn LMS</div>
   </div>
   <div class="ml-auto flex items-center" style="gap:10px;">
+    <div id="staleBadge" class="stale-badge" style="display:none;">⟳ Memperbarui…</div>
     <div id="userBadge" class="badge badge-foam" style="font-size:12px;">Memuat…</div>
     <button class="btn btn-dark btn-sm" onclick="tutupAman()">← LMS</button>
   </div>
@@ -263,7 +306,7 @@
     <div class="form-section" id="sectionAnggota" style="display:none;">
       <label class="form-label">Anggota Kelompok <span id="anggotaCount" style="color:var(--amber);">(0 terpilih)</span></label>
       <div class="anggota-list" id="anggotaList"></div>
-      <p style="font-size:11px;color:var(--slate);margin-top:6px;">💡 Nilai didistribusikan otomatis ke semua anggota yang dicentang.</p>
+      <p class="form-hint">💡 Nilai didistribusikan otomatis ke semua anggota yang dicentang.</p>
     </div>
     <div class="form-section">
       <label class="form-label">File Tugas</label>
@@ -303,7 +346,7 @@
     <div class="form-section">
       <label class="form-label">🔗 Link Google Docs Instruksi (Opsional)</label>
       <input type="url" class="form-input" id="newTaskDocsUrl" placeholder="https://docs.google.com/document/d/...">
-      <p style="font-size:11px;color:var(--slate);margin-top:5px;">Pastikan Docs sudah dipublish (File → Share → Publish to web) agar bisa ditampilkan.</p>
+      <p class="form-hint">Pastikan Docs sudah dipublish (File → Share → Publish to web) agar bisa ditampilkan.</p>
     </div>
     <div class="grid-2 mb-4">
       <div>
@@ -336,11 +379,11 @@
       <h3>📅 Ubah Deadline</h3>
       <button class="modal-close" onclick="tutupModalEditDeadline()">✕</button>
     </div>
-    <p style="font-size:13px;color:var(--slate);margin-bottom:16px;line-height:1.6;" id="editDeadlineTaskName"></p>
+    <p class="form-hint" style="margin-bottom:16px;" id="editDeadlineTaskName"></p>
     <div class="form-section">
       <label class="form-label">Deadline Baru (Waktu WITA +08:00)</label>
       <input type="datetime-local" class="form-input" id="editDeadlineInput">
-      <p style="font-size:11px;color:var(--slate);margin-top:5px;">Mahasiswa yang belum mengumpulkan akan mendapatkan waktu baru sesuai deadline ini.</p>
+      <p class="form-hint">Mahasiswa yang belum mengumpulkan akan mendapatkan waktu baru sesuai deadline ini.</p>
     </div>
     <div style="display:flex;gap:10px;">
       <button class="btn btn-ocean" style="flex:1;" id="btnSimpanEditDeadline" onclick="simpanEditDeadline()">💾 Simpan Deadline</button>
@@ -364,9 +407,23 @@
       <select class="form-input" id="submitNilaiTaskSelect" style="padding:9px 14px;"></select>
     </div>
     <div class="form-section">
-      <label class="form-label">Nama Jenis Penilaian di LMS</label>
+      <label class="form-label">Label Tampilan di Rekap Nilai LMS</label>
       <input type="text" class="form-input" id="submitNilaiJenis" placeholder="Contoh: Tugas Kelompok 1, Paper WPP">
-      <p style="font-size:11px;color:#3a6a85;margin-top:5px;font-style:italic;">* Harus sama persis dengan komponen di Pengaturan Nilai Akhir LMS.</p>
+      <p class="form-hint">
+        💡 Label ini hanya untuk tampilan di rekap nilai — tidak mempengaruhi perhitungan atau penyimpanan data.<br>
+        ⚠️ Harus sama persis dengan komponen di Pengaturan Nilai Akhir LMS jika ingin terhitung otomatis.
+        Label bisa diubah kapan saja tanpa merusak data yang sudah tersimpan.
+      </p>
+    </div>
+    <!-- Batch progress -->
+    <div class="batch-progress-wrap" id="batchProgressWrap">
+      <div class="batch-progress-label">
+        <span id="batchProgressText">Mengirim…</span>
+        <span id="batchProgressPct">0%</span>
+      </div>
+      <div class="batch-progress-track">
+        <div class="batch-progress-fill" id="batchProgressFill" style="width:0%;"></div>
+      </div>
     </div>
     <div id="submitNilaiFeedback" style="display:none;margin-bottom:14px;padding:12px;border-radius:9px;font-size:12px;line-height:1.6;"></div>
     <div style="display:flex;gap:10px;">
@@ -376,7 +433,7 @@
   </div>
 </div>
 
-<!-- ══ MODAL: DETAIL PENGUMPULAN (Dosen) — Popup ══ -->
+<!-- ══ MODAL: DETAIL PENGUMPULAN (Dosen) ══ -->
 <div class="modal-overlay" id="modalDetailSub">
   <div class="modal-box modal-box-wide">
     <div class="modal-header">
@@ -389,9 +446,9 @@
 
 <!-- APP LOGIC -->
 <script>
-/* ═══════════════════════════════════
+/* ═══════════════════════════════════════
    STATE
-   ═══════════════════════════════════ */
+   ═══════════════════════════════════════ */
 var _state = {
   role:null, courseId:null, userId:null, userName:null,
   tasks:[], mySubmissions:{}, mahasiswaList:[],
@@ -399,9 +456,30 @@ var _state = {
 };
 var _editDeadlineCtx = { courseId:null, taskId:null };
 
-/* ═══════════════════════════════════
+/* ═══════════════════════════════════════
+   SESSION CACHE  (stale-while-revalidate)
+   TTL: 45 s — setelah mutasi selalu force-refresh
+   ═══════════════════════════════════════ */
+var _CACHE_TTL = 45000;
+
+function _saveCache(k, v) {
+  try { sessionStorage.setItem('aq_'+k, JSON.stringify({d:v, t:Date.now()})); } catch(e) {}
+}
+function _loadCache(k) {
+  try {
+    var raw = sessionStorage.getItem('aq_'+k);
+    if (!raw) return null;
+    var obj = JSON.parse(raw);
+    return (Date.now() - obj.t < _CACHE_TTL) ? obj.d : null;
+  } catch(e) { return null; }
+}
+function _clearCache(k) { try { sessionStorage.removeItem('aq_'+k); } catch(e) {} }
+function _cKeyMhs()   { return 'mhs_'  + _state.courseId + '_' + _state.userId; }
+function _cKeyDosen() { return 'dosen_'+ _state.courseId; }
+
+/* ═══════════════════════════════════════
    INIT
-   ═══════════════════════════════════ */
+   ═══════════════════════════════════════ */
 window.onload = function() {
   google.script.url.getLocation(function(loc) {
     var p = loc.parameter;
@@ -424,16 +502,23 @@ window.onload = function() {
       _tampilError('Parameter tidak lengkap. Buka AquaTask dari panel kelas LMS.'); return;
     }
 
-    document.getElementById('userBadge').textContent =
-      (_state.role === 'Dosen' ? '🎓 ' : '🎓 ') + _state.userName;
+    document.getElementById('userBadge').textContent = '🎓 ' + _state.userName;
 
     if (_state.role === 'Dosen') _muatDosen(); else _muatMahasiswa();
   });
 };
 
-/* ═══════════════════════════════════
-   FILE HANDLING
-   ═══════════════════════════════════ */
+/* ═══════════════════════════════════════
+   LOADING HELPER
+   ═══════════════════════════════════════ */
+function _showLoadingMain() {
+  document.getElementById('mainContainer').innerHTML =
+    '<div class="loading-wrap"><div class="spinner"></div><br>Memuat data…</div>';
+}
+
+/* ═══════════════════════════════════════
+   FILE HELPERS
+   ═══════════════════════════════════════ */
 function handleFileSelect(input) { if (input.files && input.files[0]) _setFile(input.files[0]); }
 function handleDrag(e, over) { e.preventDefault(); document.getElementById('fileDrop').classList.toggle('drag', over); }
 function handleDrop(e) { e.preventDefault(); document.getElementById('fileDrop').classList.remove('drag'); if (e.dataTransfer.files[0]) _setFile(e.dataTransfer.files[0]); }
@@ -443,23 +528,66 @@ function _setFile(file) {
   var drop = document.getElementById('fileDrop');
   var nm   = document.getElementById('fileNameDisplay');
   drop.classList.add('has-file');
-  nm.textContent = '✅ ' + file.name + ' (' + (file.size/1024).toFixed(0) + ' KB)';
+  nm.textContent = _fileIcon(file.name) + ' ' + file.name + ' (' + _fmtSize(file.size) + ')';
   nm.style.display = 'block';
 }
 
-/* ═══════════════════════════════════
-   MAHASISWA
-   ═══════════════════════════════════ */
-function _muatMahasiswa() {
+/* ikon berdasarkan ekstensi file */
+function _fileIcon(nama) {
+  if (!nama) return '📄';
+  var ext = (nama.split('.').pop() || '').toLowerCase();
+  return ({pdf:'📕',doc:'📘',docx:'📘',ppt:'📙',pptx:'📙',
+           jpg:'🖼️',jpeg:'🖼️',png:'🖼️',zip:'🗜️',rar:'🗜️'})[ext] || '📄';
+}
+function _fmtSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(0) + ' KB';
+  return (bytes/(1024*1024)).toFixed(1) + ' MB';
+}
+function _truncate(str, n) {
+  return (str && str.length > n) ? str.slice(0, n) + '…' : (str || '');
+}
+
+/* ═══════════════════════════════════════
+   MAHASISWA — LOAD (dengan cache)
+   ═══════════════════════════════════════ */
+function _muatMahasiswa(force) {
+  var cKey   = _cKeyMhs();
+  var cached = force ? null : _loadCache(cKey);
+
+  function _applyData(data) {
+    _state.tasks         = data.tasks         || [];
+    _state.mySubmissions = data.mySubmissions || {};
+    _state.mahasiswaList = data.mahasiswaList || [];
+  }
+
+  if (cached) {
+    _applyData(cached);
+    _renderMahasiswaView();
+    /* Background refresh — update cache tanpa re-render */
+    _showStaleBadge(true);
+    google.script.run
+      .withSuccessHandler(function(data) { _saveCache(cKey, data); _showStaleBadge(false); })
+      .withFailureHandler(function()     { _showStaleBadge(false); })
+      .aquaTaskGetDataMahasiswa(_state.courseId, _state.userId);
+    return;
+  }
+
+  _showLoadingMain();
   google.script.run
     .withSuccessHandler(function(data) {
-      _state.tasks = data.tasks || []; _state.mySubmissions = data.mySubmissions || {};
-      _state.mahasiswaList = data.mahasiswaList || []; _renderMahasiswaView();
+      _saveCache(cKey, data);
+      _applyData(data);
+      _renderMahasiswaView();
     })
     .withFailureHandler(function(e) { _tampilError('Gagal memuat data: ' + e.message); })
     .aquaTaskGetDataMahasiswa(_state.courseId, _state.userId);
 }
 
+/* ═══════════════════════════════════════
+   MAHASISWA — RENDER
+   ═══════════════════════════════════════ */
 function _renderMahasiswaView() {
   var c = document.getElementById('mainContainer');
   c.innerHTML = '';
@@ -475,10 +603,10 @@ function _renderMahasiswaView() {
     c.appendChild(emp); return;
   }
 
-  var done = Object.keys(_state.mySubmissions).length;
+  var done  = Object.keys(_state.mySubmissions).length;
   var total = _state.tasks.length;
-  var stat = _el('div', { className:'stat-mini' });
-  [{ val:total, lbl:'Total Tugas' }, { val:done, lbl:'Sudah Dikumpul' }, { val:total-done, lbl:'Belum Dikumpul' }]
+  var stat  = _el('div', { className:'stat-mini' });
+  [{val:total,lbl:'Total Tugas'},{val:done,lbl:'Sudah Dikumpul'},{val:total-done,lbl:'Belum Dikumpul'}]
     .forEach(function(s) {
       var box = _el('div', { className:'stat-mini-box' });
       box.appendChild(_elText('div', s.val, null, 'val'));
@@ -496,7 +624,7 @@ function _renderMahasiswaView() {
 
     var top = _el('div', { style:'display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap;gap:8px;' });
     top.appendChild(_badge(t.tipe==='Kelompok' ? 'badge-purple':'badge-foam', (t.tipe==='Kelompok'?'👥 ':'📋 ')+t.tipe));
-    var dlCls = isLate ? 'dl-closed' : (dlMs && dlMs-now < 86400000 ? 'dl-warn' : 'dl-open');
+    var dlCls  = isLate ? 'dl-closed' : (dlMs && dlMs-now < 86400000 ? 'dl-warn' : 'dl-open');
     var dlChip = _el('span', { className:'dl-chip '+dlCls });
     dlChip.textContent = dlMs ? (isLate ? '🔒 Ditutup' : '⏰ '+_fmtDl(dlMs)) : '—';
     top.appendChild(dlChip);
@@ -506,7 +634,7 @@ function _renderMahasiswaView() {
     if (t.deskripsi || t.docs_url) {
       var iw = _el('div', { className:'instr-wrap' });
       var ih = _el('button', { className:'instr-head' });
-      ih.innerHTML = '<span>📄 Lihat Instruksi Lengkap</span><span class="arr">▼</span>';
+      ih.innerHTML = '<span>📄 Baca Instruksi Tugas (klik disini)</span><span class="arr">▼</span>';
       var ib = _el('div', { className:'instr-body' });
       ih.addEventListener('click', function() { ih.classList.toggle('open'); ib.classList.toggle('open'); });
       if (t.deskripsi) ib.appendChild(_elText('div', t.deskripsi, null, 'instr-text'));
@@ -534,9 +662,14 @@ function _renderMahasiswaView() {
         : ' · <em style="color:#8ab8cc;">Menunggu penilaian dosen</em>';
       info.innerHTML = '✅ Dikumpulkan '+_fmtWaktu(sub.waktu_kumpul)+nilaiTxt;
       card.appendChild(info);
+      /* File link dengan ikon & nama */
       if (sub.file_url) {
-        var bf = _el('button', { className:'btn btn-ghost btn-sm', onclick:function() { window.open(sub.file_url,'_blank'); } });
-        bf.textContent = '📎 Lihat File Tugas';
+        var bf = _el('a', {
+          href:sub.file_url, target:'_blank',
+          className:'file-link'
+        });
+        bf.innerHTML = '<span>'+_fileIcon(sub.file_nama)+'</span>'
+          + '<span>'+_truncate(sub.file_nama || 'Lihat File Tugas', 36)+'</span>';
         card.appendChild(bf);
       }
     } else if (isLate) {
@@ -550,29 +683,32 @@ function _renderMahasiswaView() {
   });
 }
 
-/* ═══════════════════════════════════
+/* ═══════════════════════════════════════
    MODAL SUBMIT (Mahasiswa)
-   ═══════════════════════════════════ */
+   ═══════════════════════════════════════ */
 function bukaModalSubmit(task) {
-  _state.activeTaskId = task.task_id;
+  _state.activeTaskId    = task.task_id;
   _state.selectedAnggota = [_state.userId];
-  _state.selectedFile = null;
+  _state.selectedFile    = null;
   var drop = document.getElementById('fileDrop');
   drop.classList.remove('has-file','drag');
   document.getElementById('fileNameDisplay').style.display = 'none';
   document.getElementById('fileInput').value = '';
-  document.getElementById('uploadProgress').style.display = 'none';
-  document.getElementById('uploadProgressFill').style.width = '0%';
+  var bar  = document.getElementById('uploadProgress');
+  var fill = document.getElementById('uploadProgressFill');
+  bar.style.display = 'none';
+  fill.style.width  = '0%';
+  fill.classList.remove('shimmer');
 
   var infoEl = document.getElementById('submitTaskInfo');
-  var lines = [
+  var lines  = [
     '<strong style="color:var(--foam);">'+task.judul+'</strong>',
     'Tipe: <strong>'+task.tipe+'</strong>',
-    task.bobot    ? 'Bobot: <strong>'+task.bobot+'%</strong>' : '',
+    task.bobot    ? 'Bobot: <strong>'+task.bobot+'%</strong>'    : '',
     task.deadline ? 'Deadline: <strong>'+_fmtDl(new Date(task.deadline).getTime())+'</strong>' : ''
   ].filter(Boolean);
   infoEl.innerHTML = lines.join(' &nbsp;·&nbsp; ');
-  document.getElementById('submitPengumpul').textContent = _state.userId+' — '+_state.userName;
+  document.getElementById('submitPengumpul').textContent = _state.userId + ' — ' + _state.userName;
 
   var secAngg = document.getElementById('sectionAnggota');
   var listEl  = document.getElementById('anggotaList');
@@ -604,45 +740,74 @@ function _updateAnggotaCount() {
 }
 function tutupModalSubmit() { document.getElementById('modalSubmit').classList.remove('visible'); }
 
+/* ═══════════════════════════════════════
+   EKSEKUSI SUBMIT — Indeterminate progress
+   ═══════════════════════════════════════ */
 function eksekusiSubmit() {
   if (!_state.selectedFile) { _toast('Pilih file tugas terlebih dahulu!','error'); return; }
   var btn  = document.getElementById('btnSubmitTugas');
   var bar  = document.getElementById('uploadProgress');
   var fill = document.getElementById('uploadProgressFill');
+  var nm   = document.getElementById('fileNameDisplay');
+
   btn.textContent = '⏳ Mengupload file…'; btn.disabled = true;
   bar.style.display = 'block';
-  var fp = 10;
-  var ticker = setInterval(function() { fp = Math.min(fp+8,85); fill.style.width = fp+'%'; }, 300);
+
+  /* ← SHIMMER / INDETERMINATE (bukan fake interval) */
+  fill.classList.add('shimmer');
+
   var reader = new FileReader();
   reader.onload = function(e) {
     var b64 = e.target.result.split(',')[1];
+
     google.script.run
       .withSuccessHandler(function(upRes) {
-        clearInterval(ticker);
+        /* hentikan shimmer */
+        fill.classList.remove('shimmer');
+
         if (!upRes.success) {
-          fill.style.width='0%'; bar.style.display='none';
-          btn.textContent='📤 Kumpulkan Sekarang'; btn.disabled=false;
+          fill.style.width = '0%'; bar.style.display = 'none';
+          btn.textContent = '📤 Kumpulkan Sekarang'; btn.disabled = false;
           _toast('Upload gagal: '+upRes.message,'error'); return;
         }
-        fill.style.width = '95%'; btn.textContent = '⏳ Menyimpan…';
+
+        /* Tampilkan info file yang dikonfirmasi server */
+        nm.textContent = _fileIcon(upRes.fileName)+' '+upRes.fileName+' ✓ Terupload';
+        nm.style.display = 'block';
+
+        /* Progress ke 75% saat menyimpan submission */
+        fill.style.width = '75%';
+        btn.textContent  = '⏳ Menyimpan…';
+
         google.script.run
           .withSuccessHandler(function(res) {
-            fill.style.width='100%';
-            setTimeout(function(){ bar.style.display='none'; },500);
-            btn.textContent='📤 Kumpulkan Sekarang'; btn.disabled=false;
-            if (res.success) { _toast(res.message,'success'); tutupModalSubmit(); _muatMahasiswa(); }
-            else { _toast(res.message,'error'); }
+            fill.style.width = '100%';
+            setTimeout(function(){
+              bar.style.display = 'none';
+              fill.style.width  = '0%';
+            }, 700);
+            btn.textContent = '📤 Kumpulkan Sekarang'; btn.disabled = false;
+            if (res.success) {
+              _toast(res.message,'success');
+              tutupModalSubmit();
+              _clearCache(_cKeyMhs());
+              _muatMahasiswa(true);
+            } else {
+              _toast(res.message,'error');
+            }
           })
           .withFailureHandler(function(err) {
-            btn.textContent='📤 Kumpulkan Sekarang'; btn.disabled=false;
+            fill.style.width = '0%'; bar.style.display = 'none';
+            btn.textContent = '📤 Kumpulkan Sekarang'; btn.disabled = false;
             _toast('Gagal menyimpan: '+err.message,'error');
           })
           .aquaTaskSubmit(_state.activeTaskId, _state.courseId, _state.userId,
                           _state.selectedAnggota, upRes.fileUrl, upRes.fileName);
       })
       .withFailureHandler(function(err) {
-        clearInterval(ticker); fill.style.width='0%'; bar.style.display='none';
-        btn.textContent='📤 Kumpulkan Sekarang'; btn.disabled=false;
+        fill.classList.remove('shimmer');
+        fill.style.width = '0%'; bar.style.display = 'none';
+        btn.textContent = '📤 Kumpulkan Sekarang'; btn.disabled = false;
         _toast('Upload error: '+err.message,'error');
       })
       .aquaTaskUploadFile(b64, _state.selectedFile.name,
@@ -651,16 +816,42 @@ function eksekusiSubmit() {
   reader.readAsDataURL(_state.selectedFile);
 }
 
-/* ═══════════════════════════════════
-   DOSEN
-   ═══════════════════════════════════ */
-function _muatDosen() {
+/* ═══════════════════════════════════════
+   DOSEN — LOAD (dengan cache)
+   ═══════════════════════════════════════ */
+function _muatDosen(force) {
+  var cKey   = _cKeyDosen();
+  var cached = force ? null : _loadCache(cKey);
+
+  if (cached) {
+    _state.dosenData = cached;
+    _renderDosenView();
+    _showStaleBadge(true);
+    google.script.run
+      .withSuccessHandler(function(data) { _saveCache(cKey, data); _showStaleBadge(false); })
+      .withFailureHandler(function()     { _showStaleBadge(false); })
+      .aquaTaskGetDashboard(_state.courseId);
+    return;
+  }
+
+  _showLoadingMain();
   google.script.run
-    .withSuccessHandler(function(data) { _state.dosenData = data; _renderDosenView(); })
+    .withSuccessHandler(function(data) {
+      _saveCache(cKey, data);
+      _state.dosenData = data;
+      _renderDosenView();
+    })
     .withFailureHandler(function(e) { _tampilError('Gagal memuat dashboard: '+e.message); })
     .aquaTaskGetDashboard(_state.courseId);
 }
 
+function _showStaleBadge(show) {
+  document.getElementById('staleBadge').style.display = show ? 'inline-flex' : 'none';
+}
+
+/* ═══════════════════════════════════════
+   DOSEN — RENDER
+   ═══════════════════════════════════════ */
 function _renderDosenView() {
   var data = _state.dosenData;
   var c    = document.getElementById('mainContainer');
@@ -694,13 +885,13 @@ function _renderDosenView() {
 
     var acc  = _el('div', { className:'accordion', style:'margin-top:14px;' });
 
-    /* -- Accordion head -- */
+    /* ── Accordion head ── */
     var head = _el('button', { className:'accordion-head open', onclick:function(){ toggleAcc(this); } });
     var hLeft = _el('div', { style:'display:flex;align-items:center;gap:10px;flex-wrap:wrap;' });
     hLeft.appendChild(_elText('span', t.judul));
     hLeft.appendChild(_badge(t.tipe==='Kelompok' ? 'badge-purple':'badge-foam', t.tipe));
     if (dlMs) {
-      var dCls = now > dlMs ? 'dl-closed':'dl-open';
+      var dCls  = now > dlMs ? 'dl-closed':'dl-open';
       var dChip = _el('span', { className:'dl-chip '+dCls });
       dChip.textContent = (now>dlMs?'🔒 Tutup':'⏰ ')+_fmtDl(dlMs);
       hLeft.appendChild(dChip);
@@ -708,7 +899,6 @@ function _renderDosenView() {
     head.appendChild(hLeft);
 
     var hRight = _el('div', { style:'display:flex;align-items:center;gap:8px;flex-shrink:0;' });
-    /* Edit deadline button */
     var btnDL = _el('button', {
       className:'btn btn-ghost btn-sm', style:'font-size:11px;padding:4px 10px;',
       onclick:(function(cId, tId, curDl, judul){ return function(e) {
@@ -728,7 +918,10 @@ function _renderDosenView() {
         e.stopPropagation();
         if (!confirm('Hapus tugas "'+jd+'" beserta semua pengumpulan?')) return;
         google.script.run
-          .withSuccessHandler(function(r){ _toast(r.message, r.success?'success':'error'); if(r.success) _muatDosen(); })
+          .withSuccessHandler(function(r){
+            _toast(r.message, r.success?'success':'error');
+            if (r.success) { _clearCache(_cKeyDosen()); _muatDosen(true); }
+          })
           .aquaTaskHapusTugas(_state.courseId, tid);
       }; })(t.task_id, t.judul)
     });
@@ -738,7 +931,7 @@ function _renderDosenView() {
     head.appendChild(hRight);
     acc.appendChild(head);
 
-    /* -- Accordion body -- */
+    /* ── Accordion body ── */
     var body = _el('div', { className:'accordion-body open' });
 
     var actRow = _el('div', { style:'display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;' });
@@ -755,15 +948,14 @@ function _renderDosenView() {
       acc.appendChild(body); c.appendChild(acc); return;
     }
 
-    /* -- Full-width table -- */
+    /* ── Full-width table ── */
     var tblWrap = _el('div', { className:'tbl-wrap' });
     var tbl  = _el('table');
     var thd  = _el('thead');
     var hRow = _el('tr');
     ['#','Pengumpul','Anggota','File','Waktu','Nilai','Aksi'].forEach(function(h) {
       var th = _el('th'); th.textContent = h;
-      if (h==='Aksi') th.style.textAlign='center';
-      if (h==='Nilai') th.style.textAlign='center';
+      if (h==='Aksi'||h==='Nilai') th.style.textAlign='center';
       hRow.appendChild(th);
     });
     thd.appendChild(hRow); tbl.appendChild(thd);
@@ -771,6 +963,7 @@ function _renderDosenView() {
     var tbd = _el('tbody');
     subs.forEach(function(s, idx) {
       var tr = _el('tr');
+      tr.id  = 'sub-row-' + s.sub_id; // untuk optimistic update
 
       var tdNo = _el('td'); tdNo.textContent = idx+1; tdNo.style.color='var(--slate)';
 
@@ -780,10 +973,15 @@ function _renderDosenView() {
 
       var tdAng = _elText('td', s.anggota_kelompok.length+' orang', 'font-size:12px;color:var(--slate);');
 
+      /* File cell dengan ikon & nama terpotong */
       var tdFile = _el('td');
       if (s.file_url) {
-        var aFile = _el('a', { href:s.file_url, target:'_blank', style:'color:var(--foam);font-size:11px;text-decoration:none;' });
-        aFile.textContent = '📎 '+(s.file_nama || 'Buka');
+        var aFile = _el('a', {
+          href:s.file_url, target:'_blank',
+          className:'file-link'
+        });
+        aFile.innerHTML = '<span>'+_fileIcon(s.file_nama)+'</span>'
+          + '<span>'+_truncate(s.file_nama || 'Buka', 22)+'</span>';
         tdFile.appendChild(aFile);
       } else { tdFile.textContent = '—'; }
 
@@ -795,21 +993,21 @@ function _renderDosenView() {
       nilaiEl.style.cssText = 'font-weight:700;font-size:15px;color:'+_nilaiColor(s.nilai)+';';
       tdNilai.appendChild(nilaiEl);
 
-      /* Aksi: Detail + Hapus */
+      /* Aksi: Detail + Hapus — kirim tr untuk optimistic update */
       var tdAksi = _el('td'); tdAksi.style.textAlign='center';
       var aRow = _el('div', { style:'display:flex;gap:6px;justify-content:center;' });
 
       var btnDetail = _el('button', {
         className:'btn btn-ghost btn-xs',
-        onclick:(function(sub,taskItem){ return function(){ bukaModalDetailSub(sub,taskItem); }; })(s,item)
+        onclick:(function(sub, taskItem){ return function(){ bukaModalDetailSub(sub, taskItem); }; })(s, item)
       });
       btnDetail.textContent = '🔍 Detail';
 
       var btnHapusSub = _el('button', {
         className:'btn btn-coral btn-xs',
-        onclick:(function(taskId,subId,cId,namaPengumpul){ return function(){
-          hapusSubmission(taskId, subId, cId, namaPengumpul);
-        }; })(t.task_id, s.sub_id, _state.courseId, s.pengumpul_nama)
+        onclick:(function(taskId, subId, cId, namaPengumpul, trEl){ return function(){
+          hapusSubmission(taskId, subId, cId, namaPengumpul, trEl);
+        }; })(t.task_id, s.sub_id, _state.courseId, s.pengumpul_nama, tr)
       });
       btnHapusSub.textContent = '🗑️';
       btnHapusSub.title = 'Hapus untuk re-submission';
@@ -827,14 +1025,15 @@ function _renderDosenView() {
   });
 }
 
-/* ═══════════════════════════════════
-   MODAL DETAIL PENGUMPULAN (Popup)
-   ═══════════════════════════════════ */
+/* ═══════════════════════════════════════
+   MODAL DETAIL PENGUMPULAN
+   ═══════════════════════════════════════ */
 function bukaModalDetailSub(sub, taskItem) {
   var content = document.getElementById('modalDetailSubContent');
   content.innerHTML = '';
 
-  var isKelompok = (taskItem.task.tipe === 'Kelompok');
+  var isKelompok   = (taskItem.task.tipe === 'Kelompok');
+  var resolvedTaskId = taskItem.task.task_id;
 
   /* Pengumpul */
   var secPeng = _el('div', { className:'dp-section' });
@@ -845,7 +1044,7 @@ function bukaModalDetailSub(sub, taskItem) {
   secPeng.appendChild(r0);
   content.appendChild(secPeng);
 
-  /* Anggota — hanya untuk Kelompok */
+  /* Anggota */
   if (isKelompok) {
     var secAng = _el('div', { className:'dp-section' });
     _dpLbl(secAng, 'Anggota Kelompok ('+sub.anggota_kelompok.length+')');
@@ -859,14 +1058,15 @@ function bukaModalDetailSub(sub, taskItem) {
     content.appendChild(secAng);
   }
 
-  /* File */
+  /* File — dengan ikon & link styled */
   var secFile = _el('div', { className:'dp-section' });
   _dpLbl(secFile, 'File Tugas');
   if (sub.file_url) {
     var fileA = _el('a', { href:sub.file_url, target:'_blank',
       style:'display:flex;align-items:center;gap:10px;padding:11px 13px;background:rgba(92,200,240,0.07);border:1px solid rgba(92,200,240,0.2);border-radius:9px;text-decoration:none;' });
-    fileA.innerHTML = '<span style="font-size:22px;">📄</span><div><div style="font-size:12px;font-weight:600;color:var(--foam);">'
-      +(sub.file_nama||'File Tugas')+'</div><div style="font-size:10px;color:var(--slate);">Buka di tab baru ↗</div></div>';
+    fileA.innerHTML = '<span style="font-size:22px;">'+_fileIcon(sub.file_nama)+'</span>'
+      + '<div><div style="font-size:12px;font-weight:600;color:var(--foam);">'+_truncate(sub.file_nama||'File Tugas',50)+'</div>'
+      + '<div style="font-size:10px;color:var(--slate);">Buka di tab baru ↗</div></div>';
     secFile.appendChild(fileA);
   } else {
     secFile.appendChild(_elText('p','— Tidak ada file','font-size:12px;color:var(--slate);'));
@@ -877,7 +1077,7 @@ function bukaModalDetailSub(sub, taskItem) {
   var secNilai = _el('div', { className:'dp-section' });
   _dpLbl(secNilai, 'Nilai Saat Ini');
   var nilaiBox = _el('div', { style:'text-align:center;padding:14px;background:rgba(6,15,30,0.4);border-radius:10px;margin-bottom:10px;' });
-  var nilaiVal = (sub.nilai!==null && sub.nilai!==undefined) ? sub.nilai : '—';
+  var nilaiVal = (sub.nilai !== null && sub.nilai !== undefined) ? sub.nilai : '—';
   var nilaiNum = _elText('div', String(nilaiVal), 'font-family:Lora,serif;font-size:36px;font-weight:700;color:'+_nilaiColor(sub.nilai)+';');
   nilaiBox.appendChild(nilaiNum);
   if (isKelompok) {
@@ -893,30 +1093,32 @@ function bukaModalDetailSub(sub, taskItem) {
 
   var btnSave = _el('button', {
     className:'btn btn-teal btn-sm',
-    onclick:(function(s, inp){
+    onclick:(function(capturedSub, capturedInp, capturedTaskId) {
       return function() {
-        var n = inp.value.trim();
-        if (!n || isNaN(n)) { _toast('Masukkan angka nilai!','error'); return; }
-        btnSave.textContent='⏳'; btnSave.disabled=true;
+        var n = capturedInp.value.trim();
+        if (!n || isNaN(n)) { _toast('Masukkan angka nilai!', 'error'); return; }
+        btnSave.textContent = '⏳'; btnSave.disabled = true;
         google.script.run
           .withSuccessHandler(function(r) {
-            btnSave.textContent='✓ Simpan'; btnSave.disabled=false;
+            btnSave.textContent = '✓ Simpan'; btnSave.disabled = false;
             if (r.success) {
-              _toast(r.message,'success');
-              var dispEl = document.getElementById('nilai-display-'+s.sub_id);
-              if (dispEl) { dispEl.textContent=n; dispEl.style.color=_nilaiColor(parseFloat(n)); }
+              _toast(r.message, 'success');
+              var dispEl = document.getElementById('nilai-display-' + capturedSub.sub_id);
+              if (dispEl) { dispEl.textContent = n; dispEl.style.color = _nilaiColor(parseFloat(n)); }
               nilaiNum.textContent = n;
               nilaiNum.style.color = _nilaiColor(parseFloat(n));
-              inp.value='';
-            } else { _toast(r.message,'error'); }
+              capturedInp.value = '';
+            } else {
+              _toast(r.message, 'error');
+            }
           })
           .withFailureHandler(function(e) {
-            btnSave.textContent='✓ Simpan'; btnSave.disabled=false;
-            _toast('Gagal: '+e.message,'error');
+            btnSave.textContent = '✓ Simpan'; btnSave.disabled = false;
+            _toast('Gagal: ' + e.message, 'error');
           })
-          .aquaTaskSimpanNilai(s.task_id, _state.courseId, s.sub_id, parseFloat(n), '');
+          .aquaTaskSimpanNilai(capturedTaskId, _state.courseId, capturedSub.sub_id, parseFloat(n), '');
       };
-    })(sub, nInp)
+    })(sub, nInp, resolvedTaskId)
   });
   btnSave.textContent = '✓ Simpan';
   nWrap.appendChild(btnSave);
@@ -928,35 +1130,48 @@ function bukaModalDetailSub(sub, taskItem) {
     secNilai.appendChild(bInfo);
   }
 
-  var wk = _elText('div','Dikumpulkan: '+_fmtWaktu(sub.waktu_kumpul),'font-size:11px;color:var(--slate);margin-top:10px;');
-  secNilai.appendChild(wk);
+  secNilai.appendChild(_elText('div','Dikumpulkan: '+_fmtWaktu(sub.waktu_kumpul),'font-size:11px;color:var(--slate);margin-top:10px;'));
   content.appendChild(secNilai);
 
   document.getElementById('modalDetailSub').classList.add('visible');
 }
 function tutupModalDetailSub() { document.getElementById('modalDetailSub').classList.remove('visible'); }
-
 function _dpLbl(parent, label) {
   var l = _el('div', { className:'dp-label' }); l.textContent = label; parent.appendChild(l);
 }
 
-/* ═══════════════════════════════════
-   HAPUS SUBMISSION (re-submission)
-   ═══════════════════════════════════ */
-function hapusSubmission(taskId, subId, courseId, namaPengumpul) {
+/* ═══════════════════════════════════════
+   HAPUS SUBMISSION — Optimistic UI + restore
+   ═══════════════════════════════════════ */
+function hapusSubmission(taskId, subId, courseId, namaPengumpul, trEl) {
   if (!confirm('Hapus pengumpulan dari "'+namaPengumpul+'"?\n\nMahasiswa akan dapat mengumpulkan ulang.')) return;
+
+  /* Optimistic: langsung fade row */
+  if (trEl) trEl.classList.add('row-deleting');
+
   google.script.run
     .withSuccessHandler(function(r) {
-      _toast(r.message, r.success?'success':'error');
-      if (r.success) { tutupModalDetailSub(); _muatDosen(); }
+      if (r.success) {
+        _toast(r.message, 'success');
+        tutupModalDetailSub();
+        _clearCache(_cKeyDosen());
+        _muatDosen(true);
+      } else {
+        /* Batalkan fade jika backend menolak */
+        if (trEl) trEl.classList.remove('row-deleting');
+        _toast(r.message, 'error');
+      }
     })
-    .withFailureHandler(function(e) { _toast('Gagal: '+e.message,'error'); })
+    .withFailureHandler(function(e) {
+      if (trEl) trEl.classList.remove('row-deleting');
+      _toast('Gagal: '+e.message, 'error');
+    })
     .aquaTaskHapusSubmission(taskId, subId, courseId);
 }
 
-/* ═══════════════════════════════════
+/* ═══════════════════════════════════════
    MODAL EDIT DEADLINE
-   ═══════════════════════════════════ */
+   ═══════════════════════════════════════ */
 function bukaModalEditDeadline(courseId, taskId, currentDeadline, judulTugas) {
   _editDeadlineCtx = { courseId:courseId, taskId:taskId };
   document.getElementById('editDeadlineTaskName').textContent = 'Tugas: '+judulTugas;
@@ -964,14 +1179,11 @@ function bukaModalEditDeadline(courseId, taskId, currentDeadline, judulTugas) {
   if (currentDeadline) {
     var d   = new Date(currentDeadline);
     var pad = function(n){ return String(n).padStart(2,'0'); };
-    // Convert UTC to WITA (+8) for display
-    var witaMs  = d.getTime() + 8*3600000 - d.getTimezoneOffset()*60000;
-    var witaD   = new Date(witaMs);
+    var witaMs = d.getTime() + 8*3600000 - d.getTimezoneOffset()*60000;
+    var witaD  = new Date(witaMs);
     inp.value = witaD.getUTCFullYear()+'-'+pad(witaD.getUTCMonth()+1)+'-'+pad(witaD.getUTCDate())
               + 'T'+pad(witaD.getUTCHours())+':'+pad(witaD.getUTCMinutes());
-  } else {
-    inp.value = '';
-  }
+  } else { inp.value = ''; }
   document.getElementById('modalEditDeadline').classList.add('visible');
 }
 function tutupModalEditDeadline() { document.getElementById('modalEditDeadline').classList.remove('visible'); }
@@ -979,23 +1191,27 @@ function simpanEditDeadline() {
   var deadline = document.getElementById('editDeadlineInput').value;
   if (!deadline) { _toast('Isi deadline terlebih dahulu!','error'); return; }
   var btn = document.getElementById('btnSimpanEditDeadline');
-  btn.textContent='⏳ Menyimpan…'; btn.disabled=true;
+  btn.textContent = '⏳ Menyimpan…'; btn.disabled = true;
   google.script.run
     .withSuccessHandler(function(r) {
-      btn.textContent='💾 Simpan Deadline'; btn.disabled=false;
-      if (r.success) { _toast(r.message,'success'); tutupModalEditDeadline(); _muatDosen(); }
-      else { _toast(r.message,'error'); }
+      btn.textContent = '💾 Simpan Deadline'; btn.disabled = false;
+      if (r.success) {
+        _toast(r.message,'success');
+        tutupModalEditDeadline();
+        _clearCache(_cKeyDosen());
+        _muatDosen(true);
+      } else { _toast(r.message,'error'); }
     })
     .withFailureHandler(function(e) {
-      btn.textContent='💾 Simpan Deadline'; btn.disabled=false;
+      btn.textContent = '💾 Simpan Deadline'; btn.disabled = false;
       _toast('Gagal: '+e.message,'error');
     })
     .aquaTaskUpdateDeadline(_editDeadlineCtx.courseId, _editDeadlineCtx.taskId, deadline+':00+08:00');
 }
 
-/* ═══════════════════════════════════
+/* ═══════════════════════════════════════
    MODAL TAMBAH TUGAS
-   ═══════════════════════════════════ */
+   ═══════════════════════════════════════ */
 function bukaModalTambahTugas() {
   ['newTaskJudul','newTaskDeskripsi','newTaskDocsUrl','newTaskBobot','newTaskDeadline']
     .forEach(function(id){ document.getElementById(id).value=''; });
@@ -1012,12 +1228,16 @@ function simpanTugas() {
   var dl      = document.getElementById('newTaskDeadline').value;
   if (!judul) { _toast('Judul tugas wajib diisi!','error'); return; }
   var btn = document.getElementById('btnSimpanTugas');
-  btn.textContent='⏳ Menyimpan…'; btn.disabled=true;
+  btn.textContent = '⏳ Menyimpan…'; btn.disabled = true;
   google.script.run
     .withSuccessHandler(function(res) {
-      btn.textContent='💾 Simpan Tugas'; btn.disabled=false;
-      if (res.success) { _toast(res.message,'success'); tutupModalTambahTugas(); _muatDosen(); }
-      else { _toast(res.message,'error'); }
+      btn.textContent = '💾 Simpan Tugas'; btn.disabled = false;
+      if (res.success) {
+        _toast(res.message,'success');
+        tutupModalTambahTugas();
+        _clearCache(_cKeyDosen());
+        _muatDosen(true);
+      } else { _toast(res.message,'error'); }
     })
     .withFailureHandler(function(e){ btn.textContent='💾 Simpan Tugas'; btn.disabled=false; _toast('Gagal: '+e.message,'error'); })
     .aquaTaskSimpanTugas(_state.courseId, {
@@ -1027,9 +1247,9 @@ function simpanTugas() {
     });
 }
 
-/* ═══════════════════════════════════
-   MODAL SUBMIT NILAI KE LMS
-   ═══════════════════════════════════ */
+/* ═══════════════════════════════════════
+   MODAL SUBMIT NILAI — Batch + progress bar
+   ═══════════════════════════════════════ */
 function bukaModalSubmitNilai() {
   var data = _state.dosenData;
   var sel  = document.getElementById('submitNilaiTaskSelect');
@@ -1043,45 +1263,83 @@ function bukaModalSubmitNilai() {
   }
   document.getElementById('submitNilaiJenis').value = '';
   document.getElementById('submitNilaiFeedback').style.display = 'none';
+  document.getElementById('batchProgressWrap').style.display  = 'none';
+  document.getElementById('batchProgressFill').style.width    = '0%';
   document.getElementById('modalSubmitNilai').classList.add('visible');
 }
 function tutupModalSubmitNilai() { document.getElementById('modalSubmitNilai').classList.remove('visible'); }
+
 function eksekusiSubmitNilaiKeLMS() {
   var taskId     = document.getElementById('submitNilaiTaskSelect').value;
   var jenisNilai = document.getElementById('submitNilaiJenis').value.trim();
   if (!taskId)     { _toast('Pilih tugas terlebih dahulu!','error'); return; }
-  if (!jenisNilai) { _toast('Isi nama jenis penilaian!','error'); return; }
+  if (!jenisNilai) { _toast('Isi label tampilan nilai!','error'); return; }
 
   var taskItem = (_state.dosenData.tasks||[]).find(function(it){ return it.task.task_id===taskId; });
   if (!taskItem || !taskItem.submissions.length) { _toast('Tidak ada pengumpulan.','error'); return; }
   var subsWithNilai = taskItem.submissions.filter(function(s){ return s.nilai!==null && s.nilai!==undefined; });
   if (!subsWithNilai.length) { _toast('Belum ada pengumpulan yang diberi nilai.','error'); return; }
 
-  var btn = document.getElementById('btnEksekusiSubmitNilai');
-  btn.textContent='⏳ Mengirim…'; btn.disabled=true;
-  var pending=subsWithNilai.length, success=0;
-  subsWithNilai.forEach(function(s) {
-    google.script.run
-      .withSuccessHandler(function(r) {
-        pending--; if(r.success) success++;
-        if (pending===0) {
-          btn.textContent='📤 Submit Nilai'; btn.disabled=false;
-          var fb = document.getElementById('submitNilaiFeedback');
-          fb.style.display='block';
-          fb.style.cssText='display:block;background:rgba(52,201,138,0.07);border:1px solid rgba(52,201,138,0.3);color:var(--mint);padding:12px;border-radius:9px;font-size:12px;';
-          fb.textContent = '✅ '+success+' pengumpulan disinkronkan ke LMS dengan label "'+jenisNilai+'".';
-        }
-      })
-      .withFailureHandler(function() {
-        pending--; if(pending===0){ btn.textContent='📤 Submit Nilai'; btn.disabled=false; }
-      })
-      .aquaTaskSimpanNilai(taskId, _state.courseId, s.sub_id, s.nilai, jenisNilai);
-  });
+  var btn       = document.getElementById('btnEksekusiSubmitNilai');
+  var fbEl      = document.getElementById('submitNilaiFeedback');
+  var bpWrap    = document.getElementById('batchProgressWrap');
+  var bpFill    = document.getElementById('batchProgressFill');
+  var bpText    = document.getElementById('batchProgressText');
+  var bpPct     = document.getElementById('batchProgressPct');
+
+  btn.textContent = '⏳ Mengirim…'; btn.disabled = true;
+  fbEl.style.display  = 'none';
+  bpWrap.style.display = 'block';
+  bpFill.style.width   = '0%';
+
+  /* ── Panggil endpoint batch (satu GAS call, bukan loop) ── */
+  var nilaiBatch = subsWithNilai.map(function(s){ return { subId:s.sub_id, nilai:s.nilai }; });
+  var total      = nilaiBatch.length;
+
+  /* Animasi pseudo-progress selama menunggu batch selesai */
+  var pseudoPct = 0;
+  var ticker    = setInterval(function() {
+    pseudoPct = Math.min(pseudoPct + 6, 85);
+    bpFill.style.width = pseudoPct + '%';
+    bpText.textContent = 'Memproses ' + total + ' nilai…';
+    bpPct.textContent  = pseudoPct + '%';
+  }, 300);
+
+  google.script.run
+    .withSuccessHandler(function(r) {
+      clearInterval(ticker);
+      bpFill.style.width = '100%';
+      bpText.textContent = 'Selesai';
+      bpPct.textContent  = '100%';
+      setTimeout(function(){ bpWrap.style.display='none'; }, 700);
+
+      btn.textContent = '📤 Submit Nilai'; btn.disabled = false;
+      fbEl.style.display = 'block';
+
+      if (r.success) {
+        var gagalTxt = r.gagal > 0 ? ' · '+r.gagal+' gagal (cek koneksi).' : '';
+        fbEl.style.cssText = 'display:block;background:rgba(52,201,138,0.07);border:1px solid rgba(52,201,138,0.3);color:var(--mint);padding:12px;border-radius:9px;font-size:12px;line-height:1.6;';
+        fbEl.innerHTML = '✅ <strong>'+r.berhasil+'</strong>/'+total+' nilai disinkronkan ke LMS'
+          + ' dengan label <em>"'+jenisNilai+'"</em>.'+gagalTxt;
+        /* Invalidate cache supaya data stale tidak ditampilkan */
+        _clearCache(_cKeyDosen());
+      } else {
+        fbEl.style.cssText = 'display:block;background:rgba(242,109,81,0.08);border:1px solid rgba(242,109,81,0.3);color:var(--coral);padding:12px;border-radius:9px;font-size:12px;';
+        fbEl.textContent = '❌ ' + (r.message || 'Terjadi kesalahan.');
+      }
+    })
+    .withFailureHandler(function(e) {
+      clearInterval(ticker);
+      bpWrap.style.display = 'none';
+      btn.textContent = '📤 Submit Nilai'; btn.disabled = false;
+      _toast('Gagal mengirim nilai: '+e.message,'error');
+    })
+    .aquaTaskSimpanNilaiBatch(taskId, _state.courseId, nilaiBatch, jenisNilai);
 }
 
-/* ═══════════════════════════════════
+/* ═══════════════════════════════════════
    EXPORT CSV
-   ═══════════════════════════════════ */
+   ═══════════════════════════════════════ */
 function exportCSV(taskId) {
   google.script.run
     .withSuccessHandler(function(res) {
@@ -1097,9 +1355,9 @@ function exportCSV(taskId) {
     .aquaTaskExportCSV(taskId, _state.courseId);
 }
 
-/* ═══════════════════════════════════
+/* ═══════════════════════════════════════
    EMBED URL HELPER
-   ═══════════════════════════════════ */
+   ═══════════════════════════════════════ */
 function _buildEmbedUrl(rawUrl) {
   if (!rawUrl) return '';
   var url = rawUrl.trim();
@@ -1111,17 +1369,17 @@ function _buildEmbedUrl(rawUrl) {
   return url;
 }
 
-/* ═══════════════════════════════════
+/* ═══════════════════════════════════════
    ACCORDION TOGGLE
-   ═══════════════════════════════════ */
+   ═══════════════════════════════════════ */
 function toggleAcc(head) {
   head.classList.toggle('open');
   head.nextElementSibling.classList.toggle('open');
 }
 
-/* ═══════════════════════════════════
+/* ═══════════════════════════════════════
    DOM HELPERS
-   ═══════════════════════════════════ */
+   ═══════════════════════════════════════ */
 function _el(tag, props) {
   var el = document.createElement(tag);
   if (props) Object.keys(props).forEach(function(k) {
@@ -1146,9 +1404,9 @@ function _nilaiColor(n) {
   return v>=80 ? 'var(--mint)' : v>=60 ? 'var(--amber)' : 'var(--coral)';
 }
 
-/* ═══════════════════════════════════
+/* ═══════════════════════════════════════
    FORMAT HELPERS
-   ═══════════════════════════════════ */
+   ═══════════════════════════════════════ */
 function _fmtDl(ms) {
   var d=new Date(ms), utc=d.getTime()+d.getTimezoneOffset()*60000, w=new Date(utc+8*3600000);
   var day=['Min','Sen','Sel','Rab','Kam','Jum','Sab'][w.getDay()];
@@ -1170,24 +1428,29 @@ function _tampilError(msg) {
   document.getElementById('mainContainer').innerHTML='<div class="loading-wrap" style="color:var(--coral);">⚠️ '+msg+'</div>';
 }
 
-/* ═══════════════════════════════════
+/* ═══════════════════════════════════════
    TOAST
-   ═══════════════════════════════════ */
+   ═══════════════════════════════════════ */
 function _toast(msg, type) {
-  var cfg={ success:{icon:'✅',title:'Berhasil',cls:'toast-success'}, error:{icon:'❌',title:'Gagal',cls:'toast-error'}, info:{icon:'ℹ️',title:'Info',cls:'toast-info'} };
-  var c=cfg[type]||cfg.info;
-  var container=document.getElementById('toast-container');
-  var el=document.createElement('div');
-  el.className='toast '+c.cls;
-  el.innerHTML='<span style="font-size:15px;flex-shrink:0;">'+c.icon+'</span>'
+  var cfg={
+    success:{icon:'✅',title:'Berhasil',cls:'toast-success'},
+    error  :{icon:'❌',title:'Gagal',   cls:'toast-error'},
+    info   :{icon:'ℹ️',title:'Info',    cls:'toast-info'},
+    warn   :{icon:'⚠️',title:'Perhatian',cls:'toast-warn'}
+  };
+  var c = cfg[type] || cfg.info;
+  var container = document.getElementById('toast-container');
+  var el = document.createElement('div');
+  el.className = 'toast '+c.cls;
+  el.innerHTML = '<span style="font-size:15px;flex-shrink:0;">'+c.icon+'</span>'
     +'<div><div class="toast-title">'+c.title+'</div><div class="toast-msg">'+msg+'</div></div>';
   container.appendChild(el);
-  setTimeout(function(){ el.classList.add('hide'); setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); },350); },4500);
+  setTimeout(function(){ el.classList.add('hide'); setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); },350); }, 4500);
 }
 
-/* ═══════════════════════════════════
+/* ═══════════════════════════════════════
    TUTUP AMAN
-   ═══════════════════════════════════ */
+   ═══════════════════════════════════════ */
 function tutupAman() {
   try { window.top.close(); } catch(e) {}
   google.script.run
