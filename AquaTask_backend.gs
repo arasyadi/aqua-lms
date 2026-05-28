@@ -1,8 +1,7 @@
 // ============================================================
-// AQUATASK — BACKEND GOOGLE APPS SCRIPT
+// AQUATASK — BACKEND GOOGLE APPS SCRIPT  (Revisi)
 // Sisipkan file ini di GAS project AquaLearn yang sama.
 // Semua path Firebase menggunakan prefix aqualearn/aquatask/
-// sehingga tidak mengganggu struktur data LMS yang sudah ada.
 // ============================================================
 
 // ============================================================
@@ -27,13 +26,14 @@ function aquaTaskSimpanTugas(courseId, taskData) {
   var path   = 'aqualearn/aquatask/tasks/' + courseId + '/' + taskId;
 
   fbPut(path, {
-    task_id:   taskId,
-    course_id: courseId,
-    judul:     taskData.judul,
-    deskripsi: taskData.deskripsi  || '',
-    tipe:      taskData.tipe       || 'Individu',   // 'Individu' | 'Kelompok'
-    bobot:     parseFloat(taskData.bobot) || 0,
-    deadline:  taskData.deadline   || '',
+    task_id:    taskId,
+    course_id:  courseId,
+    judul:      taskData.judul,
+    deskripsi:  taskData.deskripsi || '',
+    docs_url:   taskData.docs_url  || '',
+    tipe:       taskData.tipe      || 'Individu',
+    bobot:      parseFloat(taskData.bobot) || 0,
+    deadline:   taskData.deadline  || '',
     created_at: new Date().toISOString()
   });
 
@@ -53,18 +53,64 @@ function aquaTaskHapusTugas(courseId, taskId) {
 }
 
 // ============================================================
-// 3. MAHASISWA — Ambil data lengkap untuk panel kumpul tugas
-//    Return: { tasks, submissions, mahasiswaList, userInfo }
+// 3. DOSEN — Update deadline tugas
+// ============================================================
+function aquaTaskUpdateDeadline(courseId, taskId, newDeadline) {
+  if (!courseId || !taskId || !newDeadline) {
+    return { success: false, message: 'Parameter tidak lengkap.' };
+  }
+
+  var path     = 'aqualearn/aquatask/tasks/' + courseId + '/' + taskId;
+  var existing = fbGet(path);
+
+  if (!existing) {
+    return { success: false, message: 'Tugas tidak ditemukan.' };
+  }
+
+  fbPatch(path, { deadline: newDeadline });
+
+  return { success: true, message: 'Deadline berhasil diperbarui.' };
+}
+
+// ============================================================
+// 4. MAHASISWA — Upload file ke Google Drive
+// ============================================================
+function aquaTaskUploadFile(base64Data, fileName, mimeType, courseId) {
+  if (!base64Data || !fileName) {
+    return { success: false, message: 'Data file tidak lengkap.' };
+  }
+
+  try {
+    var decoded    = Utilities.base64Decode(base64Data);
+    var blob       = Utilities.newBlob(decoded, mimeType || 'application/octet-stream', fileName);
+    var folderName = 'AquaTask_' + (courseId || 'Umum');
+    var folders    = DriveApp.getFoldersByName(folderName);
+    var folder     = folders.hasNext()
+                   ? folders.next()
+                   : DriveApp.createFolder(folderName);
+    var file = folder.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+    return {
+      success:  true,
+      fileUrl:  file.getUrl(),
+      fileName: fileName
+    };
+  } catch(e) {
+    return { success: false, message: 'Upload gagal: ' + e.toString() };
+  }
+}
+
+// ============================================================
+// 5. MAHASISWA — Ambil data untuk panel kumpul tugas
 // ============================================================
 function aquaTaskGetDataMahasiswa(courseId, userId) {
-  // Daftar tugas di kelas ini
   var tasksRaw = fbGet('aqualearn/aquatask/tasks/' + courseId) || {};
   var tasks    = [];
   for (var tid in tasksRaw) {
     tasks.push(tasksRaw[tid]);
   }
 
-  // Pengumpulan milik user ini di semua tugas kelas
   var mySubmissions = {};
   tasks.forEach(function(t) {
     var allSubs = fbGet('aqualearn/aquatask/submissions/' + t.task_id) || {};
@@ -77,8 +123,7 @@ function aquaTaskGetDataMahasiswa(courseId, userId) {
     }
   });
 
-  // Daftar mahasiswa sekelas (untuk centang anggota kelompok)
-  var cKey = safeKey(courseId);
+  var cKey        = safeKey(courseId);
   var enrollments = fbGet('aqualearn/enrollments/' + cKey) || {};
   var usersData   = fbGet('aqualearn/users')              || {};
   var mahasiswaList = [];
@@ -89,7 +134,6 @@ function aquaTaskGetDataMahasiswa(courseId, userId) {
     });
   }
 
-  // Info user sendiri
   var userInfo = usersData[userId] || { nama_lengkap: userId };
 
   return {
@@ -101,13 +145,11 @@ function aquaTaskGetDataMahasiswa(courseId, userId) {
 }
 
 // ============================================================
-// 4. MAHASISWA — Submit pengumpulan tugas
-//    fileUrl: link Google Drive yang di-paste mahasiswa
+// 6. MAHASISWA — Submit pengumpulan tugas
 // ============================================================
 function aquaTaskSubmit(taskId, courseId, userId, anggotaArr, fileUrl, fileName) {
   if (!taskId || !userId) return { success: false, message: 'Parameter tidak lengkap.' };
 
-  // Cek deadline
   var taskData = fbGet('aqualearn/aquatask/tasks/' + courseId + '/' + taskId);
   if (taskData && taskData.deadline) {
     var dl = new Date(taskData.deadline).getTime();
@@ -116,7 +158,6 @@ function aquaTaskSubmit(taskId, courseId, userId, anggotaArr, fileUrl, fileName)
     }
   }
 
-  // Cek apakah user sudah pernah submit di tugas ini
   var existing = fbGet('aqualearn/aquatask/submissions/' + taskId) || {};
   for (var sid in existing) {
     var sub = existing[sid];
@@ -132,8 +173,8 @@ function aquaTaskSubmit(taskId, courseId, userId, anggotaArr, fileUrl, fileName)
     course_id:        courseId,
     pengumpul_utama:  userId,
     anggota_kelompok: anggotaArr || [userId],
-    file_url:         fileUrl  || '',
-    file_nama:        fileName || '',
+    file_url:         fileUrl    || '',
+    file_nama:        fileName   || '',
     waktu_kumpul:     new Date().toISOString(),
     nilai:            null,
     catatan_dosen:    ''
@@ -143,28 +184,47 @@ function aquaTaskSubmit(taskId, courseId, userId, anggotaArr, fileUrl, fileName)
 }
 
 // ============================================================
-// 5. DOSEN — Ambil data dashboard (tugas + rekap pengumpulan)
+// 7. DOSEN — Hapus submission (izinkan re-submission)
+// ============================================================
+function aquaTaskHapusSubmission(taskId, subId, courseId) {
+  if (!taskId || !subId) {
+    return { success: false, message: 'Parameter tidak lengkap.' };
+  }
+
+  var path     = 'aqualearn/aquatask/submissions/' + taskId + '/' + subId;
+  var existing = fbGet(path);
+
+  if (!existing) {
+    return { success: false, message: 'Data pengumpulan tidak ditemukan.' };
+  }
+
+  fbDelete(path);
+
+  return { success: true, message: 'Pengumpulan berhasil dihapus. Mahasiswa dapat mengumpulkan ulang.' };
+}
+
+// ============================================================
+// 8. DOSEN — Ambil data dashboard (tugas + rekap pengumpulan)
 // ============================================================
 function aquaTaskGetDashboard(courseId) {
-  var tasksRaw = fbGet('aqualearn/aquatask/tasks/' + courseId) || {};
-  var usersData = fbGet('aqualearn/users') || {};
+  var tasksRaw  = fbGet('aqualearn/aquatask/tasks/' + courseId) || {};
+  var usersData = fbGet('aqualearn/users')                      || {};
 
-  // Enrollments untuk mengetahui total mahasiswa
-  var cKey = safeKey(courseId);
-  var enrollments  = fbGet('aqualearn/enrollments/' + cKey) || {};
-  var totalMhs     = Object.keys(enrollments).length;
+  var cKey        = safeKey(courseId);
+  var enrollments = fbGet('aqualearn/enrollments/' + cKey) || {};
+  var totalMhs    = Object.keys(enrollments).length;
 
   var tasks = [];
   for (var tid in tasksRaw) {
     var t    = tasksRaw[tid];
     var subs = fbGet('aqualearn/aquatask/submissions/' + tid) || {};
 
-    // Kumpulkan submission
     var submissionsArr = [];
     for (var sid in subs) {
       var s = subs[sid];
       submissionsArr.push({
         sub_id:           s.sub_id,
+        task_id:          tid,
         pengumpul_utama:  s.pengumpul_utama,
         pengumpul_nama:   (usersData[s.pengumpul_utama] && usersData[s.pengumpul_utama].nama_lengkap) || s.pengumpul_utama,
         anggota_kelompok: s.anggota_kelompok || [],
@@ -179,18 +239,17 @@ function aquaTaskGetDashboard(courseId) {
       });
     }
 
-    // Hitung individu yang sudah submit (flat dari semua kelompok)
     var sudahNimSet = {};
     submissionsArr.forEach(function(s) {
       (s.anggota_kelompok || []).forEach(function(nim) { sudahNimSet[nim] = true; });
     });
 
     tasks.push({
-      task:            t,
-      submissions:     submissionsArr,
-      jumlah_masuk:    submissionsArr.length,
-      individu_sudah:  Object.keys(sudahNimSet).length,
-      total_mhs:       totalMhs
+      task:           t,
+      submissions:    submissionsArr,
+      jumlah_masuk:   submissionsArr.length,
+      individu_sudah: Object.keys(sudahNimSet).length,
+      total_mhs:      totalMhs
     });
   }
 
@@ -198,45 +257,118 @@ function aquaTaskGetDashboard(courseId) {
 }
 
 // ============================================================
-// 6. DOSEN — Simpan nilai (batch ke semua anggota kelompok)
-//    Sekaligus sinkron ke aqualearn/nilai untuk rekap utama LMS
+// 9. DOSEN — Simpan nilai satu submission (batch ke anggota)
+//    Digunakan oleh modal Detail langsung.
 // ============================================================
 function aquaTaskSimpanNilai(taskId, courseId, subId, nilai, catatanDosen) {
   var n = parseFloat(nilai);
-  if (isNaN(n) || n < 0 || n > 100) return { success: false, message: 'Nilai harus antara 0–100.' };
+  if (isNaN(n) || n < 0 || n > 100) {
+    return { success: false, message: 'Nilai harus antara 0–100.' };
+  }
 
-  // Update submission record
   fbPatch('aqualearn/aquatask/submissions/' + taskId + '/' + subId, {
     nilai:         n,
     catatan_dosen: catatanDosen || ''
   });
 
-  // Distribusi batch ke anggota → aqualearn/nilai (agar muncul di rekap LMS)
   var subData = fbGet('aqualearn/aquatask/submissions/' + taskId + '/' + subId);
   if (subData && subData.anggota_kelompok && courseId) {
-    var cKey  = safeKey(courseId);
-    // Ambil judul tugas untuk label jenis nilai
-    var taskD = fbGet('aqualearn/aquatask/tasks/' + courseId + '/' + taskId);
-    var label = taskD ? taskD.judul : taskId;
-    var jKey  = safeKey(label);
-
-    subData.anggota_kelompok.forEach(function(nim) {
-      var uKey = safeKey(nim);
-      fbPut('aqualearn/nilai/' + cKey + '/' + uKey + '/' + jKey, {
-        jenis: label,
-        nilai: n
-      });
-      cacheRemove('paket_personal_' + courseId + '_' + nim);
-    });
-    invalidateCourseCache(courseId);
+    _distribusiNilai(courseId, taskId, subData.anggota_kelompok, n, catatanDosen);
   }
 
   return { success: true, message: 'Nilai berhasil disimpan dan didistribusikan ke semua anggota!' };
 }
 
 // ============================================================
-// 7. DOSEN — Export rekap ke format CSV (string)
-//    Dipanggil dari frontend, hasil di-download via Blob
+// 10. DOSEN — Simpan nilai BATCH (satu panggilan untuk semua
+//     submission dalam satu tugas). Dipanggil dari modal
+//     "Submit Nilai ke LMS" — menggantikan loop di frontend
+//     sehingga lebih cepat dan mengurangi quota GAS.
+//
+//     nilaiBatch: [{ subId: string, nilai: number }, ...]
+//     label:      string — label tampilan di rekap nilai LMS
+// ============================================================
+function aquaTaskSimpanNilaiBatch(taskId, courseId, nilaiBatch, label) {
+  if (!taskId || !courseId || !nilaiBatch || !nilaiBatch.length) {
+    return { success: false, message: 'Parameter tidak lengkap.' };
+  }
+
+  var berhasil = 0;
+  var gagal    = 0;
+
+  nilaiBatch.forEach(function(item) {
+    try {
+      var n = parseFloat(item.nilai);
+      if (isNaN(n) || n < 0 || n > 100) { gagal++; return; }
+
+      // Update submission record
+      fbPatch('aqualearn/aquatask/submissions/' + taskId + '/' + item.subId, {
+        nilai:         n,
+        catatan_dosen: label || ''
+      });
+
+      // Distribusi ke nilai per-mahasiswa
+      var subData = fbGet('aqualearn/aquatask/submissions/' + taskId + '/' + item.subId);
+      if (subData && subData.anggota_kelompok) {
+        _distribusiNilai(courseId, taskId, subData.anggota_kelompok, n, label);
+      }
+
+      berhasil++;
+    } catch(e) {
+      gagal++;
+      Logger.log('aquaTaskSimpanNilaiBatch error subId=' + item.subId + ': ' + e.toString());
+    }
+  });
+
+  return {
+    success:  true,
+    berhasil: berhasil,
+    gagal:    gagal,
+    message:  berhasil + ' nilai berhasil disimpan.'
+  };
+}
+
+// ============================================================
+// INTERNAL — Distribusi nilai ke node aqualearn/nilai
+//   Dipakai bersama oleh aquaTaskSimpanNilai & batch.
+//   Key selalu safeKey(taskId) — idempoten, anti-duplikat.
+// ============================================================
+function _distribusiNilai(courseId, taskId, anggotaArr, n, labelOverride) {
+  var cKey         = safeKey(courseId);
+  var taskD        = fbGet('aqualearn/aquatask/tasks/' + courseId + '/' + taskId);
+  var judulDefault = taskD ? taskD.judul : taskId;
+  var label        = (labelOverride && labelOverride.trim())
+                   ? labelOverride.trim()
+                   : judulDefault;
+  var jKey         = safeKey(taskId);       // key tetap taskId — idempoten
+
+  // Hapus entri lama dengan key berbeda (migrasi)
+  var oldKeys = [];
+  if (safeKey(judulDefault) !== jKey) oldKeys.push(safeKey(judulDefault));
+  if (labelOverride && safeKey(labelOverride.trim()) !== jKey) oldKeys.push(safeKey(labelOverride.trim()));
+
+  anggotaArr.forEach(function(nim) {
+    var uKey = safeKey(nim);
+
+    oldKeys.forEach(function(ok) {
+      if (fbGet('aqualearn/nilai/' + cKey + '/' + uKey + '/' + ok)) {
+        fbDelete('aqualearn/nilai/' + cKey + '/' + uKey + '/' + ok);
+      }
+    });
+
+    fbPut('aqualearn/nilai/' + cKey + '/' + uKey + '/' + jKey, {
+      jenis: label,
+      nilai: n
+    });
+
+    cacheRemove('paket_personal_' + courseId + '_' + nim);
+  });
+
+  invalidateCourseCache(courseId);
+}
+
+// ============================================================
+// 11. DOSEN — Export rekap ke format CSV
 // ============================================================
 function aquaTaskExportCSV(taskId, courseId) {
   var taskData  = fbGet('aqualearn/aquatask/tasks/' + courseId + '/' + taskId);
@@ -247,18 +379,19 @@ function aquaTaskExportCSV(taskId, courseId) {
   var rows = [['NIM', 'Nama Mahasiswa', 'Judul Tugas', 'Tipe', 'Pengumpul Utama', 'Waktu Kumpul', 'Nilai', 'Catatan Dosen']];
 
   for (var sid in subsRaw) {
-    var s = subsRaw[sid];
+    var s    = subsRaw[sid];
     var tipe = taskData ? taskData.tipe : '-';
     var pengumpulNama = (usersData[s.pengumpul_utama] && usersData[s.pengumpul_utama].nama_lengkap) || s.pengumpul_utama;
     var waktu = s.waktu_kumpul ? new Date(s.waktu_kumpul).toLocaleString('id-ID') : '-';
 
     (s.anggota_kelompok || [s.pengumpul_utama]).forEach(function(nim) {
       var nama = (usersData[nim] && usersData[nim].nama_lengkap) || nim;
-      rows.push([nim, nama, judulTugas, tipe, pengumpulNama, waktu, s.nilai !== null ? s.nilai : '-', s.catatan_dosen || '']);
+      rows.push([nim, nama, judulTugas, tipe, pengumpulNama, waktu,
+                 s.nilai !== null && s.nilai !== undefined ? s.nilai : '-',
+                 s.catatan_dosen || '']);
     });
   }
 
-  // Bangun string CSV
   var csv = rows.map(function(r) {
     return r.map(function(c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(',');
   }).join('\n');
@@ -267,7 +400,7 @@ function aquaTaskExportCSV(taskId, courseId) {
 }
 
 // ============================================================
-// 8. ROUTING — Tambahkan ke fungsi doGet() yang sudah ada:
+// 12. ROUTING — Tambahkan ke doGet() yang sudah ada:
 //
 //   if (page === 'aquatask') {
 //     return HtmlService
