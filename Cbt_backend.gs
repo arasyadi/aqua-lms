@@ -368,8 +368,8 @@ function _panggilGeminiBatch(soalList) {
   });
   promptLines.push("}");
 
-  var url       = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=" + GEMINI_API_KEY;
-  var MAX_RETRY = 4;
+  var url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=" + GEMINI_API_KEY;
+  var MAX_RETRY = 3;
   var lastError = "";
 
   for (var attempt = 1; attempt <= MAX_RETRY; attempt++) {
@@ -724,4 +724,130 @@ function tesKirimNotifTelegram() {
     _kirimNotifTelegramCBT(QUIZ_ID_TES, DEADLINE_TES)
       ? "✅ SUKSES" : "❌ GAGAL — Cek log di atas."
   );
+}
+
+// ============================================================
+// 17. Ambil detail jawaban mahasiswa untuk popup di dashboard
+//     Dipanggil dari cbt_dashboard.html saat dosen klik nama
+// ============================================================
+function getDetailJawabanMahasiswa(quizId, userId) {
+  var soalData   = fbGet("aqualearn/cbt_questions/" + quizId) || {};
+  var submitData = fbGet("aqualearn/cbt_submissions/" + quizId + "/" + userId);
+
+  if (!submitData) {
+    return { success: false, message: "Mahasiswa ini belum memiliki riwayat pengerjaan." };
+  }
+
+  var answersObj = {};
+  try { answersObj = JSON.parse(submitData.answers_json); } catch(e) {}
+
+  var userData = fbGet("aqualearn/users/" + userId) || {};
+
+  var questions = [];
+  for (var qId in soalData) {
+    var q = soalData[qId];
+    var isCorrect = null;
+    if (q.type === "PG") {
+      isCorrect = String(answersObj[qId] || "").trim().toLowerCase()
+               === String(q.correct_answer || "").trim().toLowerCase();
+    }
+    questions.push({
+      question_id:    qId,
+      type:           q.type           || "PG",
+      text:           q.text           || "",
+      options:        q.options        || [],
+      correct_answer: q.correct_answer || "",
+      points:         q.points         || 0,
+      image_url:      q.image_url      || "",
+      user_answer:    answersObj[qId]  || "",
+      is_correct:     isCorrect
+    });
+  }
+
+  // Urutkan: PG lebih dulu, lalu Essay; dalam tiap tipe urut by question_id (asc)
+  questions.sort(function(a, b) {
+    if (a.type !== b.type) return a.type === "PG" ? -1 : 1;
+    return a.question_id < b.question_id ? -1 : 1;
+  });
+
+  return {
+    success:        true,
+    userId:         userId,
+    nama:           userData.nama_lengkap || userId,
+    total_score:    submitData.total_score,
+    timestamp:      submitData.timestamp  || "",
+    violations:     submitData.violations || 0,
+    essay_feedback: submitData.essay_feedback || "",
+    essay_graded:   !!(answersObj._essayGraded),
+    questions:      questions
+  };
+}
+
+// ============================================================
+// REPAIR — Reset data essay yang gagal di-grade AI
+// Jalankan sekali dari Apps Script Editor: Run > perbaikiEssayGagal
+// ============================================================
+function perbaikiEssayGagal() {
+  var quizId  = "KUIS-1779721948566";
+  var targets = ["2213521053", "2213521099"];
+  var hasil   = [];
+
+  targets.forEach(function(userId) {
+    var path    = "aqualearn/cbt_submissions/" + quizId + "/" + userId;
+    var sub     = fbGet(path);
+
+    if (!sub) {
+      hasil.push("❌ " + userId + ": Data submission tidak ditemukan.");
+      return;
+    }
+
+    // ── 1. Normalkan answers_json → selalu string, tanpa _essayGraded ──
+    var answersObj = {};
+
+    if (typeof sub.answers_json === "string") {
+      // Kasus 2213521099: string tapi ada _essayGraded di dalamnya
+      try { answersObj = JSON.parse(sub.answers_json); } catch(e) { answersObj = {}; }
+    } else if (typeof sub.answers_json === "object" && sub.answers_json !== null) {
+      // Kasus 2213521053: tersimpan sebagai object (bukan string)
+      answersObj = sub.answers_json;
+    }
+
+    // Hapus flag _essayGraded agar AI grading mau jalan ulang
+    delete answersObj["_essayGraded"];
+
+    // Hitung ulang skor PG saja (essay di-reset ke 0 sampai AI jalan ulang)
+    var soalData   = fbGet("aqualearn/cbt_questions/" + quizId) || {};
+    var pgEarned   = 0;
+    var totalMax   = 0;
+
+    for (var qId in soalData) {
+      var poin = parseFloat(soalData[qId].points) || 0;
+      totalMax += poin;
+      if (soalData[qId].type === "PG") {
+        var userAns    = String(answersObj[qId] || "").trim().toLowerCase();
+        var correctAns = String(soalData[qId].correct_answer || "").trim().toLowerCase();
+        if (userAns && userAns === correctAns) pgEarned += poin;
+      }
+    }
+
+    var pgScore = totalMax > 0 ? Math.round((pgEarned / totalMax) * 10000) / 100 : 0;
+
+    // ── 2. Patch Firebase ──
+    fbPatch(path, {
+      answers_json:   JSON.stringify(answersObj),   // selalu string, tanpa _essayGraded
+      essay_feedback: "",                           // bersihkan feedback error lama
+      total_score:    pgScore                       // skor sementara = PG only
+    });
+
+    hasil.push(
+      "✅ " + userId + " — diperbaiki."
+      + " answers_json → string"
+      + " | _essayGraded → dihapus"
+      + " | total_score sementara: " + pgScore
+      + " | essay_feedback → dikosongkan"
+    );
+  });
+
+  Logger.log("\n=== HASIL REPAIR ===\n" + hasil.join("\n"));
+  Logger.log("\n✅ Selesai. Sekarang buka Dashboard CBT dan klik '🤖 Nilai Essay' untuk menjalankan ulang AI grading.");
 }
