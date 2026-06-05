@@ -552,10 +552,9 @@
           <label class="form-label">Tipe Kuis / Tugas</label>
           <select id="newQuizTipe" class="form-input" style="padding:9px 14px;"
                   onchange="updateQuizTipeHint()">
-            <option value="kuis">📝 Kuis GForms</option>
-            <option value="tugas_individu">📋 Tugas Individu</option>
-            <option value="tugas_kelompok">👥 Tugas Kelompok</option>
-            <option value="cbt">🖥️ Kuis CBT</option>
+          <option value="kuis">📝 Kuis GForms</option>
+          <option value="tugas">📋 Portal Tugas</option>
+          <option value="cbt">🖥️ Kuis CBT</option>
           </select>
           <p id="quizTipeHint" style="font-size:11px;color:#5a8fa8;margin-top:4px;"></p>
         </div>
@@ -1115,48 +1114,46 @@
 
     var _cbtActiveCourseId = null;
 
-    function generateLinkOtomatis() {
-      var tipe = document.getElementById('newQuizTipe').value;
+function generateLinkOtomatis() {
+  var tipe = document.getElementById('newQuizTipe').value;
 
-      // CBT → pakai alur lama
-      if (tipe === 'cbt') {
-        generateCbtLink();
-        return;
-      }
+  if (tipe === 'cbt') {
+    generateCbtLink();
+    return;
+  }
 
-      // Kuis GForms → tidak perlu generate, user paste manual
-      if (tipe === 'kuis') {
-        alert('ℹ️ Untuk Kuis GForms, paste URL Google Forms secara langsung di kolom Link.');
-        return;
-      }
+  if (tipe === 'kuis') {
+    alert('ℹ️ Untuk Kuis GForms, paste URL Google Forms secara langsung di kolom Link.');
+    return;
+  }
 
-      // tugas_individu | tugas_kelompok → generate AquaTask link
-      if (!activeCourseId) {
-        alert('❌ Buka panel kelas terlebih dahulu sebelum membuat link tugas.');
-        return;
-      }
+  // tugas → generate AquaTask link
+  if (!activeCourseId) {
+    alert('❌ Buka panel kelas terlebih dahulu sebelum membuat link tugas.');
+    return;
+  }
 
-      var btn = document.getElementById('btnGenerateLink');
-      if (btn) { btn.textContent = '⏳ Membuat…'; btn.disabled = true; }
+  var btn = document.getElementById('btnGenerateLink');
+  if (btn) { btn.textContent = '⏳ Membuat…'; btn.disabled = true; }
 
-      google.script.run
-        .withSuccessHandler(function(url) {
-          if (btn) { btn.textContent = '📋 Buat Link AquaTask'; btn.disabled = false; }
-          var finalUrl = url + '?page=aquatask&courseId=' + activeCourseId;
-          document.getElementById('newQuizUrl').value = finalUrl;
-          alert(
-            '✅ Link AquaTask berhasil dibuat!\n\n' +
-            'URL: ' + finalUrl + '\n\n' +
-            'Klik "+ Tambah Kuis / Tugas" untuk menyimpan.\n' +
-            'Mahasiswa dan Dosen menggunakan link yang sama — tampilan berbeda otomatis.'
-          );
-        })
-        .withFailureHandler(function(e) {
-          if (btn) { btn.textContent = '📋 Buat Link AquaTask'; btn.disabled = false; }
-          alert('❌ Gagal membuat link: ' + e.message);
-        })
-        .getScriptUrl();
-    }
+  google.script.run
+    .withSuccessHandler(function(url) {
+      if (btn) { btn.textContent = '📋 Buat Link AquaTask'; btn.disabled = false; }
+      var finalUrl = url + '?page=aquatask&courseId=' + activeCourseId;
+      document.getElementById('newQuizUrl').value = finalUrl;
+      alert(
+        '✅ Link AquaTask berhasil dibuat!\n\n' +
+        'Klik "+ Tambah Kuis / Tugas" untuk menyimpan.\n\n' +
+        'Semua tugas (individu maupun kelompok) dikelola langsung di dalam portal AquaTask.\n' +
+        'Cukup SATU entri ini untuk seluruh tugas kelas.'
+      );
+    })
+    .withFailureHandler(function(e) {
+      if (btn) { btn.textContent = '📋 Buat Link AquaTask'; btn.disabled = false; }
+      alert('❌ Gagal membuat link: ' + e.message);
+    })
+    .getScriptUrl();
+}
 
 function bukaModalCbt(courseId) {
   _cbtActiveCourseId = courseId || null;
@@ -1809,13 +1806,13 @@ function renderQuizzes(quizzes) {
     return;
   }
 
-  // Urutkan chronological berdasarkan created_at, fallback ke quiz_id
   quizzes = quizzes.slice().sort(function(a, b) {
     var tA = a.created_at || a.quiz_id || '';
     var tB = b.created_at || b.quiz_id || '';
     return String(tA).localeCompare(String(tB));
   });
 
+  // ── PATCH 4: tipeConfig baru — hapus tugas_individu & tugas_kelompok ──
   var tipeConfig = {
     cbt: {
       label:       '🖥️ CBT',
@@ -1831,16 +1828,9 @@ function renderQuizzes(quizzes) {
       badgeColor:  '#7dcff0',
       badgeBorder: 'rgba(33,150,211,0.35)'
     },
-    tugas_individu: {
-      label:       '📋 Tugas Individu',
-      accent:      'var(--amber)',
-      badgeBg:     'rgba(232,168,58,0.2)',
-      badgeColor:  'var(--amber)',
-      badgeBorder: 'rgba(232,168,58,0.35)'
-    },
-    tugas_kelompok: {
-      label:       '👥 Tugas Kelompok',
-      accent:      'var(--teal)',
+    tugas: {
+      label:       '📋 Tugas',
+      accent:      'var(--mint)',
       badgeBg:     'rgba(52,201,138,0.15)',
       badgeColor:  'var(--mint)',
       badgeBorder: 'rgba(52,201,138,0.35)'
@@ -1850,23 +1840,21 @@ function renderQuizzes(quizzes) {
   list.innerHTML = quizzes.map(function(q) {
     var btnId  = 'btn_quiz_' + q.quiz_id;
     var isDone = q.dikerjakan;
-    var isCbt  = q.url_form && q.url_form.indexOf('page=cbt') > -1;
-    var tipe   = q.tipe_kuis || (isCbt ? 'cbt' : 'kuis');
-    var cfg    = tipeConfig[tipe] || tipeConfig['kuis'];
 
+    // ── PATCH 5: deteksi tipe final ──
     var isAquaTask = q.url_form && q.url_form.indexOf('page=aquatask') > -1;
+    var tipe = isAquaTask ? 'tugas'
+             : (q.tipe_kuis === 'tugas_individu' || q.tipe_kuis === 'tugas_kelompok' ? 'tugas'
+             : (q.tipe_kuis || (q.url_form && q.url_form.indexOf('page=cbt') > -1 ? 'cbt' : 'kuis')));
+    var cfg  = tipeConfig[tipe] || tipeConfig['kuis'];
 
     // ── Status badge ──
     var statusBadge = '';
-    if (isAquaTask) {
-      statusBadge = isDone
-        ? '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;'
-          + 'background:rgba(52,201,138,0.15);color:var(--mint);'
-          + 'border:1px solid rgba(52,201,138,0.3);">✓ Dikumpulkan</span>'
-        : '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;'
-          + 'background:rgba(52,201,138,0.08);color:#5a8fa8;'
-          + 'border:1px solid rgba(52,201,138,0.15);">Belum Kumpul</span>';
-    } else if (tipe === 'cbt' || tipe === 'kuis') {
+    if (tipe === 'tugas') {
+      statusBadge = '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;'
+        + 'background:rgba(52,201,138,0.1);color:#5a8fa8;'
+        + 'border:1px solid rgba(52,201,138,0.15);">via AquaTask</span>';
+    } else {
       statusBadge = isDone
         ? '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;'
           + 'background:rgba(52,201,138,0.15);color:var(--mint);'
@@ -1874,41 +1862,28 @@ function renderQuizzes(quizzes) {
         : '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;'
           + 'background:rgba(92,200,240,0.1);color:#5a8fa8;'
           + 'border:1px solid rgba(92,200,240,0.15);">Belum</span>';
-    } else if (tipe === 'tugas_individu') {
-      statusBadge = isDone
-        ? '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;'
-          + 'background:rgba(52,201,138,0.15);color:var(--mint);'
-          + 'border:1px solid rgba(52,201,138,0.3);">✓ Terkonfirmasi</span>'
-        : '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;'
-          + 'background:rgba(232,168,58,0.12);color:var(--amber);'
-          + 'border:1px solid rgba(232,168,58,0.25);">Perlu Konfirmasi</span>';
     }
 
     // ── Info block ──
     var infoBlock = '';
-    if (isAquaTask) {
-      var aquaDesc = tipe === 'tugas_kelompok'
-        ? '👥 Kumpulkan via AquaTask — centang anggota kelompok saat submit.'
-        : isDone
-          ? '✅ Tugas sudah dikumpulkan melalui AquaTask.'
-          : '📋 Klik tombol di bawah untuk membuka portal pengumpulan AquaTask.';
+    if (tipe === 'tugas') {
       infoBlock =
-        '<div style="background:rgba(13,61,107,0.4);border:1px solid rgba(52,201,138,0.15);'
-        + 'border-radius:8px;padding:8px 10px;margin-bottom:12px;">'
-        + '<span style="font-size:11px;color:' + (isDone ? 'var(--mint)' : '#5a8fa8') + ';">'
-        + aquaDesc + '</span></div>';
-    } else if (isCbt && (q.cbt_deadline || q.cbt_duration_menit)) {
+        '<div style="background:rgba(13,61,107,0.4);border:1px solid rgba(52,201,138,0.2);'
+        + 'border-radius:8px;padding:10px 12px;margin-bottom:12px;">'
+        + '<span style="font-size:11px;color:var(--mint);">📋 Semua tugas kelas (individu & kelompok) ada di sini.</span><br>'
+        + '<span style="font-size:11px;color:#5a8fa8;">Kumpulkan file, pilih anggota, dan pantau status langsung di portal.</span>'
+        + '</div>';
+    } else if (tipe === 'cbt' && (q.cbt_deadline || q.cbt_duration_menit)) {
       var infoItems = [];
       if (q.cbt_deadline) {
-        var now    = new Date().getTime();
+        var now2   = new Date().getTime();
         var dlTime = new Date(q.cbt_deadline).getTime();
-        var lewat  = !isNaN(dlTime) && now > dlTime;
+        var lewat  = !isNaN(dlTime) && now2 > dlTime;
         infoItems.push(
           '<div style="display:flex;align-items:center;gap:6px;">'
           + '<span style="font-size:11px;">' + (lewat ? '🔒' : '📅') + '</span>'
           + '<span style="font-size:11px;color:' + (lewat ? 'var(--coral)' : '#5cc8f0') + ';">'
-          + (lewat ? 'Ditutup: ' : 'Deadline: ')
-          + formatDeadlineWITA(q.cbt_deadline)
+          + (lewat ? 'Ditutup: ' : 'Deadline: ') + formatDeadlineWITA(q.cbt_deadline)
           + '</span></div>'
         );
       }
@@ -1916,9 +1891,9 @@ function renderQuizzes(quizzes) {
         infoItems.push(
           '<div style="display:flex;align-items:center;gap:6px;">'
           + '<span style="font-size:11px;">⏱</span>'
-          + '<span style="font-size:11px;color:var(--amber);">'
-          + '<b>' + q.cbt_duration_menit + ' menit</b> sejak klik mulai'
-          + '</span></div>'
+          + '<span style="font-size:11px;color:var(--amber);"><b>'
+          + q.cbt_duration_menit + ' menit</b> sejak klik mulai</span>'
+          + '</div>'
         );
       }
       if (infoItems.length) {
@@ -1926,60 +1901,39 @@ function renderQuizzes(quizzes) {
           '<div style="background:rgba(13,61,107,0.4);border:1px solid rgba(92,200,240,0.12);'
           + 'border-radius:8px;padding:8px 10px;margin-bottom:12px;'
           + 'display:flex;flex-direction:column;gap:5px;">'
-          + infoItems.join('')
-          + '</div>';
+          + infoItems.join('') + '</div>';
       }
-    } else {
-      var deskMap = {
-        kuis:           '📝 Kuis online via Google Forms',
-        tugas_individu: isDone
-          ? '✅ Anda sudah mengkonfirmasi pengumpulan tugas ini'
-          : '📋 Buka link → kumpulkan → klik konfirmasi di bawah',
-        tugas_kelompok: '👥 Dikumpulkan oleh perwakilan kelompok'
-      };
-      var warnaInfo = (tipe === 'tugas_individu' && isDone)
-        ? 'var(--mint)'
-        : '#5a8fa8';
+    } else if (tipe === 'kuis') {
       infoBlock =
         '<div style="background:rgba(13,61,107,0.4);border:1px solid rgba(92,200,240,0.12);'
         + 'border-radius:8px;padding:8px 10px;margin-bottom:12px;">'
-        + '<span style="font-size:11px;color:' + warnaInfo + ';">'
-        + (deskMap[tipe] || '')
-        + '</span>'
+        + '<span style="font-size:11px;color:#5a8fa8;">📝 Kuis online via Google Forms</span>'
         + '</div>';
     }
 
     // ── Tombol ──
     var btnStyle, btnTxt;
-    if (isAquaTask) {
-      btnStyle = isDone
-        ? 'background:rgba(52,201,138,0.18);color:var(--mint);border:1px solid rgba(52,201,138,0.3);'
-        : 'background:linear-gradient(135deg,#0d7a6b,var(--mint));color:#fff;border:none;box-shadow:0 3px 10px rgba(52,201,138,0.3);';
-      btnTxt = isDone ? '✅ Sudah Dikumpulkan (Buka AquaTask)' : '📋 Kumpulkan via AquaTask';
-    } else if (tipe === 'tugas_kelompok') {
-      btnStyle = 'background:rgba(52,201,138,0.15);color:var(--mint);'
-               + 'border:1px solid rgba(52,201,138,0.3);';
-      btnTxt   = '🔗 Buka & Kumpulkan Tugas';
-    } else if (tipe === 'tugas_individu') {
+    if (tipe === 'tugas') {
+      btnStyle = 'background:linear-gradient(135deg,#0d7a6b,var(--mint));color:#fff;border:none;'
+               + 'box-shadow:0 3px 10px rgba(52,201,138,0.3);';
+      btnTxt   = '📋 Buka Portal Tugas';
+    } else if (tipe === 'kuis') {
       if (isDone) {
-        btnStyle = 'background:rgba(52,201,138,0.18);color:var(--mint);'
-                 + 'border:1px solid rgba(52,201,138,0.3);';
-        btnTxt   = '✅ Terkonfirmasi (Buka Lagi)';
-      } else {
-        btnStyle = 'background:rgba(232,168,58,0.18);color:var(--amber);'
-                 + 'border:1px solid rgba(232,168,58,0.3);';
-        btnTxt   = '📋 Kumpulkan Tugas';
-      }
-    } else if (tipe === 'kuis' || tipe === 'cbt') {
-      if (isDone) {
-        btnStyle = 'background:rgba(52,201,138,0.18);color:var(--mint);'
-                 + 'border:1px solid rgba(52,201,138,0.3);';
+        btnStyle = 'background:rgba(52,201,138,0.18);color:var(--mint);border:1px solid rgba(52,201,138,0.3);';
         btnTxt   = '✅ Sudah Dikerjakan (Buka Lagi)';
       } else {
-        btnStyle = 'background:linear-gradient(135deg,var(--sea),var(--wave));'
-                 + 'color:#fff;border:none;'
+        btnStyle = 'background:linear-gradient(135deg,var(--sea),var(--wave));color:#fff;border:none;'
                  + 'box-shadow:0 3px 10px rgba(33,150,211,0.3);';
-        btnTxt   = tipe === 'cbt' ? '🖥️ Mulai Ujian CBT' : '📝 Kerjakan Kuis';
+        btnTxt   = '📝 Kerjakan Kuis';
+      }
+    } else { // cbt
+      if (isDone) {
+        btnStyle = 'background:rgba(52,201,138,0.18);color:var(--mint);border:1px solid rgba(52,201,138,0.3);';
+        btnTxt   = '✅ Sudah Dikerjakan (Buka Lagi)';
+      } else {
+        btnStyle = 'background:linear-gradient(135deg,var(--sea),var(--wave));color:#fff;border:none;'
+                 + 'box-shadow:0 3px 10px rgba(33,150,211,0.3);';
+        btnTxt   = '🖥️ Mulai Ujian CBT';
       }
     }
 
@@ -2027,112 +1981,42 @@ function renderQuizzes(quizzes) {
 function bukaKuis(quizId, urlForm, tipe, btnId) {
   var btn = document.getElementById(btnId);
 
-  // ── AquaTask: buka langsung, tracking via AquaTask sendiri ──
-  if (urlForm && urlForm.indexOf('page=aquatask') > -1) {
-    window.open(urlForm, '_blank');
-    if (btn) {
-      btn.style.cssText =
-        'width:100%;padding:10px 12px;border-radius:9px;' +
-        'font-family:\'Sora\',sans-serif;font-size:12px;font-weight:700;' +
-        'cursor:pointer;' +
-        'background:rgba(52,201,138,0.18);color:var(--mint);' +
-        'border:1px solid rgba(52,201,138,0.3);';
-      btn.innerText = '✅ AquaTask Dibuka (Buka Lagi)';
+  // ── TUGAS → buka AquaTask dengan credentials mahasiswa ──
+  if (tipe === 'tugas' || (urlForm && urlForm.indexOf('page=aquatask') > -1)) {
+    var targetUrl = urlForm;
+    if (currentUserInfo) {
+      targetUrl += '&userId='   + encodeURIComponent(currentUserInfo.userId)
+                 + '&userRole=' + encodeURIComponent(currentUserInfo.role)
+                 + '&userName=' + encodeURIComponent(currentUserInfo.name || currentUserInfo.userId);
     }
+    window.open(targetUrl, '_blank');
     return;
   }
 
-  // ── CBT: alur existing (token + tracking) ──
+  // ── CBT ──
   if (tipe === 'cbt' || urlForm.indexOf('page=cbt') > -1) {
     google.script.run.logQuizAccess(currentUserInfo.userId, quizId);
-    if (btn) { btn.className='btn btn-teal btn-full btn-sm'; btn.innerText='⏳ Menyiapkan...'; btn.disabled=true; }
-    var tab = window.open('','_blank');
+    if (btn) { btn.className = 'btn btn-teal btn-full btn-sm'; btn.innerText = '⏳ Menyiapkan...'; btn.disabled = true; }
+    var tab = window.open('', '_blank');
     if (tab) tab.document.write('<body style="background:#060f1e;color:#5cc8f0;font-family:sans-serif;text-align:center;padding-top:20vh;"><h2>🔐 Menyiapkan sesi ujian aman...</h2></body>');
     google.script.run
       .withSuccessHandler(function(token) {
         if (tab) tab.location.href = urlForm + '&session_token=' + token;
-        if (btn) { btn.innerText='✅ Sudah Dikerjakan (Buka Lagi)'; btn.disabled=false; }
+        if (btn) { btn.innerText = '✅ Sudah Dikerjakan (Buka Lagi)'; btn.disabled = false; }
       })
       .withFailureHandler(function(err) {
         if (tab) tab.close();
         alert('Gagal membuat sesi CBT: ' + err.message);
-        if (btn) { btn.innerText='📝 Kerjakan Kuis / Tugas'; btn.disabled=false; }
+        if (btn) { btn.innerText = '🖥️ Mulai Ujian CBT'; btn.disabled = false; }
       })
       .buatTokenSesiCbt(currentUserInfo);
     return;
   }
 
-  // ── KUIS GForms: klik = dikerjakan, skor keaktifan ──
-  if (tipe === 'kuis') {
-    window.open(urlForm, '_blank');
-    google.script.run.logQuizAccess(currentUserInfo.userId, quizId);
-    if (btn) { btn.className='btn btn-teal btn-full btn-sm'; btn.innerText='✅ Sudah Dikerjakan (Buka Lagi)'; }
-    return;
-  }
-
-  // ── TUGAS INDIVIDU: buka GForms, muncul tombol konfirmasi ──
-  if (tipe === 'tugas_individu') {
-    window.open(urlForm, '_blank');
-    if (btn) {
-      // Ubah tombol menjadi konfirmasi setelah GForms terbuka
-      btn.innerText  = '✅ Saya sudah mengumpulkan — Klik untuk konfirmasi';
-      btn.style.cssText =
-        'width:100%;padding:10px 12px;border-radius:9px;'
-        + 'font-family:\'Sora\',sans-serif;font-size:11px;font-weight:700;'
-        + 'cursor:pointer;'
-        + 'background:rgba(232,168,58,0.25);color:var(--amber);'
-        + 'border:2px solid rgba(232,168,58,0.5);'
-        + 'animation:pulse-amber 1.5s ease-in-out infinite;';
-
-      btn.onclick = function() {
-        btn.innerText    = '⏳ Mencatat konfirmasi...';
-        btn.disabled     = true;
-
-        google.script.run
-          .withSuccessHandler(function() {
-            btn.style.cssText =
-              'width:100%;padding:10px 12px;border-radius:9px;'
-              + 'font-family:\'Sora\',sans-serif;font-size:12px;font-weight:700;'
-              + 'background:rgba(52,201,138,0.18);color:var(--mint);'
-              + 'border:1px solid rgba(52,201,138,0.3);'
-              + 'cursor:default;';
-            btn.innerText  = '✅ Terkonfirmasi';
-            btn.disabled   = true;
-
-            // Update badge status di card yang sama tanpa reload
-            var card = btn.closest('div[style*="border-left"]');
-            if (card) {
-              var badgeEl = card.querySelector('span[style*="Perlu Konfirmasi"]');
-              if (badgeEl) {
-                badgeEl.textContent = '✓ Terkonfirmasi';
-                badgeEl.style.background = 'rgba(52,201,138,0.15)';
-                badgeEl.style.color      = 'var(--mint)';
-                badgeEl.style.border     = '1px solid rgba(52,201,138,0.3)';
-              }
-              var infoEl = card.querySelector('span[style*="Buka link"]');
-              if (infoEl) {
-                infoEl.textContent = '✅ Anda sudah mengkonfirmasi pengumpulan tugas ini';
-                infoEl.style.color = 'var(--mint)';
-              }
-            }
-          })
-          .withFailureHandler(function(err) {
-            btn.disabled  = false;
-            btn.innerText = '✅ Saya sudah mengumpulkan — Klik untuk konfirmasi';
-            alert('❌ Gagal mencatat: ' + err.message);
-          })
-          .logQuizAccess(currentUserInfo.userId, quizId);
-      };
-    }
-    return;
-  }
-
-  // ── TUGAS KELOMPOK: buka saja, tanpa tracking otomatis ──
-  if (tipe === 'tugas_kelompok') {
-    window.open(urlForm, '_blank');
-    // Tidak ada tracking — dosen yang tandai via panel
-    return;
-  }
+  // ── KUIS GForms ──
+  window.open(urlForm, '_blank');
+  google.script.run.logQuizAccess(currentUserInfo.userId, quizId);
+  if (btn) { btn.className = 'btn btn-teal btn-full btn-sm'; btn.innerText = '✅ Sudah Dikerjakan (Buka Lagi)'; }
 }
   
   function formatDeadlineWITA(deadlineStr) {
@@ -2461,10 +2345,9 @@ function tambahKuisKelas() {
 
 function updateQuizTipeHint() {
   var hints = {
-    kuis:           '🔵 Klik = langsung tercatat dikerjakan. Cocok untuk kuis singkat via Google Forms.',
-    tugas_individu: '🟡 Klik "Buat Link" → link AquaTask otomatis terbuat. Mahasiswa submit file, pilih anggota (jika perlu), dan nilai terdistribusi otomatis.',
-    tugas_kelompok: '🟠 Klik "Buat Link" → link AquaTask otomatis terbuat. Perwakilan kelompok centang anggota saat submit.',
-    cbt:            '🔒 Klik "Buat Link" → link CBT dengan ID unik terbuat. Gunakan "⚙️ Kelola Soal CBT" untuk memasukkan soal.'
+    kuis:  '🔵 Klik = langsung tercatat dikerjakan. Cocok untuk kuis singkat via Google Forms.',
+    tugas: '🟢 Satu link AquaTask untuk semua tugas kelas. Dosen kelola tugas (individu/kelompok, deadline, bobot) langsung di dalam portal AquaTask.',
+    cbt:   '🔒 Klik "Buat Link" → link CBT dengan ID unik terbuat. Gunakan "⚙️ Kelola Soal CBT" untuk memasukkan soal.'
   };
 
   var tipe   = document.getElementById('newQuizTipe').value;
@@ -2475,18 +2358,16 @@ function updateQuizTipeHint() {
   if (!btnGen) return;
 
   if (tipe === 'kuis') {
-    // Kuis GForms → user paste URL manual, tombol generate disembunyikan
-    btnGen.style.display  = 'none';
+    btnGen.style.display = 'none';
     document.getElementById('newQuizUrl').placeholder = 'Paste URL Google Forms di sini…';
   } else if (tipe === 'cbt') {
-    btnGen.style.display  = 'inline-flex';
-    btnGen.textContent    = '💡 Buat CBT';
+    btnGen.style.display    = 'inline-flex';
+    btnGen.textContent      = '💡 Buat CBT';
     btnGen.style.background = 'linear-gradient(135deg,var(--sea),var(--wave))';
     document.getElementById('newQuizUrl').placeholder = '(otomatis terisi setelah klik Buat CBT)';
-  } else {
-    // tugas_individu | tugas_kelompok → AquaTask
-    btnGen.style.display  = 'inline-flex';
-    btnGen.textContent    = '📋 Buat Link AquaTask';
+  } else if (tipe === 'tugas') {
+    btnGen.style.display    = 'inline-flex';
+    btnGen.textContent      = '📋 Buat Link AquaTask';
     btnGen.style.background = 'linear-gradient(135deg,#0d7a6b,var(--mint))';
     document.getElementById('newQuizUrl').placeholder = '(otomatis terisi setelah klik Buat Link AquaTask)';
   }
@@ -2516,10 +2397,9 @@ function renderManajemenKuis(quizzes) {
   });
 
   var tipeLabelMap = {
-    kuis:           '📝 Kuis',
-    tugas_individu: '📋 Individu',
-    tugas_kelompok: '👥 Kelompok',
-    cbt:            '🖥️ CBT'
+    kuis:  '📝 Kuis',
+    tugas: '📋 Tugas',
+    cbt:   '🖥️ CBT'
   };
 
   var rows = [];
@@ -2543,12 +2423,6 @@ function renderManajemenKuis(quizzes) {
     }
 
     var extraBtn = '';
-    if (tipe === 'tugas_kelompok') {
-      extraBtn = '<div style="margin-top:4px;">'
-               + '<button class="btn btn-ghost btn-sm" style="width:100%;font-size:11px;"'
-               + ' onclick="bukaModalTandaiKelompok(\'' + q.quiz_id + '\',\'' + q.title + '\')">'
-               + '👥 Tandai Anggota</button></div>';
-    }
 
     rows.push('<tr>'
       + '<td style="font-weight:500;color:#c0dbe8;">' + q.title + extraBtn + '</td>'
