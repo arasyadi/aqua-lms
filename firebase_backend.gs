@@ -4,7 +4,7 @@
 // ============================================================
 
 var FB_URL = "FB URL";
-var FB_SECRET = "FB Secret";
+var FB_SECRET = "FB SECRET";
 
 // ══════════════════════════════════════════════
 // FIREBASE REST HELPERS — v4 (+ Auth Secret)
@@ -69,11 +69,11 @@ function fbDelete(path) {
 }
 
 function safeKey(str) {
-  return String(str).replace(/[.#$\[\]\/]/g, "_");
+  return String(str).replace(/[.#$\[\]\/ ]/g, "_");
 }
 
 function safeJenisNilai(str) {
-  return String(str).replace(/[.#$\[\]\/]/g, "_");
+  return String(str).replace(/[.#$\[\]\/ ]/g, "_");
 }
 
 // ══════════════════════════════════════════════
