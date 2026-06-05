@@ -63,6 +63,15 @@
     .btn-ghost-coral { background: none; color: var(--coral); padding: 8px 14px; border-radius: 8px; border: 1px solid rgba(242,109,81,0.15); font-size: 12px; }
     .btn-ghost-coral:hover { background: rgba(242,109,81,0.1); border-color: rgba(242,109,81,0.4); }
 
+    /* STUDENT NAME — clickable link style */
+    .student-name-link {
+      cursor: pointer;
+      border-bottom: 1px dashed rgba(92,200,240,0.35);
+      padding-bottom: 1px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .student-name-link:hover { color: var(--foam); border-bottom-color: var(--foam); }
+
     /* ===== AI GRADING PANEL ===== */
     #ai-grading-panel {
       display: none;
@@ -80,7 +89,7 @@
     /* Progress bar */
     .progress-wrap {
       background: rgba(255,255,255,0.07);
-      border-radius: 99px; height: 12px; overflow: hidden; margin-bottom: 10px;
+      border-radius: 99px; height: 8px; overflow: hidden; margin-bottom: 10px;
     }
     .progress-fill {
       height: 100%; border-radius: 99px;
@@ -111,7 +120,6 @@
     #ai-log .log-error  { color: var(--coral); }
     #ai-log .log-info   { color: #ce93d8; }
 
-    /* Ringkasan akhir */
     #ai-summary {
       display: none;
       margin-top: 14px;
@@ -124,7 +132,8 @@
     }
 
     /* ANIMATIONS */
-    @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeUp      { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes slideInUp   { from { opacity:0; transform:translateY(24px) scale(.98); } to { opacity:1; transform:translateY(0) scale(1); } }
 
     /* OVERLAY & MODAL */
     .overlay { display: none; position: fixed; inset: 0; z-index: 1000; background: rgba(6,15,30,0.85); backdrop-filter: blur(8px); align-items: center; justify-content:center; padding: 20px; }
@@ -135,6 +144,186 @@
     .input-label { font-size: 11px; color: var(--slate); font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 6px; }
     .input-dark { width: 100%; padding: 11px 14px; border-radius: 10px; box-sizing: border-box; border: 1px solid rgba(92,200,240,0.22); background: rgba(6,15,30,0.6); color: #d6edf8; font-size: 13px; font-family: 'Sora', sans-serif; }
     .input-dark:focus { border-color: #2196d3; box-shadow: 0 0 0 3px rgba(33,150,211,0.18); outline: none; }
+
+    /* ===== DETAIL MAHASISWA DRAWER ===== */
+    #overlayDetailMahasiswa { z-index: 1100; align-items: flex-end; justify-content: flex-end; padding: 0; }
+    #drawerDetailMahasiswa {
+      width: 100%;
+      max-width: 820px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: rgba(7,18,40,0.99);
+      border-left: 1px solid rgba(92,200,240,0.2);
+      box-shadow: -20px 0 60px rgba(0,0,0,0.5);
+      animation: slideInDrawer .3s cubic-bezier(.4,0,.2,1);
+    }
+    @keyframes slideInDrawer {
+      from { transform: translateX(60px); opacity: 0; }
+      to   { transform: translateX(0);    opacity: 1; }
+    }
+
+    /* Drawer header */
+    #drawerHeader {
+      padding: 20px 26px 18px;
+      border-bottom: 1px solid rgba(92,200,240,0.1);
+      flex-shrink: 0;
+      background: rgba(11,28,58,0.7);
+    }
+
+    /* Drawer tabs */
+    #drawerTabBar {
+      padding: 0 26px;
+      background: rgba(5,13,30,0.6);
+      border-bottom: 1px solid rgba(92,200,240,0.08);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      min-height: 46px;
+      gap: 4px;
+    }
+    .dtab-btn {
+      background: transparent;
+      color: #5a8fa8;
+      border: 1px solid transparent;
+      padding: 6px 15px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .dtab-btn.active {
+      background: rgba(92,200,240,0.12);
+      color: var(--foam);
+      border-color: rgba(92,200,240,0.3);
+    }
+    .dtab-btn:hover:not(.active) { color: #8ab8cc; background: rgba(92,200,240,0.05); }
+
+    /* Drawer content scroll area */
+    #drawerContent {
+      overflow-y: auto;
+      padding: 20px 26px;
+      flex: 1;
+    }
+    #drawerContent::-webkit-scrollbar { width: 4px; }
+    #drawerContent::-webkit-scrollbar-track { background: transparent; }
+    #drawerContent::-webkit-scrollbar-thumb { background: rgba(92,200,240,0.18); border-radius: 99px; }
+
+    /* Drawer footer */
+    #drawerFooter {
+      padding: 14px 26px;
+      border-top: 1px solid rgba(92,200,240,0.08);
+      flex-shrink: 0;
+      background: rgba(5,13,30,0.5);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Question cards */
+    .q-card-pg {
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 8px;
+      border: 1px solid rgba(92,200,240,0.08);
+      background: rgba(13,45,90,0.2);
+      transition: border-color .15s;
+    }
+    .q-card-pg.q-correct  { border-color: rgba(52,201,138,0.18); background: rgba(52,201,138,0.04); }
+    .q-card-pg.q-wrong    { border-color: rgba(242,109,81,0.18);  background: rgba(242,109,81,0.03); }
+    .q-card-pg.q-unanswered { border-color: rgba(232,168,58,0.15); background: rgba(232,168,58,0.03); }
+
+    .q-card-essay {
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      border: 1px solid rgba(156,39,176,0.18);
+      background: rgba(80,20,100,0.06);
+    }
+
+    .opt-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 8px;
+      padding: 7px 11px;
+      margin-bottom: 4px;
+      font-size: 12.5px;
+      border: 1px solid transparent;
+      background: rgba(255,255,255,0.02);
+      color: #8ab8cc;
+    }
+    .opt-row.opt-correct-chosen { background: rgba(52,201,138,0.14); border-color: rgba(52,201,138,0.4); color: var(--mint); }
+    .opt-row.opt-correct-only   { background: rgba(52,201,138,0.06); border-color: rgba(52,201,138,0.22); color: var(--mint); }
+    .opt-row.opt-wrong-chosen   { background: rgba(242,109,81,0.12); border-color: rgba(242,109,81,0.35); color: var(--coral); }
+
+    .q-number-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 26px;
+      height: 22px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0;
+      padding: 0 7px;
+    }
+
+    .breakdown-bar {
+      height: 8px;
+      border-radius: 99px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.06);
+      margin-top: 5px;
+    }
+    .breakdown-fill {
+      height: 100%;
+      border-radius: 99px;
+      transition: width 1s cubic-bezier(.4,0,.2,1);
+    }
+
+    /* Score ring label*/
+    .skor-label {
+      font-family: 'Lora', serif;
+      font-size: 26px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    /* Rubric toggle */
+    .rubrik-toggle {
+      background: none;
+      border: none;
+      color: #5a7f9a;
+      font-size: 11.5px;
+      cursor: pointer;
+      padding: 0;
+      font-family: 'Sora', sans-serif;
+      font-weight: 500;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .rubrik-toggle:hover { color: var(--foam); }
+
+    /* AI feedback box */
+    .ai-feedback-box {
+      margin-top: 10px;
+      background: rgba(156,39,176,0.07);
+      border: 1px solid rgba(156,39,176,0.2);
+      border-radius: 9px;
+      padding: 12px 14px;
+    }
+    .ai-feedback-label {
+      font-size: 10px;
+      color: #ce93d8;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      font-weight: 700;
+      margin-bottom: 7px;
+    }
   </style>
 </head>
 <body>
@@ -149,7 +338,7 @@
         🗑️ Hapus Kuis
       </button>
     </div>
-    <p style="font-size:13px; color:#5a8fa8; margin:0 0 20px 0;">Memantau statistik dan progress mahasiswa.</p>
+    <p style="font-size:13px; color:#5a8fa8; margin:0 0 20px 0;">Memantau statistik dan progress mahasiswa. Klik nama untuk melihat detail jawaban.</p>
 
     <!-- STAT BOXES -->
     <div class="stat-container" id="statContainer" style="display:none;">
@@ -199,7 +388,6 @@
       </div>
 
       <div id="ai-log"></div>
-
       <div id="ai-summary"></div>
 
       <div style="margin-top:14px; display:flex; gap:8px;">
@@ -242,7 +430,9 @@
   </div>
 </div>
 
-<!-- MODAL SUBMIT NILAI -->
+<!-- ================================================================
+     MODAL SUBMIT NILAI
+================================================================ -->
 <div id="overlaySubmitNilai" class="overlay">
   <div class="modal">
     <div class="modal-header">
@@ -265,6 +455,42 @@
   </div>
 </div>
 
+<!-- ================================================================
+     DETAIL DRAWER — Jawaban Mahasiswa
+================================================================ -->
+<div id="overlayDetailMahasiswa" class="overlay">
+  <div id="drawerDetailMahasiswa">
+
+    <!-- Header -->
+    <div id="drawerHeader">
+      <div id="drawerHeaderContent" style="display:flex; align-items:center; gap:16px;">
+        <div style="text-align:center; color:#5a8fa8; flex:1;">Memuat...</div>
+      </div>
+    </div>
+
+    <!-- Tab bar -->
+    <div id="drawerTabBar"></div>
+
+    <!-- Scrollable content -->
+    <div id="drawerContent">
+      <div style="text-align:center; padding:60px 20px; color:#5a8fa8;">
+        <div style="font-size:36px; margin-bottom:14px; opacity:.6;">⏳</div>
+        <div style="font-size:13px;">Memuat detail jawaban...</div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div id="drawerFooter">
+      <div id="drawerFooterInfo" style="font-size:11.5px; color:#4a7090;"></div>
+      <button onclick="tutupDetailMahasiswa()" class="btn-dark" style="padding:9px 22px; border-radius:10px; font-size:13px;">✕ Tutup</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================
+     JAVASCRIPT
+================================================================ -->
 <script>
   var globalQuizId   = null;
   var globalCourseId = null;
@@ -272,20 +498,21 @@
   var globalStudents = [];
 
   /* ── AI Grading State ── */
-  var aiRunning      = false;
-  var aiStopped      = false;
-  var aiQueue        = [];       // daftar userId yang akan diproses
-  var aiDone         = 0;
-  var aiTotal        = 0;
-  var aiOk           = 0;
-  var aiSkip         = 0;
-  var aiError        = 0;
-  var aiStartTime    = 0;
+  var aiRunning   = false;
+  var aiStopped   = false;
+  var aiQueue     = [];
+  var aiDone      = 0;
+  var aiTotal     = 0;
+  var aiOk        = 0;
+  var aiSkip      = 0;
+  var aiError     = 0;
+  var aiStartTime = 0;
+  var AI_INTER_DELAY = 10000;
 
-  /* ── DELAY antar mahasiswa di frontend (ms) ──
-     2 soal essay × 4 detik sleep GAS + ~5 detik Gemini response ≈ 18 detik/mhs
-     Tambahkan 10 detik buffer di frontend untuk mencegah request tumpang tindih */
-  var AI_INTER_DELAY = 10000;   // jeda frontend antar mahasiswa
+  /* ── Detail Drawer State ── */
+  var _detailData      = null;
+  var _detailEssayFbMap = {};
+  var _activeDetailTab = 'all';
 
   // ==========================================================
   window.onload = function() {
@@ -300,8 +527,22 @@
       document.getElementById('dashTitle').textContent = '📊 Analitik Ujian: ' + globalQuizId;
       refreshData();
     });
+
+    // Close overlays on backdrop click
     document.querySelectorAll('.overlay').forEach(function(ov) {
-      ov.addEventListener('click', function(e) { if (e.target === this) this.style.display = 'none'; });
+      ov.addEventListener('click', function(e) {
+        if (e.target === this) this.style.display = 'none';
+      });
+    });
+
+    // ESC key closes detail drawer
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        var drawerOv = document.getElementById('overlayDetailMahasiswa');
+        if (drawerOv && drawerOv.style.display !== 'none') {
+          tutupDetailMahasiswa();
+        }
+      }
     });
   };
 
@@ -340,12 +581,17 @@
       var vioText  = isDone ? (s.violations + 'x') : '-';
       var colCheck = '<label class="chk-container"><input type="checkbox" class="student-checkbox" value="' + s.userId + '" onclick="updateResetButton()"><span class="checkmark"></span></label>';
 
+      // Nama — clickable jika sudah submit
+      var namaTd = isDone
+        ? '<span class="student-name-link" title="Klik untuk melihat detail jawaban" onclick="lihatDetailMahasiswa(\'' + s.userId + '\')">' + _escHtml(s.nama) + '</span>'
+        : _escHtml(s.nama);
+
       var tr = document.createElement('tr');
       tr.id = 'row-' + s.userId;
       tr.innerHTML =
         '<td class="col-cb col-reset-check" style="display:none;">' + colCheck + '</td>'
-        + '<td style="font-family:monospace;color:#8ab8cc;" id="td-nim-' + s.userId + '">' + s.userId + '</td>'
-        + '<td style="font-weight:500;">' + s.nama + '</td>'
+        + '<td style="font-family:monospace;color:#8ab8cc;" id="td-nim-' + s.userId + '">' + _escHtml(s.userId) + '</td>'
+        + '<td style="font-weight:500;">' + namaTd + '</td>'
         + '<td style="text-align:center;"><span class="badge ' + badgeCls + '">' + s.status + '</span></td>'
         + '<td style="text-align:center;font-weight:bold;color:var(--foam);" id="td-score-' + s.userId + '">' + s.score + '</td>'
         + '<td style="text-align:center;' + vioStyle + '">' + vioText + '</td>';
@@ -374,11 +620,11 @@
     container.style.display = 'grid';
 
     scores.sort(function(a, b) { return a - b; });
-    var min = scores[0];
-    var max = scores[scores.length - 1];
-    var sum = scores.reduce(function(a, b) { return a + b; }, 0);
-    var avg = (sum / scores.length).toFixed(1);
-    var mid = Math.floor(scores.length / 2);
+    var min    = scores[0];
+    var max    = scores[scores.length - 1];
+    var sum    = scores.reduce(function(a, b) { return a + b; }, 0);
+    var avg    = (sum / scores.length).toFixed(1);
+    var mid    = Math.floor(scores.length / 2);
     var median = scores.length % 2 !== 0 ? scores[mid] : ((scores[mid-1]+scores[mid])/2).toFixed(1);
     var counts = {}, maxCount = 0, modes = [];
     scores.forEach(function(s) {
@@ -396,17 +642,394 @@
   }
 
   // ==========================================================
+  // DETAIL JAWABAN MAHASISWA
+  // ==========================================================
+  function lihatDetailMahasiswa(userId) {
+    var student = null;
+    for (var i = 0; i < globalStudents.length; i++) {
+      if (globalStudents[i].userId === userId) { student = globalStudents[i]; break; }
+    }
+    if (!student || student.status !== 'Sudah') return;
+
+    // Show drawer in loading state
+    document.getElementById('overlayDetailMahasiswa').style.display = 'flex';
+
+    // Minimal header while loading
+    var initLetter = student.nama.charAt(0).toUpperCase();
+    document.getElementById('drawerHeaderContent').innerHTML =
+      '<div style="width:48px;height:48px;border-radius:50%;background:rgba(92,200,240,0.12);border:1.5px solid rgba(92,200,240,0.3);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:var(--foam);flex-shrink:0;">' + initLetter + '</div>'
+      + '<div style="flex:1;min-width:0;">'
+      + '<div style="font-family:Lora,serif;font-size:17px;color:var(--foam);">' + _escHtml(student.nama) + '</div>'
+      + '<div style="font-size:12px;color:#5a8fa8;margin-top:3px;">NIM: ' + _escHtml(userId) + '</div>'
+      + '</div>'
+      + '<button onclick="tutupDetailMahasiswa()" style="background:none;border:none;color:#5a8fa8;font-size:22px;cursor:pointer;line-height:1;margin-left:auto;padding:4px;">✕</button>';
+
+    document.getElementById('drawerTabBar').innerHTML = '';
+    document.getElementById('drawerFooterInfo').textContent = '';
+    document.getElementById('drawerContent').innerHTML =
+      '<div style="text-align:center;padding:60px 20px;color:#5a8fa8;">'
+      + '<div style="font-size:36px;margin-bottom:14px;opacity:.5;">⏳</div>'
+      + '<div>Mengambil data jawaban...</div></div>';
+
+    google.script.run
+      .withSuccessHandler(function(data) {
+        if (!data.success) {
+          document.getElementById('drawerContent').innerHTML =
+            '<div style="text-align:center;padding:40px;color:var(--coral);">❌ ' + _escHtml(data.message || 'Gagal memuat') + '</div>';
+          return;
+        }
+        _renderDrawer(data);
+      })
+      .withFailureHandler(function(e) {
+        document.getElementById('drawerContent').innerHTML =
+          '<div style="text-align:center;padding:40px;color:var(--coral);">❌ Error GAS: ' + _escHtml(e.message) + '</div>';
+      })
+      .getDetailJawabanMahasiswa(globalQuizId, userId);
+  }
+
+  function tutupDetailMahasiswa() {
+    document.getElementById('overlayDetailMahasiswa').style.display = 'none';
+  }
+
+  // ==========================================================
+  function _renderDrawer(data) {
+    _detailData      = data;
+    _detailEssayFbMap = _parseEssayFeedbackMap(data.essay_feedback);
+    _activeDetailTab = 'all';
+
+    var questions    = data.questions || [];
+    var pgList       = questions.filter(function(q) { return q.type === 'PG'; });
+    var essList      = questions.filter(function(q) { return q.type === 'ESSAY'; });
+    var skor         = parseFloat(data.total_score) || 0;
+    var skorColor    = skor >= 80 ? '#34c98a' : skor >= 60 ? '#e8a83a' : '#f26d51';
+
+    // Format timestamp
+    var tgl = '-';
+    try {
+      if (data.timestamp) {
+        tgl = new Date(data.timestamp).toLocaleString('id-ID', {
+          day: 'numeric', month: 'short', year: 'numeric',
+          hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Makassar'
+        }) + ' WITA';
+      }
+    } catch(e) {}
+
+    // Avatar initials (2 kata)
+    var words    = data.nama.trim().split(/\s+/);
+    var initials = words.slice(0,2).map(function(w){ return w.charAt(0).toUpperCase(); }).join('');
+
+    // Score ring SVG
+    var R   = 26;
+    var circ = +(2 * Math.PI * R).toFixed(2);
+    var ringHtml =
+      '<svg width="72" height="72" viewBox="0 0 72 72" style="flex-shrink:0;">'
+      + '<circle cx="36" cy="36" r="' + R + '" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="5.5"/>'
+      + '<circle id="skor-ring-arc" cx="36" cy="36" r="' + R + '" fill="none" stroke="' + skorColor + '" stroke-width="5.5"'
+      + ' stroke-linecap="round"'
+      + ' stroke-dasharray="' + circ + '"'
+      + ' stroke-dashoffset="' + circ + '"'
+      + ' transform="rotate(-90 36 36)"'
+      + ' style="transition:stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1);"/>'
+      + '<text x="36" y="36" text-anchor="middle" dominant-baseline="central"'
+      + ' fill="' + skorColor + '" font-family="Lora,serif" font-size="15" font-weight="700">' + skor + '</text>'
+      + '</svg>';
+
+    // Badges info row
+    var infoParts = ['📅 ' + tgl];
+    if (data.violations > 0) infoParts.push('<span style="color:var(--coral);">⚠️ ' + data.violations + ' pelanggaran</span>');
+    if (essList.length > 0) {
+      infoParts.push(data.essay_graded
+        ? '<span style="color:var(--mint);">✓ Essay dinilai AI</span>'
+        : '<span style="color:var(--amber);">○ Essay belum dinilai</span>');
+    }
+
+    // Render header
+    document.getElementById('drawerHeaderContent').innerHTML =
+      '<div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,rgba(92,200,240,0.2),rgba(33,150,211,0.08));border:1.5px solid rgba(92,200,240,0.35);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:var(--foam);flex-shrink:0;">' + initials + '</div>'
+      + '<div style="flex:1;min-width:0;">'
+      + '<div style="font-family:Lora,serif;font-size:17px;color:var(--foam);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _escHtml(data.nama) + '</div>'
+      + '<div style="font-size:11.5px;color:#5a8fa8;margin-top:4px;line-height:1.9;">📋 <span style="font-family:monospace;">' + _escHtml(data.userId) + '</span> &nbsp;&nbsp;' + infoParts.join(' &nbsp;|&nbsp; ') + '</div>'
+      + '</div>'
+      + '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;gap:3px;">'
+      + ringHtml
+      + '<div style="font-size:9.5px;color:#5a8fa8;text-transform:uppercase;letter-spacing:.4px;">/100</div>'
+      + '</div>'
+      + '<button onclick="tutupDetailMahasiswa()" style="background:none;border:none;color:#5a8fa8;font-size:22px;cursor:pointer;line-height:1;padding:4px;flex-shrink:0;">✕</button>';
+
+    // Animate ring after DOM update
+    var finalOffset = +(circ * (1 - skor / 100)).toFixed(2);
+    setTimeout(function() {
+      var arc = document.getElementById('skor-ring-arc');
+      if (arc) arc.style.strokeDashoffset = finalOffset;
+    }, 80);
+
+    // Tab bar — only if both PG + Essay exist
+    var tabBarEl = document.getElementById('drawerTabBar');
+    if (pgList.length > 0 && essList.length > 0) {
+      tabBarEl.innerHTML =
+        _makeTabBtn('all', '🗂 Semua (' + questions.length + ')', true)
+        + _makeTabBtn('pg',  '📝 PG (' + pgList.length + ')', false)
+        + _makeTabBtn('ess', '📖 Essay (' + essList.length + ')', false);
+    } else {
+      tabBarEl.innerHTML = '';
+    }
+
+    // Footer hint
+    document.getElementById('drawerFooterInfo').innerHTML =
+      '<span style="color:#3a6080;font-size:11px;">Klik nama soal/rubrik untuk memperluas &nbsp;·&nbsp; ESC untuk tutup</span>';
+
+    // Render content
+    _renderDrawerContent('all');
+  }
+
+  function _makeTabBtn(id, label, active) {
+    return '<button id="dtab-' + id + '" class="dtab-btn ' + (active ? 'active' : '') + '" onclick="_switchTab(\'' + id + '\')">' + label + '</button>';
+  }
+
+  function _switchTab(tab) {
+    _activeDetailTab = tab;
+    ['all','pg','ess'].forEach(function(t) {
+      var btn = document.getElementById('dtab-' + t);
+      if (btn) btn.className = 'dtab-btn' + (t === tab ? ' active' : '');
+    });
+    _renderDrawerContent(tab);
+  }
+
+  // ==========================================================
+  function _renderDrawerContent(tab) {
+    var data = _detailData;
+    var efm  = _detailEssayFbMap;
+    if (!data) return;
+
+    var questions = data.questions || [];
+    var pgList    = questions.filter(function(q) { return q.type === 'PG'; });
+    var essList   = questions.filter(function(q) { return q.type === 'ESSAY'; });
+
+    // Compute score breakdown
+    var pgMaxP = 0, pgEarnedP = 0;
+    pgList.forEach(function(q) {
+      var p = parseFloat(q.points) || 0;
+      pgMaxP += p;
+      if (q.is_correct) pgEarnedP += p;
+    });
+    var essMaxP = 0;
+    essList.forEach(function(q) { essMaxP += parseFloat(q.points) || 0; });
+    var totalMaxP    = pgMaxP + essMaxP;
+    var totalEarned  = totalMaxP > 0 ? ((parseFloat(data.total_score)||0) / 100) * totalMaxP : 0;
+    var essEarnedP   = Math.max(0, totalEarned - pgEarnedP);
+
+    var filtered = tab === 'pg'  ? pgList
+                 : tab === 'ess' ? essList
+                 : questions;
+
+    var html = '';
+
+    // ── Score breakdown card (only on "all" tab) ──
+    if (tab === 'all' && totalMaxP > 0) {
+      html += '<div style="background:rgba(11,28,58,0.5);border:1px solid rgba(92,200,240,0.1);border-radius:12px;padding:14px 18px;margin-bottom:16px;">';
+      html += '<div style="font-size:10px;color:#4a7090;text-transform:uppercase;letter-spacing:.7px;font-weight:600;margin-bottom:12px;">📊 Breakdown Skor</div>';
+      html += '<div style="display:grid;grid-template-columns:' + (pgMaxP > 0 && essMaxP > 0 ? '1fr 1fr' : '1fr') + ';gap:16px;">';
+
+      if (pgMaxP > 0) {
+        var pgCorrect  = pgList.filter(function(q) { return q.is_correct; }).length;
+        var pgBarPct   = pgMaxP > 0 ? Math.round((pgEarnedP / pgMaxP) * 100) : 0;
+        html += '<div>';
+        html += '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px;">'
+          + '<span style="color:#8ab8cc;">📝 PG</span>'
+          + '<span style="color:var(--mint);">' + pgCorrect + '/' + pgList.length + ' benar &nbsp;·&nbsp; ' + pgEarnedP.toFixed(1) + '/' + pgMaxP + ' poin</span>'
+          + '</div>';
+        html += '<div class="breakdown-bar"><div class="breakdown-fill" style="width:' + pgBarPct + '%;background:linear-gradient(90deg,#34c98a,#5cc8f0);"></div></div>';
+        html += '</div>';
+      }
+
+      if (essMaxP > 0) {
+        var essBarPct  = (data.essay_graded && essMaxP > 0) ? Math.round((essEarnedP / essMaxP) * 100) : 0;
+        var essColor   = data.essay_graded ? '#ce93d8' : 'var(--amber)';
+        var essLabel   = data.essay_graded ? (essEarnedP.toFixed(1) + '/' + essMaxP + ' poin') : 'Belum dinilai AI';
+        html += '<div>';
+        html += '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px;">'
+          + '<span style="color:#8ab8cc;">📖 Essay</span>'
+          + '<span style="color:' + essColor + ';">' + essLabel + '</span>'
+          + '</div>';
+        html += '<div class="breakdown-bar"><div class="breakdown-fill" style="width:' + essBarPct + '%;background:linear-gradient(90deg,#9c27b0,#ce93d8);"></div></div>';
+        html += '</div>';
+      }
+
+      html += '</div></div>';
+    }
+
+    // ── Question cards ──
+    var pgIdx = 0, essIdx = 0;
+    filtered.forEach(function(q) {
+      if (q.type === 'PG') {
+        pgIdx++;
+        html += _renderPGCard(q, pgIdx);
+      } else if (q.type === 'ESSAY') {
+        essIdx++;
+        html += _renderEssayCard(q, essIdx, efm[essIdx] || null, data.essay_graded);
+      }
+    });
+
+    if (!filtered.length) {
+      html = '<div style="text-align:center;padding:40px;color:#4a7090;">Tidak ada soal pada kategori ini.</div>';
+    }
+
+    document.getElementById('drawerContent').innerHTML = html;
+  }
+
+  // ==========================================================
+  function _renderPGCard(q, num) {
+    var maxP    = parseFloat(q.points) || 0;
+    var answered = String(q.user_answer || '').trim() !== '';
+
+    var cardClass, statusHtml, pointColor;
+    if (!answered) {
+      cardClass   = 'q-card-pg q-unanswered';
+      statusHtml  = '<span style="background:rgba(232,168,58,0.15);color:var(--amber);border:1px solid rgba(232,168,58,0.3);padding:3px 10px;border-radius:20px;font-size:10.5px;font-weight:600;">— Tidak Dijawab</span>';
+      pointColor  = '#5a8fa8';
+    } else if (q.is_correct) {
+      cardClass   = 'q-card-pg q-correct';
+      statusHtml  = '<span style="background:rgba(52,201,138,0.15);color:var(--mint);border:1px solid rgba(52,201,138,0.3);padding:3px 10px;border-radius:20px;font-size:10.5px;font-weight:600;">✓ Benar</span>';
+      pointColor  = 'var(--mint)';
+    } else {
+      cardClass   = 'q-card-pg q-wrong';
+      statusHtml  = '<span style="background:rgba(242,109,81,0.15);color:var(--coral);border:1px solid rgba(242,109,81,0.3);padding:3px 10px;border-radius:20px;font-size:10.5px;font-weight:600;">✗ Salah</span>';
+      pointColor  = '#5a8fa8';
+    }
+
+    var earned = q.is_correct ? maxP : 0;
+
+    var html = '<div class="' + cardClass + '">';
+
+    // Q header
+    html += '<div style="display:flex;gap:10px;justify-content:space-between;align-items:flex-start;margin-bottom:11px;">';
+    html += '<div style="display:flex;gap:9px;flex:1;min-width:0;">';
+    html += '<span class="q-number-badge" style="background:rgba(92,200,240,0.1);color:var(--foam);">' + num + '</span>';
+    html += '<div style="font-size:13px;color:#d6edf8;line-height:1.6;">' + _escHtml(q.text) + '</div>';
+    html += '</div>';
+    html += '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">';
+    html += statusHtml;
+    html += '<span style="font-size:11px;color:' + pointColor + ';">' + earned + '/' + maxP + ' poin</span>';
+    html += '</div></div>';
+
+    // Options
+    if (q.options && q.options.length > 0) {
+      q.options.forEach(function(opt) {
+        var optStr    = String(opt || '').trim();
+        var isUser    = String(q.user_answer || '').trim().toLowerCase() === optStr.toLowerCase();
+        var isCorrect = String(q.correct_answer || '').trim().toLowerCase() === optStr.toLowerCase();
+
+        var rowClass, icon;
+        if      (isCorrect && isUser) { rowClass = 'opt-row opt-correct-chosen'; icon = '✓'; }
+        else if (isCorrect)           { rowClass = 'opt-row opt-correct-only';   icon = '✓'; }
+        else if (isUser)              { rowClass = 'opt-row opt-wrong-chosen';   icon = '✗'; }
+        else                          { rowClass = 'opt-row';                    icon = '○'; }
+
+        html += '<div class="' + rowClass + '">';
+        html += '<span style="width:14px;text-align:center;flex-shrink:0;font-size:12px;">' + icon + '</span>';
+        html += '<span' + (isUser ? ' style="font-weight:600;"' : '') + '>' + _escHtml(optStr) + '</span>';
+        if (isUser && !isCorrect) html += '<span style="font-size:10px;color:rgba(242,109,81,0.75);margin-left:auto;flex-shrink:0;">(Pilihan Mahasiswa)</span>';
+        html += '</div>';
+      });
+    }
+
+    html += '</div>';
+    return html;
+  }
+
+  // ==========================================================
+  function _renderEssayCard(q, num, feedback, isGraded) {
+    var maxP    = parseFloat(q.points) || 0;
+    var answered = String(q.user_answer || '').trim() !== '';
+    var rubrikId = 'rubrik-' + q.question_id.replace(/\W/g, '');
+
+    // Score badge
+    var scoreBadge;
+    if (isGraded && feedback) {
+      scoreBadge = '<span style="background:rgba(156,39,176,0.18);color:#ce93d8;border:1px solid rgba(156,39,176,0.32);padding:3px 10px;border-radius:20px;font-size:10.5px;font-weight:600;">' + _escHtml(feedback.scoreInfo) + '</span>';
+    } else if (!isGraded) {
+      scoreBadge = '<span style="background:rgba(232,168,58,0.13);color:var(--amber);border:1px solid rgba(232,168,58,0.28);padding:3px 10px;border-radius:20px;font-size:10.5px;font-weight:600;">Belum Dinilai</span>';
+    } else {
+      scoreBadge = '<span style="background:rgba(156,39,176,0.1);color:#ce93d8;border:1px solid rgba(156,39,176,0.18);padding:3px 10px;border-radius:20px;font-size:10.5px;font-weight:600;">Max ' + maxP + ' poin</span>';
+    }
+
+    var html = '<div class="q-card-essay">';
+
+    // Header
+    html += '<div style="display:flex;gap:10px;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">';
+    html += '<div style="display:flex;gap:9px;flex:1;min-width:0;">';
+    html += '<span class="q-number-badge" style="background:rgba(156,39,176,0.2);color:#ce93d8;">E' + num + '</span>';
+    html += '<div style="font-size:13px;color:#d6edf8;line-height:1.6;">' + _escHtml(q.text) + '</div>';
+    html += '</div>';
+    html += '<div style="flex-shrink:0;">' + scoreBadge + '</div>';
+    html += '</div>';
+
+    // Student answer
+    html += '<div style="margin-bottom:10px;">';
+    html += '<div style="font-size:10px;color:#5a7f9a;text-transform:uppercase;letter-spacing:.6px;font-weight:600;margin-bottom:6px;">Jawaban Mahasiswa</div>';
+    if (answered) {
+      html += '<div style="background:rgba(6,15,30,0.55);border:1px solid rgba(92,200,240,0.1);border-radius:9px;padding:12px 14px;font-size:13px;line-height:1.75;color:#c0dbe8;white-space:pre-wrap;word-break:break-word;">'
+            + _escHtml(q.user_answer) + '</div>';
+    } else {
+      html += '<div style="background:rgba(242,109,81,0.05);border:1px solid rgba(242,109,81,0.1);border-radius:9px;padding:10px 14px;font-size:12px;color:var(--coral);font-style:italic;">Tidak ada jawaban yang ditulis.</div>';
+    }
+    html += '</div>';
+
+    // Rubric (collapsible)
+    html += '<div style="margin-bottom:' + ((isGraded && feedback) ? '10px' : '2px') + ';">';
+    html += '<button class="rubrik-toggle" onclick="var el=document.getElementById(\'' + rubrikId + '\');el.style.display=el.style.display===\'none\'?\'block\':\'none\'">'
+          + '📋 Lihat Kunci / Rubrik Penilaian ▾</button>';
+    html += '<div id="' + rubrikId + '" style="display:none;margin-top:8px;background:rgba(92,200,240,0.03);border:1px solid rgba(92,200,240,0.1);border-radius:8px;padding:12px 14px;font-size:12px;color:#7aa0b8;line-height:1.75;white-space:pre-wrap;word-break:break-word;">'
+          + _escHtml(q.correct_answer || '-') + '</div>';
+    html += '</div>';
+
+    // AI Feedback
+    if (isGraded && feedback) {
+      html += '<div class="ai-feedback-box">';
+      html += '<div class="ai-feedback-label">🤖 Feedback AI</div>';
+      html += '<div style="font-size:12.5px;color:#d0ace0;line-height:1.8;">' + _escHtml(feedback.reasoning) + '</div>';
+      html += '</div>';
+    }
+
+    html += '</div>';
+    return html;
+  }
+
+  // ==========================================================
+  // Parse essay_feedback text → { 1: {scoreInfo, reasoning}, 2: ... }
+  // Format: "Essay 1 [X/Y poin]: reasoning\n\nEssay 2 [X/Y poin]: ..."
+  // ==========================================================
+  function _parseEssayFeedbackMap(feedbackStr) {
+    var result = {};
+    if (!feedbackStr) return result;
+    var regex = /Essay\s+(\d+)\s+\[([^\]]+)\]:\s*([\s\S]*?)(?=\nEssay\s+\d+\s+\[|$)/g;
+    var m;
+    while ((m = regex.exec(feedbackStr)) !== null) {
+      result[parseInt(m[1])] = {
+        scoreInfo: m[2].trim(),
+        reasoning: m[3].trim()
+      };
+    }
+    return result;
+  }
+
+  // Escape HTML entities
+  function _escHtml(str) {
+    return String(str || '')
+      .replace(/&/g,  '&amp;')
+      .replace(/</g,  '&lt;')
+      .replace(/>/g,  '&gt;')
+      .replace(/"/g,  '&quot;');
+  }
+
+  // ==========================================================
   // AI GRADING — CLIENT LOOP
   // ==========================================================
   function mulaiAIGrading() {
     if (aiRunning) return;
 
-    // Ambil mahasiswa yang sudah submit saja
     var kandidat = globalStudents.filter(function(s) { return s.status === 'Sudah'; });
-    if (kandidat.length === 0) {
-      alert('Belum ada mahasiswa yang mengumpulkan ujian.');
-      return;
-    }
+    if (kandidat.length === 0) { alert('Belum ada mahasiswa yang mengumpulkan ujian.'); return; }
 
     var konfirmasi = confirm(
       '🤖 Mulai penilaian Essay dengan AI?\n\n'
@@ -417,7 +1040,6 @@
     );
     if (!konfirmasi) return;
 
-    // Reset state
     aiRunning   = true;
     aiStopped   = false;
     aiQueue     = kandidat.map(function(s) { return s.userId; });
@@ -428,7 +1050,6 @@
     aiError     = 0;
     aiStartTime = Date.now();
 
-    // Tampilkan panel
     var panel = document.getElementById('ai-grading-panel');
     panel.style.display = 'block';
     panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -437,35 +1058,23 @@
     document.getElementById('ai-summary').style.display = 'none';
     document.getElementById('btnRefreshAfterAI').style.display = 'none';
     document.getElementById('btnStopAI').style.display = 'inline-block';
-
-    // Nonaktifkan tombol
     document.getElementById('btnGradeAI').disabled = true;
     document.getElementById('btnGradeAI').style.opacity = '0.5';
 
     _logAI('info', '🚀 Memulai AI Grading — ' + aiTotal + ' mahasiswa dalam antrian...');
     _updateProgressBar();
-
-    // Mulai proses pertama
     _prosesBerikutnya();
   }
 
   function _prosesBerikutnya() {
-    if (aiStopped || aiQueue.length === 0) {
-      _selesaiAIGrading();
-      return;
-    }
-
+    if (aiStopped || aiQueue.length === 0) { _selesaiAIGrading(); return; }
     var userId = aiQueue.shift();
     _logAI('info', '⏳ [' + (aiDone + 1) + '/' + aiTotal + '] Memproses: ' + userId + '...');
-
-    // Update baris tabel: tampilkan indikator loading
     var scoreCell = document.getElementById('td-score-' + userId);
     if (scoreCell) scoreCell.innerHTML = '<span class="badge badge-foam">🔄 AI...</span>';
-
     google.script.run
       .withSuccessHandler(function(res) {
         aiDone++;
-
         if (res.skipped) {
           aiSkip++;
           _logAI('skip', '⏭ ' + userId + ': Dilewati — ' + res.message);
@@ -479,27 +1088,17 @@
           _logAI('error', '❌ ' + userId + ': Gagal — ' + res.message);
           if (scoreCell) scoreCell.innerHTML = '<span class="badge" style="color:var(--coral);background:rgba(242,109,81,0.1);">Error</span>';
         }
-
         _updateProgressBar();
-
-        // Jeda sebelum mahasiswa berikutnya
-        if (aiQueue.length > 0 && !aiStopped) {
-          setTimeout(_prosesBerikutnya, AI_INTER_DELAY);
-        } else {
-          _selesaiAIGrading();
-        }
+        if (aiQueue.length > 0 && !aiStopped) { setTimeout(_prosesBerikutnya, AI_INTER_DELAY); }
+        else { _selesaiAIGrading(); }
       })
       .withFailureHandler(function(e) {
-        aiDone++;
-        aiError++;
+        aiDone++; aiError++;
         _logAI('error', '❌ ' + userId + ': Error GAS — ' + e.message);
         if (scoreCell) scoreCell.innerHTML = '<span class="badge" style="color:var(--coral);background:rgba(242,109,81,0.1);">Error</span>';
         _updateProgressBar();
-        if (aiQueue.length > 0 && !aiStopped) {
-          setTimeout(_prosesBerikutnya, AI_INTER_DELAY);
-        } else {
-          _selesaiAIGrading();
-        }
+        if (aiQueue.length > 0 && !aiStopped) { setTimeout(_prosesBerikutnya, AI_INTER_DELAY); }
+        else { _selesaiAIGrading(); }
       })
       .prosesSatuMahasiswaEssay(globalQuizId, userId);
   }
@@ -515,11 +1114,9 @@
     var totalDetik = Math.round((Date.now() - aiStartTime) / 1000);
     var menit = Math.floor(totalDetik / 60);
     var detik = totalDetik % 60;
-
     _updateProgressBar();
     _logAI('info', '─────────────────────────────');
     _logAI('info', '🏁 Selesai dalam ' + menit + 'm ' + detik + 'd');
-
     var summaryEl = document.getElementById('ai-summary');
     summaryEl.style.display = 'block';
     summaryEl.innerHTML =
@@ -528,7 +1125,6 @@
       + '&nbsp;• Dilewati (sudah dinilai): <b>' + aiSkip + '</b><br>'
       + '&nbsp;• Error: <b style="color:var(--coral);">' + aiError + '</b><br>'
       + '&nbsp;• Total waktu: ' + menit + 'm ' + detik + 'd';
-
     document.getElementById('btnStopAI').style.display = 'none';
     document.getElementById('btnRefreshAfterAI').style.display = 'inline-block';
     document.getElementById('btnGradeAI').disabled = false;
@@ -540,20 +1136,18 @@
     document.getElementById('progressFill').style.width = pct + '%';
     document.getElementById('progressPct').textContent  = pct + '%';
     document.getElementById('progressCount').textContent = aiDone + ' / ' + aiTotal;
-
     var elapsed = (Date.now() - aiStartTime) / 1000;
     var eta = aiDone > 0 ? Math.round((elapsed / aiDone) * (aiTotal - aiDone)) : null;
-    var etaText = eta !== null
+    document.getElementById('progressEta').textContent = eta !== null
       ? '⏱ Estimasi selesai dalam: ' + Math.floor(eta/60) + 'm ' + (eta%60) + 'd'
       : '⏱ Menghitung estimasi...';
-    document.getElementById('progressEta').textContent  = etaText;
     document.getElementById('progressText').textContent = aiStopped
       ? 'Dihentikan'
       : (aiDone < aiTotal ? 'Memproses mahasiswa ke-' + (aiDone + 1) + '...' : 'Selesai!');
   }
 
   function _logAI(jenis, pesan) {
-    var log = document.getElementById('ai-log');
+    var log   = document.getElementById('ai-log');
     var baris = document.createElement('div');
     baris.className = 'log-' + jenis;
     baris.innerHTML = '[' + _waktuSekarang() + '] ' + pesan;
@@ -573,10 +1167,10 @@
   // ==========================================================
   function toggleResetMode(force) {
     inResetMode = force !== undefined ? force : !inResetMode;
-    var btnInit  = document.getElementById('btnInitReset');
-    var actions  = document.getElementById('resetActions');
+    var btnInit   = document.getElementById('btnInitReset');
+    var actions   = document.getElementById('resetActions');
     var colChecks = document.querySelectorAll('.col-reset-check');
-    var nimHead  = document.getElementById('thNim');
+    var nimHead   = document.getElementById('thNim');
     if (inResetMode) {
       btnInit.style.display = 'none'; actions.style.display = 'flex'; nimHead.style.paddingLeft = '5px';
       colChecks.forEach(function(c) { c.style.display = 'table-cell'; });
@@ -595,10 +1189,10 @@
   }
 
   function updateResetButton() {
-    var chks = document.querySelectorAll('.student-checkbox:checked');
+    var chks    = document.querySelectorAll('.student-checkbox:checked');
     var btnExec = document.getElementById('btnExecReset');
     btnExec.textContent = '🔄 Eksekusi Reset (' + chks.length + ')';
-    btnExec.disabled = chks.length === 0;
+    btnExec.disabled    = chks.length === 0;
     btnExec.style.opacity = chks.length === 0 ? '0.5' : '1';
   }
 
@@ -638,7 +1232,7 @@
     var jenisNilai = document.getElementById('inputJenisNilaiCbt').value.trim();
     if (!jenisNilai) { alert('Isi Nama Jenis Penilaian!'); return; }
     if (!confirm('Submit nilai "' + jenisNilai + '" ke LMS?')) return;
-    var btn = document.getElementById('btnSubmitNilaiCbt');
+    var btn        = document.getElementById('btnSubmitNilaiCbt');
     var feedbackEl = document.getElementById('feedbackSubmitNilai');
     var feedbackTxt = document.getElementById('feedbackSubmitText');
     btn.textContent = '⏳ Mengirim...'; btn.disabled = true;
