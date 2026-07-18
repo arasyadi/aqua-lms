@@ -784,6 +784,23 @@ function getDetailJawabanMahasiswa(quizId, userId) {
 }
 
 // ============================================================
+// 18. Ambil log detail pelanggaran mahasiswa
+// ============================================================
+function getViolationLog(quizId, userId) {
+  var data = fbGet("aqualearn/cbt_violations/" + quizId + "/" + userId);
+  if (!data) return { success: true, violations: [], total: 0 };
+
+  var logArr = [];
+  if (Array.isArray(data)) {
+    logArr = data;
+  } else if (data.log && Array.isArray(data.log)) {
+    logArr = data.log;
+  }
+
+  return { success: true, violations: logArr, total: logArr.length };
+}
+
+// ============================================================
 // REPAIR — Reset data essay yang gagal di-grade AI
 // Jalankan sekali dari Apps Script Editor: Run > perbaikiEssayGagal
 // ============================================================
