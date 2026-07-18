@@ -324,6 +324,50 @@
       font-weight: 700;
       margin-bottom: 7px;
     }
+
+    /* ===== VIOLATION MODAL ===== */
+    #overlayViolation { z-index: 1150; }
+    #modalViolation {
+      max-width: 700px;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+    }
+    #modalViolation .modal-body {
+      overflow-y: auto;
+      padding-right: 4px;
+      flex: 1;
+    }
+    #modalViolation .modal-body::-webkit-scrollbar { width: 3px; }
+    #modalViolation .modal-body::-webkit-scrollbar-track { background: transparent; }
+    #modalViolation .modal-body::-webkit-scrollbar-thumb { background: rgba(242,109,81,0.2); border-radius: 99px; }
+
+    .violation-item {
+      background: rgba(242,109,81,0.04);
+      border: 1px solid rgba(242,109,81,0.12);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      color: #d6c0c0;
+      line-height: 1.7;
+    }
+    .violation-item .vio-time {
+      font-size: 10px;
+      color: var(--coral);
+      font-weight: 600;
+      margin-bottom: 2px;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+    .vio-reason-label {
+      font-size: 10px;
+      color: #5a7f9a;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-top: 6px;
+      margin-bottom: 3px;
+    }
   </style>
 </head>
 <body>
@@ -489,6 +533,24 @@
 </div>
 
 <!-- ================================================================
+     VIOLATION LOG MODAL
+================================================================ -->
+<div id="overlayViolation" class="overlay">
+  <div class="modal" id="modalViolation">
+    <div class="modal-header">
+      <h3 id="violationModalTitle">⚠️ Log Pelanggaran</h3>
+      <button onclick="tutupViolationModal()" style="background:none; border:none; color:#5a8fa8; font-size:18px; line-height:1; cursor:pointer;">✕</button>
+    </div>
+    <div class="modal-body" id="violationModalBody">
+      <div style="text-align:center; padding:30px; color:#5a8fa8;">Memuat data pelanggaran...</div>
+    </div>
+    <div style="margin-top:14px; text-align:right;">
+      <button onclick="tutupViolationModal()" class="btn-dark" style="padding:9px 22px; border-radius:10px; font-size:13px;">✕ Tutup</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================
      JAVASCRIPT
 ================================================================ -->
 <script>
@@ -535,12 +597,17 @@
       });
     });
 
-    // ESC key closes detail drawer
+    // ESC key closes detail drawer & violation modal
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape') {
         var drawerOv = document.getElementById('overlayDetailMahasiswa');
         if (drawerOv && drawerOv.style.display !== 'none') {
           tutupDetailMahasiswa();
+          return;
+        }
+        var vioOv = document.getElementById('overlayViolation');
+        if (vioOv && vioOv.style.display !== 'none') {
+          tutupViolationModal();
         }
       }
     });
@@ -734,9 +801,18 @@
       + ' fill="' + skorColor + '" font-family="Lora,serif" font-size="15" font-weight="700">' + skor + '</text>'
       + '</svg>';
 
-    // Badges info row
+    // Badges info row — pelanggaran sekarang clickable
     var infoParts = ['📅 ' + tgl];
-    if (data.violations > 0) infoParts.push('<span style="color:var(--coral);">⚠️ ' + data.violations + ' pelanggaran</span>');
+    if (data.violations > 0) {
+      infoParts.push(
+        '<span style="color:var(--coral);cursor:pointer;border-bottom:1px dashed rgba(242,109,81,0.4);padding-bottom:1px;transition:color .15s, border-color .15s;"'
+        + ' onmouseover="this.style.color=\'#f8a090\';this.style.borderBottomColor=\'rgba(248,160,144,0.6)\';"'
+        + ' onmouseout="this.style.color=\'var(--coral)\';this.style.borderBottomColor=\'rgba(242,109,81,0.4)\';"'
+        + ' onclick="event.stopPropagation();lihatPelanggaran(\'' + data.userId + '\',\'' + _escHtml(data.nama) + '\')"'
+        + ' title="Klik untuk melihat detail pelanggaran">'
+        + '⚠️ ' + data.violations + ' pelanggaran</span>'
+      );
+    }
     if (essList.length > 0) {
       infoParts.push(data.essay_graded
         ? '<span style="color:var(--mint);">✓ Essay dinilai AI</span>'
@@ -1020,6 +1096,89 @@
       .replace(/</g,  '&lt;')
       .replace(/>/g,  '&gt;')
       .replace(/"/g,  '&quot;');
+  }
+
+  // ==========================================================
+  // VIOLATION LOG — MODAL
+  // ==========================================================
+  function lihatPelanggaran(userId, nama) {
+    // Buka modal dengan loading state
+    var overlay = document.getElementById('overlayViolation');
+    var body    = document.getElementById('violationModalBody');
+    var title   = document.getElementById('violationModalTitle');
+
+    overlay.style.display = 'flex';
+    title.textContent = '⚠️ Log Pelanggaran — ' + nama;
+    body.innerHTML = '<div style="text-align:center; padding:30px; color:#5a8fa8;">⏳ Memuat data pelanggaran...</div>';
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res.success) {
+          body.innerHTML = '<div style="text-align:center; padding:30px; color:var(--coral);">❌ Gagal memuat: ' + _escHtml(res.message || 'Unknown error') + '</div>';
+          return;
+        }
+        _renderViolationModal(res, nama);
+      })
+      .withFailureHandler(function(e) {
+        body.innerHTML = '<div style="text-align:center; padding:30px; color:var(--coral);">❌ Error GAS: ' + _escHtml(e.message) + '</div>';
+      })
+      .getViolationLog(globalQuizId, userId);
+  }
+
+  function _renderViolationModal(data, nama) {
+    var body      = document.getElementById('violationModalBody');
+    var violations = data.violations || [];
+    var total      = data.total || violations.length;
+
+    if (violations.length === 0) {
+      body.innerHTML =
+        '<div style="text-align:center; padding:30px; color:var(--mint);">'
+        + '<div style="font-size:40px; margin-bottom:12px; opacity:.7;">✅</div>'
+        + '<div style="font-size:13px;">Tidak ada pelanggaran tercatat untuk <b>' + _escHtml(nama) + '</b>.</div>'
+        + '</div>';
+      return;
+    }
+
+    var html = '<div style="margin-bottom:10px; font-size:11px; color:#5a7f9a; text-transform:uppercase; letter-spacing:.5px;">'
+             + 'Total: <b style="color:var(--coral);">' + total + '</b> pelanggaran'
+             + '</div>';
+
+    // Urutkan berdasarkan timestamp (terbaru di atas) jika ada
+    var sorted = violations.slice();
+    sorted.sort(function(a, b) {
+      var ta = a.timestamp || a.time || 0;
+      var tb = b.timestamp || b.time || 0;
+      return tb - ta;
+    });
+
+    sorted.forEach(function(v, i) {
+      var reason = v.alasan || v.reason || 'Tidak ada keterangan';
+      var ts     = v.timestamp || v.time || null;
+      var timeStr = '-';
+      if (ts) {
+        try {
+          timeStr = new Date(ts).toLocaleString('id-ID', {
+            day: 'numeric', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+            timeZone: 'Asia/Makassar'
+          }) + ' WITA';
+        } catch(e) {
+          timeStr = String(ts);
+        }
+      }
+
+      html += '<div class="violation-item">';
+      html += '<div class="vio-time">#' + (i + 1) + ' &nbsp;·&nbsp; 🕒 ' + _escHtml(timeStr) + '</div>';
+      html += '<div class="vio-reason-label">📋 Alasan</div>';
+      html += '<div style="color:#e0c8c8; line-height:1.7;">' + _escHtml(reason) + '</div>';
+      html += '</div>';
+    });
+
+    body.innerHTML = html;
+  }
+
+  function tutupViolationModal() {
+    document.getElementById('overlayViolation').style.display = 'none';
   }
 
   // ==========================================================
