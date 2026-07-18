@@ -1,7 +1,15 @@
 // ============================================================
-// AQUATASK — BACKEND GOOGLE APPS SCRIPT  (Revisi)
+// AQUATASK — BACKEND GOOGLE APPS SCRIPT  (Revisi: Multi-File)
 // Sisipkan file ini di GAS project AquaLearn yang sama.
 // Semua path Firebase menggunakan prefix aqualearn/aquatask/
+//
+// PERUBAHAN DARI VERSI SEBELUMNYA:
+//   - aquaTaskSimpanTugas : tambah field max_files
+//   - aquaTaskSubmit      : terima fileUrls[] & fileNames[] (array)
+//                           tetap kompatibel dengan parameter lama
+//   - aquaTaskGetDashboard: sertakan file_urls & file_names dalam respons
+//   - aquaTaskGetDataMahasiswa: idem
+//   - aquaTaskExportCSV   : join multi-file URL dengan " | "
 // ============================================================
 
 // ============================================================
@@ -16,6 +24,7 @@ function _aquaSubId() {
 
 // ============================================================
 // 1. DOSEN — Simpan tugas baru
+//    BARU: field max_files (default 1, nilai 1–10)
 // ============================================================
 function aquaTaskSimpanTugas(courseId, taskData) {
   if (!courseId || !taskData || !taskData.judul) {
@@ -24,6 +33,9 @@ function aquaTaskSimpanTugas(courseId, taskData) {
 
   var taskId = _aquaTaskId();
   var path   = 'aqualearn/aquatask/tasks/' + courseId + '/' + taskId;
+  var maxF   = parseInt(taskData.max_files) || 1;
+  if (maxF < 1)  maxF = 1;
+  if (maxF > 10) maxF = 10;
 
   fbPut(path, {
     task_id:    taskId,
@@ -34,8 +46,11 @@ function aquaTaskSimpanTugas(courseId, taskData) {
     tipe:       taskData.tipe      || 'Individu',
     bobot:      parseFloat(taskData.bobot) || 0,
     deadline:   taskData.deadline  || '',
+    max_files:  maxF,
     created_at: new Date().toISOString()
   });
+
+  try { invalidateCourseCache(courseId); } catch(e) {}
 
   return { success: true, taskId: taskId, message: 'Tugas "' + taskData.judul + '" berhasil dibuat!' };
 }
@@ -48,6 +63,8 @@ function aquaTaskHapusTugas(courseId, taskId) {
 
   fbDelete('aqualearn/aquatask/tasks/'       + courseId + '/' + taskId);
   fbDelete('aqualearn/aquatask/submissions/' + taskId);
+
+  try { invalidateCourseCache(courseId); } catch(e) {}
 
   return { success: true, message: 'Tugas berhasil dihapus.' };
 }
@@ -69,11 +86,14 @@ function aquaTaskUpdateDeadline(courseId, taskId, newDeadline) {
 
   fbPatch(path, { deadline: newDeadline });
 
+  try { invalidateCourseCache(courseId); } catch(e) {}
+
   return { success: true, message: 'Deadline berhasil diperbarui.' };
 }
 
 // ============================================================
 // 4. MAHASISWA — Upload file ke Google Drive
+//    Tidak berubah; dipanggil satu kali per file dari frontend.
 // ============================================================
 function aquaTaskUploadFile(base64Data, fileName, mimeType, courseId) {
   if (!base64Data || !fileName) {
@@ -103,6 +123,7 @@ function aquaTaskUploadFile(base64Data, fileName, mimeType, courseId) {
 
 // ============================================================
 // 5. MAHASISWA — Ambil data untuk panel kumpul tugas
+//    BARU: sertakan file_urls & file_names di mySubmissions
 // ============================================================
 function aquaTaskGetDataMahasiswa(courseId, userId) {
   var tasksRaw = fbGet('aqualearn/aquatask/tasks/' + courseId) || {};
@@ -117,7 +138,7 @@ function aquaTaskGetDataMahasiswa(courseId, userId) {
     for (var sid in allSubs) {
       var sub = allSubs[sid];
       if (sub.anggota_kelompok && sub.anggota_kelompok.indexOf(userId) > -1) {
-        mySubmissions[t.task_id] = sub;
+        mySubmissions[t.task_id] = _normalizeSubFiles(sub);
         break;
       }
     }
@@ -146,10 +167,14 @@ function aquaTaskGetDataMahasiswa(courseId, userId) {
 
 // ============================================================
 // 6. MAHASISWA — Submit pengumpulan tugas
+//    BARU: fileUrls & fileNames bisa berupa array atau string
+//          (backward compatible dengan versi lama yang kirim
+//           string tunggal)
 // ============================================================
-function aquaTaskSubmit(taskId, courseId, userId, anggotaArr, fileUrl, fileName) {
+function aquaTaskSubmit(taskId, courseId, userId, anggotaArr, fileUrls, fileNames) {
   if (!taskId || !userId) return { success: false, message: 'Parameter tidak lengkap.' };
 
+  // Deadline check
   var taskData = fbGet('aqualearn/aquatask/tasks/' + courseId + '/' + taskId);
   if (taskData && taskData.deadline) {
     var dl = new Date(taskData.deadline).getTime();
@@ -158,12 +183,24 @@ function aquaTaskSubmit(taskId, courseId, userId, anggotaArr, fileUrl, fileName)
     }
   }
 
+  // Duplikat check
   var existing = fbGet('aqualearn/aquatask/submissions/' + taskId) || {};
   for (var sid in existing) {
     var sub = existing[sid];
     if (sub.anggota_kelompok && sub.anggota_kelompok.indexOf(userId) > -1) {
       return { success: false, message: 'Anda (atau kelompok Anda) sudah pernah mengumpulkan tugas ini.' };
     }
+  }
+
+  // Normalisasi fileUrls & fileNames ke array
+  // Frontend baru kirim array; jaga kompatibilitas jika ada pemanggil lama
+  var urlsArr  = Array.isArray(fileUrls)  ? fileUrls  : (fileUrls  ? [fileUrls]  : []);
+  var namesArr = Array.isArray(fileNames) ? fileNames : (fileNames ? [fileNames] : []);
+
+  // Validasi max_files
+  var maxF = parseInt(taskData && taskData.max_files) || 1;
+  if (urlsArr.length > maxF) {
+    return { success: false, message: 'Jumlah file melebihi batas yang diizinkan (' + maxF + ' file).' };
   }
 
   var subId = _aquaSubId();
@@ -173,14 +210,24 @@ function aquaTaskSubmit(taskId, courseId, userId, anggotaArr, fileUrl, fileName)
     course_id:        courseId,
     pengumpul_utama:  userId,
     anggota_kelompok: anggotaArr || [userId],
-    file_url:         fileUrl    || '',
-    file_nama:        fileName   || '',
+    // ── Multi-file fields (baru) ──
+    file_urls:        urlsArr,
+    file_names:       namesArr,
+    // ── Backward compat: simpan juga field lama (indeks 0) ──
+    file_url:         urlsArr[0]  || '',
+    file_nama:        namesArr[0] || '',
     waktu_kumpul:     new Date().toISOString(),
     nilai:            null,
     catatan_dosen:    ''
   });
 
-  return { success: true, subId: subId, message: 'Tugas berhasil dikumpulkan!' };
+  var jumlahFile = urlsArr.length;
+  return {
+    success: true,
+    subId:   subId,
+    message: 'Tugas berhasil dikumpulkan!' +
+             (jumlahFile > 1 ? ' (' + jumlahFile + ' file terkirim)' : '')
+  };
 }
 
 // ============================================================
@@ -205,6 +252,7 @@ function aquaTaskHapusSubmission(taskId, subId, courseId) {
 
 // ============================================================
 // 8. DOSEN — Ambil data dashboard (tugas + rekap pengumpulan)
+//    BARU: sertakan file_urls & file_names di setiap submission
 // ============================================================
 function aquaTaskGetDashboard(courseId) {
   var tasksRaw  = fbGet('aqualearn/aquatask/tasks/' + courseId) || {};
@@ -221,7 +269,8 @@ function aquaTaskGetDashboard(courseId) {
 
     var submissionsArr = [];
     for (var sid in subs) {
-      var s = subs[sid];
+      var s        = subs[sid];
+      var normSub  = _normalizeSubFiles(s);
       submissionsArr.push({
         sub_id:           s.sub_id,
         task_id:          tid,
@@ -231,8 +280,12 @@ function aquaTaskGetDashboard(courseId) {
         anggota_nama:     (s.anggota_kelompok || []).map(function(u) {
           return (usersData[u] && usersData[u].nama_lengkap) || u;
         }),
-        file_url:         s.file_url,
-        file_nama:        s.file_nama,
+        // ── Multi-file (baru) ──
+        file_urls:        normSub.file_urls,
+        file_names:       normSub.file_names,
+        // ── Backward compat ──
+        file_url:         normSub.file_url,
+        file_nama:        normSub.file_nama,
         waktu_kumpul:     s.waktu_kumpul,
         nilai:            s.nilai,
         catatan_dosen:    s.catatan_dosen || ''
@@ -257,8 +310,8 @@ function aquaTaskGetDashboard(courseId) {
 }
 
 // ============================================================
-// 9. DOSEN — Simpan nilai satu submission (batch ke anggota)
-//    Digunakan oleh modal Detail langsung.
+// 9. DOSEN — Simpan nilai satu submission (TANPA auto-sync LMS)
+//    Gunakan "📤 Submit Nilai ke LMS" untuk sinkronisasi manual.
 // ============================================================
 function aquaTaskSimpanNilai(taskId, courseId, subId, nilai, catatanDosen) {
   var n = parseFloat(nilai);
@@ -271,22 +324,15 @@ function aquaTaskSimpanNilai(taskId, courseId, subId, nilai, catatanDosen) {
     catatan_dosen: catatanDosen || ''
   });
 
-  var subData = fbGet('aqualearn/aquatask/submissions/' + taskId + '/' + subId);
-  if (subData && subData.anggota_kelompok && courseId) {
-    _distribusiNilai(courseId, taskId, subData.anggota_kelompok, n, catatanDosen);
-  }
+  // ── DIHAPUS: _distribusiNilai tidak dipanggil di sini ──
+  // Sinkronisasi ke Manajemen Nilai LMS dilakukan secara eksplisit
+  // melalui tombol "📤 Submit Nilai ke LMS" (aquaTaskSimpanNilaiBatch).
 
-  return { success: true, message: 'Nilai berhasil disimpan dan didistribusikan ke semua anggota!' };
+  return { success: true, message: 'Nilai berhasil disimpan.' };
 }
 
 // ============================================================
-// 10. DOSEN — Simpan nilai BATCH (satu panggilan untuk semua
-//     submission dalam satu tugas). Dipanggil dari modal
-//     "Submit Nilai ke LMS" — menggantikan loop di frontend
-//     sehingga lebih cepat dan mengurangi quota GAS.
-//
-//     nilaiBatch: [{ subId: string, nilai: number }, ...]
-//     label:      string — label tampilan di rekap nilai LMS
+// 10. DOSEN — Simpan nilai BATCH
 // ============================================================
 function aquaTaskSimpanNilaiBatch(taskId, courseId, nilaiBatch, label) {
   if (!taskId || !courseId || !nilaiBatch || !nilaiBatch.length) {
@@ -301,13 +347,11 @@ function aquaTaskSimpanNilaiBatch(taskId, courseId, nilaiBatch, label) {
       var n = parseFloat(item.nilai);
       if (isNaN(n) || n < 0 || n > 100) { gagal++; return; }
 
-      // Update submission record
       fbPatch('aqualearn/aquatask/submissions/' + taskId + '/' + item.subId, {
         nilai:         n,
         catatan_dosen: label || ''
       });
 
-      // Distribusi ke nilai per-mahasiswa
       var subData = fbGet('aqualearn/aquatask/submissions/' + taskId + '/' + item.subId);
       if (subData && subData.anggota_kelompok) {
         _distribusiNilai(courseId, taskId, subData.anggota_kelompok, n, label);
@@ -330,8 +374,6 @@ function aquaTaskSimpanNilaiBatch(taskId, courseId, nilaiBatch, label) {
 
 // ============================================================
 // INTERNAL — Distribusi nilai ke node aqualearn/nilai
-//   Dipakai bersama oleh aquaTaskSimpanNilai & batch.
-//   Key selalu safeKey(taskId) — idempoten, anti-duplikat.
 // ============================================================
 function _distribusiNilai(courseId, taskId, anggotaArr, n, labelOverride) {
   var cKey         = safeKey(courseId);
@@ -340,9 +382,8 @@ function _distribusiNilai(courseId, taskId, anggotaArr, n, labelOverride) {
   var label        = (labelOverride && labelOverride.trim())
                    ? labelOverride.trim()
                    : judulDefault;
-  var jKey         = safeKey(taskId);       // key tetap taskId — idempoten
+  var jKey         = safeKey(taskId);
 
-  // Hapus entri lama dengan key berbeda (migrasi)
   var oldKeys = [];
   if (safeKey(judulDefault) !== jKey) oldKeys.push(safeKey(judulDefault));
   if (labelOverride && safeKey(labelOverride.trim()) !== jKey) oldKeys.push(safeKey(labelOverride.trim()));
@@ -369,6 +410,7 @@ function _distribusiNilai(courseId, taskId, anggotaArr, n, labelOverride) {
 
 // ============================================================
 // 11. DOSEN — Export rekap ke format CSV
+//     BARU: multi-file URL digabung dengan " | "
 // ============================================================
 function aquaTaskExportCSV(taskId, courseId) {
   var taskData  = fbGet('aqualearn/aquatask/tasks/' + courseId + '/' + taskId);
@@ -376,19 +418,27 @@ function aquaTaskExportCSV(taskId, courseId) {
   var usersData = fbGet('aqualearn/users') || {};
 
   var judulTugas = taskData ? taskData.judul : taskId;
-  var rows = [['NIM', 'Nama Mahasiswa', 'Judul Tugas', 'Tipe', 'Pengumpul Utama', 'Waktu Kumpul', 'Nilai', 'Catatan Dosen']];
+  var rows = [['NIM', 'Nama Mahasiswa', 'Judul Tugas', 'Tipe', 'Pengumpul Utama',
+               'Waktu Kumpul', 'File URL', 'Nama File', 'Jumlah File', 'Nilai', 'Catatan Dosen']];
 
   for (var sid in subsRaw) {
-    var s    = subsRaw[sid];
-    var tipe = taskData ? taskData.tipe : '-';
+    var s        = subsRaw[sid];
+    var tipe     = taskData ? taskData.tipe : '-';
+    var norm     = _normalizeSubFiles(s);
     var pengumpulNama = (usersData[s.pengumpul_utama] && usersData[s.pengumpul_utama].nama_lengkap) || s.pengumpul_utama;
-    var waktu = s.waktu_kumpul ? new Date(s.waktu_kumpul).toLocaleString('id-ID') : '-';
+    var waktu    = s.waktu_kumpul ? new Date(s.waktu_kumpul).toLocaleString('id-ID') : '-';
+    var fileUrls = norm.file_urls.join(' | ');
+    var fileNames= norm.file_names.join(' | ');
+    var fileCount= norm.file_urls.length;
 
     (s.anggota_kelompok || [s.pengumpul_utama]).forEach(function(nim) {
       var nama = (usersData[nim] && usersData[nim].nama_lengkap) || nim;
-      rows.push([nim, nama, judulTugas, tipe, pengumpulNama, waktu,
-                 s.nilai !== null && s.nilai !== undefined ? s.nilai : '-',
-                 s.catatan_dosen || '']);
+      rows.push([
+        nim, nama, judulTugas, tipe, pengumpulNama, waktu,
+        fileUrls, fileNames, fileCount,
+        s.nilai !== null && s.nilai !== undefined ? s.nilai : '-',
+        s.catatan_dosen || ''
+      ]);
     });
   }
 
@@ -397,6 +447,37 @@ function aquaTaskExportCSV(taskId, courseId) {
   }).join('\n');
 
   return { success: true, csv: csv, judul: judulTugas };
+}
+
+// ============================================================
+// INTERNAL HELPER — Normalisasi field file submission
+//   Agar kompatibel dengan data lama (field tunggal) dan
+//   data baru (array file_urls / file_names).
+//   Selalu kembalikan objek dengan KEDUA format.
+// ============================================================
+function _normalizeSubFiles(sub) {
+  var urls, names;
+
+  if (sub.file_urls && Array.isArray(sub.file_urls) && sub.file_urls.length) {
+    // Data baru — array sudah ada
+    urls  = sub.file_urls;
+    names = sub.file_names || urls.map(function(_, i) { return 'File '+(i+1); });
+  } else if (sub.file_url) {
+    // Data lama — field tunggal, bungkus ke array
+    urls  = [sub.file_url];
+    names = [sub.file_nama || 'File Tugas'];
+  } else {
+    urls  = [];
+    names = [];
+  }
+
+  return {
+    file_urls:  urls,
+    file_names: names,
+    // backward compat fields
+    file_url:   urls[0]  || '',
+    file_nama:  names[0] || ''
+  };
 }
 
 // ============================================================
