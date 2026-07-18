@@ -1907,7 +1907,7 @@ function renderQuizzes(quizzes) {
       infoBlock =
         '<div style="background:rgba(13,61,107,0.4);border:1px solid rgba(92,200,240,0.12);'
         + 'border-radius:8px;padding:8px 10px;margin-bottom:12px;">'
-        + '<span style="font-size:11px;color:#5a8fa8;">📝 Kuis online via Google Forms</span>'
+        + '<span style="font-size:11px;color:#5a8fa8;">📝 Kuis / Tugas online via Google Forms</span>'
         + '</div>';
     }
 
@@ -1924,7 +1924,7 @@ function renderQuizzes(quizzes) {
       } else {
         btnStyle = 'background:linear-gradient(135deg,var(--sea),var(--wave));color:#fff;border:none;'
                  + 'box-shadow:0 3px 10px rgba(33,150,211,0.3);';
-        btnTxt   = '📝 Kerjakan Kuis';
+        btnTxt   = '📝 Kerjakan Kuis / Tugas';
       }
     } else { // cbt
       if (isDone) {
@@ -1983,7 +1983,19 @@ function bukaKuis(quizId, urlForm, tipe, btnId) {
 
   // ── TUGAS → buka AquaTask dengan credentials mahasiswa ──
   if (tipe === 'tugas' || (urlForm && urlForm.indexOf('page=aquatask') > -1)) {
-    var targetUrl = urlForm;
+
+    // Ganti courseId di URL dengan kelas aktif mahasiswa saat ini.
+    // Diperlukan karena saat konten diimpor antar kelas, URL tersalin apa adanya
+    // sehingga courseId masih menunjuk ke kelas asal.
+    var targetUrl = urlForm.replace(
+      /([?&])courseId=[^&]*/g,
+      '$1courseId=' + encodeURIComponent(activeCourseId)
+    );
+    // Jika courseId sama sekali tidak ada di URL, tambahkan
+    if (targetUrl.indexOf('courseId=') === -1) {
+      targetUrl += '&courseId=' + encodeURIComponent(activeCourseId);
+    }
+
     if (currentUserInfo) {
       targetUrl += '&userId='   + encodeURIComponent(currentUserInfo.userId)
                  + '&userRole=' + encodeURIComponent(currentUserInfo.role)
