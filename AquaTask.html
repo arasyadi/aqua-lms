@@ -117,20 +117,40 @@
     .instr-iframe-wrap{width:100%;height:600px;}
     .instr-iframe-wrap iframe{width:100%;height:100%;border:none;display:block;}
 
-    /* FILE UPLOAD */
-    .file-drop{border:2px dashed rgba(92,200,240,0.35);border-radius:12px;padding:28px 20px;
+    /* ── FILE UPLOAD (Multi-file) ── */
+    .file-drop{border:2px dashed rgba(92,200,240,0.35);border-radius:12px;padding:22px 20px;
       text-align:center;cursor:pointer;transition:border-color .2s,background .2s;background:rgba(6,15,30,0.4);}
     .file-drop:hover,.file-drop.drag{border-color:var(--wave);background:rgba(33,150,211,0.08);}
     .file-drop.has-file{border-color:var(--mint);background:rgba(52,201,138,0.06);}
-    .file-drop .icon{font-size:36px;margin-bottom:10px;}
+    .file-drop .icon{font-size:32px;margin-bottom:8px;}
     .file-drop .text{font-size:13px;color:var(--slate);}
-    .file-drop .fname{font-size:13px;font-weight:600;color:var(--foam);margin-top:6px;}
-    .upload-progress{height:6px;border-radius:99px;margin-top:12px;
+    .file-drop .text-sm{font-size:11px;color:#3a6a85;margin-top:3px;}
+
+    /* File queue list */
+    .file-queue{margin-top:10px;display:flex;flex-direction:column;gap:6px;}
+    .file-queue-item{display:flex;align-items:center;gap:8px;padding:7px 10px;
+      background:rgba(6,15,30,0.5);border:1px solid rgba(92,200,240,0.15);border-radius:8px;}
+    .file-queue-item .fq-icon{font-size:16px;flex-shrink:0;}
+    .file-queue-item .fq-name{font-size:12px;color:var(--foam);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .file-queue-item .fq-size{font-size:10px;color:var(--slate);flex-shrink:0;}
+    .file-queue-item .fq-status{font-size:11px;flex-shrink:0;min-width:60px;text-align:right;}
+    .fq-status.pending {color:var(--slate);}
+    .fq-status.uploading{color:var(--amber);}
+    .fq-status.done    {color:var(--mint);}
+    .fq-status.error   {color:var(--coral);}
+    .fq-remove{background:none;border:none;color:var(--slate);cursor:pointer;padding:2px 5px;
+      border-radius:4px;font-size:13px;transition:color .15s;}
+    .fq-remove:hover{color:var(--coral);}
+
+    /* Max-files badge inside drop zone */
+    .max-files-chip{display:inline-flex;align-items:center;gap:4px;margin-top:6px;
+      font-size:10px;padding:2px 8px;border-radius:20px;
+      background:rgba(33,150,211,0.1);border:1px solid rgba(33,150,211,0.25);color:var(--wave);}
+
+    .upload-progress{height:6px;border-radius:99px;margin-top:10px;
       background:rgba(33,150,211,0.12);overflow:hidden;display:none;position:relative;}
     .upload-progress-fill{height:100%;border-radius:99px;width:0%;
       background:linear-gradient(90deg,var(--sea),var(--foam));transition:width .4s ease;}
-
-    /* INDETERMINATE / SHIMMER */
     .upload-progress-fill.shimmer{
       width:100% !important;
       background:linear-gradient(90deg,transparent 0%,var(--foam) 50%,transparent 100%);
@@ -138,10 +158,10 @@
       animation:shimmer 1.5s infinite;
       transition:none !important;
     }
-    @keyframes shimmer{
-      0%  {background-position:200% center;}
-      100%{background-position:-200% center;}
-    }
+    @keyframes shimmer{0%{background-position:200% center;}100%{background-position:-200% center;}}
+
+    /* Upload step label */
+    .upload-step-label{font-size:11px;color:var(--slate);margin-top:6px;text-align:center;display:none;}
 
     /* BATCH PROGRESS BAR */
     .batch-progress-wrap{margin-bottom:12px;display:none;}
@@ -223,6 +243,9 @@
     .file-link:hover{background:rgba(92,200,240,0.15);}
     .file-link .file-ext{font-size:10px;color:var(--slate);}
 
+    /* Multi file links row */
+    .file-links-row{display:flex;flex-wrap:wrap;gap:6px;}
+
     /* LOADING */
     .loading-wrap{text-align:center;padding:40px;color:var(--slate);font-size:13px;}
     .spinner{display:inline-block;width:32px;height:32px;border:3px solid rgba(92,200,240,0.2);
@@ -245,17 +268,11 @@
     .toast-error   .toast-title,.toast-error   .toast-msg{color:var(--coral);}
     .toast-info    .toast-title,.toast-info    .toast-msg{color:var(--foam);}
     .toast-warn    .toast-title,.toast-warn    .toast-msg{color:var(--amber);}
-    /* Undo toast */
-    .toast-undo-btn{display:inline-flex;align-items:center;margin-top:6px;
-      font-size:10px;font-family:'Sora',sans-serif;font-weight:700;
-      padding:3px 9px;border-radius:5px;border:1px solid rgba(242,109,81,0.45);
-      background:rgba(242,109,81,0.15);color:var(--coral);cursor:pointer;
-      transition:background .15s;}
-    .toast-undo-btn:hover{background:rgba(242,109,81,0.3);}
 
     /* UTILS */
     .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-    @media(max-width:540px){.grid-2{grid-template-columns:1fr;}}
+    .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+    @media(max-width:540px){.grid-2,.grid-3{grid-template-columns:1fr;}}
     .flex{display:flex;} .items-center{align-items:center;}
     .justify-between{justify-content:space-between;} .flex-wrap{flex-wrap:wrap;}
     .mb-3{margin-bottom:.75rem;} .mb-4{margin-bottom:1rem;}
@@ -309,17 +326,32 @@
       <p class="form-hint">💡 Nilai didistribusikan otomatis ke semua anggota yang dicentang.</p>
     </div>
     <div class="form-section">
-      <label class="form-label">File Tugas</label>
-      <div class="file-drop" id="fileDrop" onclick="document.getElementById('fileInput').click()" ondragover="handleDrag(event,true)" ondragleave="handleDrag(event,false)" ondrop="handleDrop(event)">
+      <label class="form-label">
+        File Tugas
+        <span id="maxFilesLabel" style="color:var(--wave);margin-left:6px;font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;"></span>
+      </label>
+      <!-- Drop zone -->
+      <div class="file-drop" id="fileDrop"
+           onclick="document.getElementById('fileInput').click()"
+           ondragover="handleDrag(event,true)"
+           ondragleave="handleDrag(event,false)"
+           ondrop="handleDrop(event)">
         <div class="icon">📁</div>
-        <div class="text">Klik atau seret file ke sini</div>
-        <div class="text" style="font-size:11px;margin-top:4px;">PDF, DOC, DOCX, PPT, PPTX, JPG, PNG, ZIP — maks 10 MB</div>
-        <div class="fname" id="fileNameDisplay" style="display:none;"></div>
+        <div class="text" id="fileDropText">Klik atau seret file ke sini</div>
+        <div class="text-sm" id="fileDropHint">PDF, DOC, DOCX, PPT, PPTX, JPG, PNG, ZIP — maks 10 MB/file</div>
+        <div id="maxFilesChip" class="max-files-chip" style="display:none;">📎 Maks <span id="maxFilesNum">1</span> file</div>
       </div>
-      <input type="file" id="fileInput" style="display:none;" accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png,.zip,.rar" onchange="handleFileSelect(this)">
+      <!-- Hidden file input — multiple controlled by JS -->
+      <input type="file" id="fileInput" style="display:none;"
+             accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png,.zip,.rar"
+             onchange="handleFileSelect(this)">
+      <!-- File queue -->
+      <div class="file-queue" id="fileQueue"></div>
+      <!-- Progress bar -->
       <div class="upload-progress" id="uploadProgress">
         <div class="upload-progress-fill" id="uploadProgressFill"></div>
       </div>
+      <div class="upload-step-label" id="uploadStepLabel"></div>
     </div>
     <div style="display:flex;gap:10px;">
       <button class="btn btn-teal" style="flex:1;" id="btnSubmitTugas" onclick="eksekusiSubmit()">📤 Kumpulkan Sekarang</button>
@@ -348,7 +380,7 @@
       <input type="url" class="form-input" id="newTaskDocsUrl" placeholder="https://docs.google.com/document/d/...">
       <p class="form-hint">Pastikan Docs sudah dipublish (File → Share → Publish to web) agar bisa ditampilkan.</p>
     </div>
-    <div class="grid-2 mb-4">
+    <div class="grid-3 mb-4">
       <div>
         <label class="form-label">Tipe Tugas</label>
         <select class="form-input" id="newTaskTipe">
@@ -359,6 +391,17 @@
       <div>
         <label class="form-label">Bobot (%)</label>
         <input type="number" class="form-input" id="newTaskBobot" min="0" max="100" placeholder="Contoh: 20">
+      </div>
+      <div>
+        <label class="form-label">Maks File Upload</label>
+        <select class="form-input" id="newTaskMaxFiles">
+          <option value="1">1 file</option>
+          <option value="2">2 file</option>
+          <option value="3">3 file</option>
+          <option value="5">5 file</option>
+          <option value="10">10 file</option>
+        </select>
+        <p class="form-hint" style="margin-top:4px;">Jumlah maks file per pengumpulan.</p>
       </div>
     </div>
     <div class="form-section">
@@ -412,10 +455,8 @@
       <p class="form-hint">
         💡 Label ini hanya untuk tampilan di rekap nilai — tidak mempengaruhi perhitungan atau penyimpanan data.<br>
         ⚠️ Harus sama persis dengan komponen di Pengaturan Nilai Akhir LMS jika ingin terhitung otomatis.
-        Label bisa diubah kapan saja tanpa merusak data yang sudah tersimpan.
       </p>
     </div>
-    <!-- Batch progress -->
     <div class="batch-progress-wrap" id="batchProgressWrap">
       <div class="batch-progress-label">
         <span id="batchProgressText">Mengirim…</span>
@@ -452,19 +493,17 @@
 var _state = {
   role:null, courseId:null, userId:null, userName:null,
   tasks:[], mySubmissions:{}, mahasiswaList:[],
-  dosenData:null, activeTaskId:null, selectedAnggota:[], selectedFile:null
+  dosenData:null, activeTaskId:null, selectedAnggota:[],
+  /* Multi-file: array of File objects */
+  selectedFiles:[], activeMaxFiles:1
 };
 var _editDeadlineCtx = { courseId:null, taskId:null };
 
 /* ═══════════════════════════════════════
-   SESSION CACHE  (stale-while-revalidate)
-   TTL: 45 s — setelah mutasi selalu force-refresh
+   SESSION CACHE
    ═══════════════════════════════════════ */
 var _CACHE_TTL = 45000;
-
-function _saveCache(k, v) {
-  try { sessionStorage.setItem('aq_'+k, JSON.stringify({d:v, t:Date.now()})); } catch(e) {}
-}
+function _saveCache(k, v) { try { sessionStorage.setItem('aq_'+k, JSON.stringify({d:v, t:Date.now()})); } catch(e) {} }
 function _loadCache(k) {
   try {
     var raw = sessionStorage.getItem('aq_'+k);
@@ -503,36 +542,98 @@ window.onload = function() {
     }
 
     document.getElementById('userBadge').textContent = '🎓 ' + _state.userName;
-
     if (_state.role === 'Dosen') _muatDosen(); else _muatMahasiswa();
   });
 };
 
-/* ═══════════════════════════════════════
-   LOADING HELPER
-   ═══════════════════════════════════════ */
 function _showLoadingMain() {
   document.getElementById('mainContainer').innerHTML =
     '<div class="loading-wrap"><div class="spinner"></div><br>Memuat data…</div>';
 }
 
 /* ═══════════════════════════════════════
-   FILE HELPERS
+   FILE HELPERS — MULTI-FILE
    ═══════════════════════════════════════ */
-function handleFileSelect(input) { if (input.files && input.files[0]) _setFile(input.files[0]); }
+function handleFileSelect(input) {
+  if (!input.files || !input.files.length) return;
+  for (var i = 0; i < input.files.length; i++) _addFile(input.files[i]);
+  input.value = ''; // reset agar bisa pilih file sama lagi
+}
 function handleDrag(e, over) { e.preventDefault(); document.getElementById('fileDrop').classList.toggle('drag', over); }
-function handleDrop(e) { e.preventDefault(); document.getElementById('fileDrop').classList.remove('drag'); if (e.dataTransfer.files[0]) _setFile(e.dataTransfer.files[0]); }
-function _setFile(file) {
-  if (file.size > 10 * 1024 * 1024) { _toast('File melebihi 10 MB!', 'error'); return; }
-  _state.selectedFile = file;
-  var drop = document.getElementById('fileDrop');
-  var nm   = document.getElementById('fileNameDisplay');
-  drop.classList.add('has-file');
-  nm.textContent = _fileIcon(file.name) + ' ' + file.name + ' (' + _fmtSize(file.size) + ')';
-  nm.style.display = 'block';
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('fileDrop').classList.remove('drag');
+  if (!e.dataTransfer.files.length) return;
+  for (var i = 0; i < e.dataTransfer.files.length; i++) _addFile(e.dataTransfer.files[i]);
 }
 
-/* ikon berdasarkan ekstensi file */
+function _addFile(file) {
+  var maxF = _state.activeMaxFiles || 1;
+
+  if (file.size > 10 * 1024 * 1024) {
+    _toast('File "'+file.name+'" melebihi 10 MB!', 'error'); return;
+  }
+  /* Cek nama duplikat */
+  for (var i = 0; i < _state.selectedFiles.length; i++) {
+    if (_state.selectedFiles[i].name === file.name) {
+      _toast('"'+file.name+'" sudah ada di daftar.', 'warn'); return;
+    }
+  }
+  if (_state.selectedFiles.length >= maxF) {
+    _toast('Maksimum ' + maxF + ' file untuk tugas ini.', 'warn'); return;
+  }
+  _state.selectedFiles.push(file);
+  _renderFileQueue();
+}
+
+function _removeFile(idx) {
+  _state.selectedFiles.splice(idx, 1);
+  _renderFileQueue();
+}
+
+function _renderFileQueue() {
+  var qEl = document.getElementById('fileQueue');
+  var drop = document.getElementById('fileDrop');
+  var maxF = _state.activeMaxFiles || 1;
+  qEl.innerHTML = '';
+
+  if (!_state.selectedFiles.length) {
+    drop.classList.remove('has-file');
+    return;
+  }
+  drop.classList.add('has-file');
+
+  _state.selectedFiles.forEach(function(f, idx) {
+    var item = _el('div', { className:'file-queue-item' });
+    item.innerHTML =
+      '<span class="fq-icon">'+_fileIcon(f.name)+'</span>'
+      +'<span class="fq-name">'+_truncate(f.name,36)+'</span>'
+      +'<span class="fq-size">'+_fmtSize(f.size)+'</span>'
+      +'<span class="fq-status pending" id="fq-status-'+idx+'">⏳ Antri</span>';
+    var rmBtn = _el('button', { className:'fq-remove' });
+    rmBtn.textContent = '✕';
+    rmBtn.title = 'Hapus file ini';
+    rmBtn.addEventListener('click', (function(i){ return function(){ _removeFile(i); }; })(idx));
+    item.appendChild(rmBtn);
+    qEl.appendChild(item);
+  });
+
+  /* Update hint di drop zone */
+  var remaining = maxF - _state.selectedFiles.length;
+  document.getElementById('fileDropText').textContent =
+    remaining > 0
+      ? (maxF > 1 ? '+ Tambah file ('+remaining+' slot tersisa)' : '✓ File terpilih')
+      : '✓ Maks file tercapai';
+}
+
+function _setFileQueueStatus(idx, status, label) {
+  var el = document.getElementById('fq-status-'+idx);
+  if (!el) return;
+  el.className = 'fq-status ' + status;
+  el.textContent = label;
+}
+
+/* ikon berdasarkan ekstensi */
 function _fileIcon(nama) {
   if (!nama) return '📄';
   var ext = (nama.split('.').pop() || '').toLowerCase();
@@ -550,7 +651,34 @@ function _truncate(str, n) {
 }
 
 /* ═══════════════════════════════════════
-   MAHASISWA — LOAD (dengan cache)
+   MULTI-FILE LINK RENDER HELPER
+   Kompatibel dengan data lama (file_url) dan baru (file_urls[])
+   ═══════════════════════════════════════ */
+function _buildFileLinkNodes(sub) {
+  /* Normalize ke arrays */
+  var urls  = sub.file_urls  || (sub.file_url  ? [sub.file_url]  : []);
+  var names = sub.file_names || (sub.file_nama ? [sub.file_nama] : []);
+
+  if (!urls.length) return null;
+
+  var row = _el('div', { className:'file-links-row' });
+  urls.forEach(function(url, i) {
+    var nm  = names[i] || ('File '+(i+1));
+    var a   = _el('a', { href:url, target:'_blank', className:'file-link' });
+    a.innerHTML = '<span>'+_fileIcon(nm)+'</span>'
+      + '<span>'+_truncate(nm, 22)+'</span>';
+    if (urls.length > 1) {
+      var idx = _el('span', { className:'file-ext' });
+      idx.textContent = (i+1)+'/'+urls.length;
+      a.appendChild(idx);
+    }
+    row.appendChild(a);
+  });
+  return row;
+}
+
+/* ═══════════════════════════════════════
+   MAHASISWA — LOAD
    ═══════════════════════════════════════ */
 function _muatMahasiswa(force) {
   var cKey   = _cKeyMhs();
@@ -565,11 +693,15 @@ function _muatMahasiswa(force) {
   if (cached) {
     _applyData(cached);
     _renderMahasiswaView();
-    /* Background refresh — update cache tanpa re-render */
     _showStaleBadge(true);
     google.script.run
-      .withSuccessHandler(function(data) { _saveCache(cKey, data); _showStaleBadge(false); })
-      .withFailureHandler(function()     { _showStaleBadge(false); })
+      .withSuccessHandler(function(data) {
+        _saveCache(cKey, data);
+        _applyData(data);
+        _renderMahasiswaView();
+        _showStaleBadge(false);
+      })
+      .withFailureHandler(function() { _showStaleBadge(false); })
       .aquaTaskGetDataMahasiswa(_state.courseId, _state.userId);
     return;
   }
@@ -624,6 +756,9 @@ function _renderMahasiswaView() {
 
     var top = _el('div', { style:'display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap;gap:8px;' });
     top.appendChild(_badge(t.tipe==='Kelompok' ? 'badge-purple':'badge-foam', (t.tipe==='Kelompok'?'👥 ':'📋 ')+t.tipe));
+    /* Max files badge */
+    var mf = parseInt(t.max_files) || 1;
+    if (mf > 1) top.appendChild(_badge('badge-amber', '📎 Maks '+mf+' file'));
     var dlCls  = isLate ? 'dl-closed' : (dlMs && dlMs-now < 86400000 ? 'dl-warn' : 'dl-open');
     var dlChip = _el('span', { className:'dl-chip '+dlCls });
     dlChip.textContent = dlMs ? (isLate ? '🔒 Ditutup' : '⏰ '+_fmtDl(dlMs)) : '—';
@@ -660,18 +795,13 @@ function _renderMahasiswaView() {
       var nilaiTxt = (sub.nilai !== null && sub.nilai !== undefined)
         ? ' · Nilai: <strong>'+sub.nilai+'</strong>'
         : ' · <em style="color:#8ab8cc;">Menunggu penilaian dosen</em>';
-      info.innerHTML = '✅ Dikumpulkan '+_fmtWaktu(sub.waktu_kumpul)+nilaiTxt;
+      var fileCount = (sub.file_urls && sub.file_urls.length) || (sub.file_url ? 1 : 0);
+      var fileTxt   = fileCount > 1 ? ' · '+fileCount+' file dikumpulkan' : '';
+      info.innerHTML = '✅ Dikumpulkan '+_fmtWaktu(sub.waktu_kumpul)+nilaiTxt+fileTxt;
       card.appendChild(info);
-      /* File link dengan ikon & nama */
-      if (sub.file_url) {
-        var bf = _el('a', {
-          href:sub.file_url, target:'_blank',
-          className:'file-link'
-        });
-        bf.innerHTML = '<span>'+_fileIcon(sub.file_nama)+'</span>'
-          + '<span>'+_truncate(sub.file_nama || 'Lihat File Tugas', 36)+'</span>';
-        card.appendChild(bf);
-      }
+      /* File links (multi-file aware) */
+      var fileNodes = _buildFileLinkNodes(sub);
+      if (fileNodes) card.appendChild(fileNodes);
     } else if (isLate) {
       card.appendChild(_elText('p','🔒 Batas waktu pengumpulan telah lewat.','font-size:12px;color:var(--coral);font-weight:600;'));
     } else {
@@ -688,28 +818,57 @@ function _renderMahasiswaView() {
    ═══════════════════════════════════════ */
 function bukaModalSubmit(task) {
   _state.activeTaskId    = task.task_id;
+  _state.activeMaxFiles  = parseInt(task.max_files) || 1;
   _state.selectedAnggota = [_state.userId];
-  _state.selectedFile    = null;
+  _state.selectedFiles   = [];
+
+  /* Reset UI */
   var drop = document.getElementById('fileDrop');
   drop.classList.remove('has-file','drag');
-  document.getElementById('fileNameDisplay').style.display = 'none';
+  document.getElementById('fileQueue').innerHTML = '';
   document.getElementById('fileInput').value = '';
+  document.getElementById('fileDropText').textContent = 'Klik atau seret file ke sini';
+
   var bar  = document.getElementById('uploadProgress');
   var fill = document.getElementById('uploadProgressFill');
-  bar.style.display = 'none';
-  fill.style.width  = '0%';
-  fill.classList.remove('shimmer');
+  bar.style.display = 'none'; fill.style.width = '0%'; fill.classList.remove('shimmer');
+  var stepLbl = document.getElementById('uploadStepLabel');
+  stepLbl.style.display = 'none'; stepLbl.textContent = '';
 
+  /* Max files chip & label */
+  var maxF     = _state.activeMaxFiles;
+  var maxChip  = document.getElementById('maxFilesChip');
+  var maxLbl   = document.getElementById('maxFilesLabel');
+  var fileInp  = document.getElementById('fileInput');
+
+  if (maxF > 1) {
+    maxChip.style.display = 'inline-flex';
+    document.getElementById('maxFilesNum').textContent = maxF;
+    maxLbl.textContent = '(maks '+maxF+' file)';
+    fileInp.setAttribute('multiple', 'multiple');
+    document.getElementById('fileDropHint').textContent =
+      'PDF, DOC, DOCX, PPT, PPTX, JPG, PNG, ZIP — maks 10 MB/file · Pilih hingga '+maxF+' file';
+  } else {
+    maxChip.style.display = 'none';
+    maxLbl.textContent = '(1 file)';
+    fileInp.removeAttribute('multiple');
+    document.getElementById('fileDropHint').textContent =
+      'PDF, DOC, DOCX, PPT, PPTX, JPG, PNG, ZIP — maks 10 MB';
+  }
+
+  /* Task info */
   var infoEl = document.getElementById('submitTaskInfo');
   var lines  = [
     '<strong style="color:var(--foam);">'+task.judul+'</strong>',
     'Tipe: <strong>'+task.tipe+'</strong>',
     task.bobot    ? 'Bobot: <strong>'+task.bobot+'%</strong>'    : '',
-    task.deadline ? 'Deadline: <strong>'+_fmtDl(new Date(task.deadline).getTime())+'</strong>' : ''
+    task.deadline ? 'Deadline: <strong>'+_fmtDl(new Date(task.deadline).getTime())+'</strong>' : '',
+    maxF > 1      ? 'Maks file: <strong>'+maxF+'</strong>'       : ''
   ].filter(Boolean);
   infoEl.innerHTML = lines.join(' &nbsp;·&nbsp; ');
   document.getElementById('submitPengumpul').textContent = _state.userId + ' — ' + _state.userName;
 
+  /* Anggota kelompok */
   var secAngg = document.getElementById('sectionAnggota');
   var listEl  = document.getElementById('anggotaList');
   listEl.innerHTML = '';
@@ -741,83 +900,102 @@ function _updateAnggotaCount() {
 function tutupModalSubmit() { document.getElementById('modalSubmit').classList.remove('visible'); }
 
 /* ═══════════════════════════════════════
-   EKSEKUSI SUBMIT — Indeterminate progress
+   EKSEKUSI SUBMIT — Sequential multi-file upload
    ═══════════════════════════════════════ */
 function eksekusiSubmit() {
-  if (!_state.selectedFile) { _toast('Pilih file tugas terlebih dahulu!','error'); return; }
-  var btn  = document.getElementById('btnSubmitTugas');
-  var bar  = document.getElementById('uploadProgress');
-  var fill = document.getElementById('uploadProgressFill');
-  var nm   = document.getElementById('fileNameDisplay');
+  if (!_state.selectedFiles.length) { _toast('Pilih minimal 1 file tugas!','error'); return; }
 
-  btn.textContent = '⏳ Mengupload file…'; btn.disabled = true;
-  bar.style.display = 'block';
+  var btn      = document.getElementById('btnSubmitTugas');
+  var bar      = document.getElementById('uploadProgress');
+  var fill     = document.getElementById('uploadProgressFill');
+  var stepLbl  = document.getElementById('uploadStepLabel');
+  var totalF   = _state.selectedFiles.length;
+  var uploadedUrls  = [];
+  var uploadedNames = [];
 
-  /* ← SHIMMER / INDETERMINATE (bukan fake interval) */
-  fill.classList.add('shimmer');
+  btn.textContent = '⏳ Mengupload…'; btn.disabled = true;
+  bar.style.display = 'block'; fill.style.width = '0%'; fill.classList.remove('shimmer');
+  stepLbl.style.display = 'block';
 
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    var b64 = e.target.result.split(',')[1];
+  /* Sequential upload recursive */
+  function _uploadNext(idx) {
+    if (idx >= totalF) {
+      /* Semua file terupload — simpan submission */
+      var pctBase = 80;
+      fill.style.width = pctBase + '%';
+      stepLbl.textContent = 'Menyimpan pengumpulan…';
+      btn.textContent = '⏳ Menyimpan…';
 
-    google.script.run
-      .withSuccessHandler(function(upRes) {
-        /* hentikan shimmer */
-        fill.classList.remove('shimmer');
-
-        if (!upRes.success) {
-          fill.style.width = '0%'; bar.style.display = 'none';
+      google.script.run
+        .withSuccessHandler(function(res) {
+          fill.style.width = '100%';
+          setTimeout(function(){ bar.style.display='none'; fill.style.width='0%'; stepLbl.style.display='none'; }, 700);
           btn.textContent = '📤 Kumpulkan Sekarang'; btn.disabled = false;
-          _toast('Upload gagal: '+upRes.message,'error'); return;
-        }
+          if (res.success) {
+            _toast(res.message,'success');
+            tutupModalSubmit();
+            _clearCache(_cKeyMhs());
+            _muatMahasiswa(true);
+          } else { _toast(res.message,'error'); }
+        })
+        .withFailureHandler(function(err) {
+          _resetUploadUI(btn, bar, fill, stepLbl);
+          _toast('Gagal menyimpan: '+err.message,'error');
+        })
+        .aquaTaskSubmit(
+          _state.activeTaskId, _state.courseId, _state.userId,
+          _state.selectedAnggota, uploadedUrls, uploadedNames
+        );
+      return;
+    }
 
-        /* Tampilkan info file yang dikonfirmasi server */
-        nm.textContent = _fileIcon(upRes.fileName)+' '+upRes.fileName+' ✓ Terupload';
-        nm.style.display = 'block';
+    /* Update progress & status */
+    var pct = Math.round((idx / totalF) * 75);
+    fill.style.width = pct + '%';
+    stepLbl.textContent = 'Mengupload file '+(idx+1)+' dari '+totalF+'…';
+    _setFileQueueStatus(idx, 'uploading', '⬆️ Upload…');
 
-        /* Progress ke 75% saat menyimpan submission */
-        fill.style.width = '75%';
-        btn.textContent  = '⏳ Menyimpan…';
+    var file   = _state.selectedFiles[idx];
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var b64 = e.target.result.split(',')[1];
+      google.script.run
+        .withSuccessHandler(function(upRes) {
+          if (!upRes.success) {
+            _setFileQueueStatus(idx, 'error', '❌ Gagal');
+            _resetUploadUI(btn, bar, fill, stepLbl);
+            _toast('Upload gagal: '+upRes.message,'error'); return;
+          }
+          _setFileQueueStatus(idx, 'done', '✓ OK');
+          uploadedUrls.push(upRes.fileUrl);
+          uploadedNames.push(upRes.fileName);
+          _uploadNext(idx + 1);
+        })
+        .withFailureHandler(function(err) {
+          _setFileQueueStatus(idx, 'error', '❌ Error');
+          _resetUploadUI(btn, bar, fill, stepLbl);
+          _toast('Upload error: '+err.message,'error');
+        })
+        .aquaTaskUploadFile(
+          b64, file.name,
+          file.type || 'application/octet-stream', _state.courseId
+        );
+    };
+    reader.readAsDataURL(file);
+  }
 
-        google.script.run
-          .withSuccessHandler(function(res) {
-            fill.style.width = '100%';
-            setTimeout(function(){
-              bar.style.display = 'none';
-              fill.style.width  = '0%';
-            }, 700);
-            btn.textContent = '📤 Kumpulkan Sekarang'; btn.disabled = false;
-            if (res.success) {
-              _toast(res.message,'success');
-              tutupModalSubmit();
-              _clearCache(_cKeyMhs());
-              _muatMahasiswa(true);
-            } else {
-              _toast(res.message,'error');
-            }
-          })
-          .withFailureHandler(function(err) {
-            fill.style.width = '0%'; bar.style.display = 'none';
-            btn.textContent = '📤 Kumpulkan Sekarang'; btn.disabled = false;
-            _toast('Gagal menyimpan: '+err.message,'error');
-          })
-          .aquaTaskSubmit(_state.activeTaskId, _state.courseId, _state.userId,
-                          _state.selectedAnggota, upRes.fileUrl, upRes.fileName);
-      })
-      .withFailureHandler(function(err) {
-        fill.classList.remove('shimmer');
-        fill.style.width = '0%'; bar.style.display = 'none';
-        btn.textContent = '📤 Kumpulkan Sekarang'; btn.disabled = false;
-        _toast('Upload error: '+err.message,'error');
-      })
-      .aquaTaskUploadFile(b64, _state.selectedFile.name,
-                          _state.selectedFile.type || 'application/octet-stream', _state.courseId);
-  };
-  reader.readAsDataURL(_state.selectedFile);
+  _uploadNext(0);
+}
+
+function _resetUploadUI(btn, bar, fill, stepLbl) {
+  fill.style.width = '0%'; fill.classList.remove('shimmer');
+  bar.style.display = 'none';
+  if (stepLbl) { stepLbl.style.display = 'none'; stepLbl.textContent = ''; }
+  btn.textContent = '📤 Kumpulkan Sekarang'; btn.disabled = false;
 }
 
 /* ═══════════════════════════════════════
-   DOSEN — LOAD (dengan cache)
+   DOSEN — LOAD
    ═══════════════════════════════════════ */
 function _muatDosen(force) {
   var cKey   = _cKeyDosen();
@@ -828,8 +1006,13 @@ function _muatDosen(force) {
     _renderDosenView();
     _showStaleBadge(true);
     google.script.run
-      .withSuccessHandler(function(data) { _saveCache(cKey, data); _showStaleBadge(false); })
-      .withFailureHandler(function()     { _showStaleBadge(false); })
+      .withSuccessHandler(function(data) {
+        _saveCache(cKey, data);
+        _state.dosenData = data;
+        _renderDosenView();
+        _showStaleBadge(false);
+      })
+      .withFailureHandler(function() { _showStaleBadge(false); })
       .aquaTaskGetDashboard(_state.courseId);
     return;
   }
@@ -841,7 +1024,7 @@ function _muatDosen(force) {
       _state.dosenData = data;
       _renderDosenView();
     })
-    .withFailureHandler(function(e) { _tampilError('Gagal memuat dashboard: '+e.message); })
+    .withFailureHandler(function(e) { _tampilError('Gagal memuat dashboard: ' + e.message); })
     .aquaTaskGetDashboard(_state.courseId);
 }
 
@@ -882,14 +1065,16 @@ function _renderDosenView() {
     var subs = item.submissions;
     var dlMs = t.deadline ? new Date(t.deadline).getTime() : null;
     var now  = Date.now();
+    var maxF = parseInt(t.max_files) || 1;
 
     var acc  = _el('div', { className:'accordion', style:'margin-top:14px;' });
 
-    /* ── Accordion head ── */
+    /* Accordion head */
     var head = _el('button', { className:'accordion-head open', onclick:function(){ toggleAcc(this); } });
     var hLeft = _el('div', { style:'display:flex;align-items:center;gap:10px;flex-wrap:wrap;' });
     hLeft.appendChild(_elText('span', t.judul));
     hLeft.appendChild(_badge(t.tipe==='Kelompok' ? 'badge-purple':'badge-foam', t.tipe));
+    if (maxF > 1) hLeft.appendChild(_badge('badge-amber', '📎 '+maxF+' file'));
     if (dlMs) {
       var dCls  = now > dlMs ? 'dl-closed':'dl-open';
       var dChip = _el('span', { className:'dl-chip '+dCls });
@@ -931,7 +1116,7 @@ function _renderDosenView() {
     head.appendChild(hRight);
     acc.appendChild(head);
 
-    /* ── Accordion body ── */
+    /* Accordion body */
     var body = _el('div', { className:'accordion-body open' });
 
     var actRow = _el('div', { style:'display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;' });
@@ -948,7 +1133,6 @@ function _renderDosenView() {
       acc.appendChild(body); c.appendChild(acc); return;
     }
 
-    /* ── Full-width table ── */
     var tblWrap = _el('div', { className:'tbl-wrap' });
     var tbl  = _el('table');
     var thd  = _el('thead');
@@ -963,7 +1147,7 @@ function _renderDosenView() {
     var tbd = _el('tbody');
     subs.forEach(function(s, idx) {
       var tr = _el('tr');
-      tr.id  = 'sub-row-' + s.sub_id; // untuk optimistic update
+      tr.id  = 'sub-row-' + s.sub_id;
 
       var tdNo = _el('td'); tdNo.textContent = idx+1; tdNo.style.color='var(--slate)';
 
@@ -973,16 +1157,23 @@ function _renderDosenView() {
 
       var tdAng = _elText('td', s.anggota_kelompok.length+' orang', 'font-size:12px;color:var(--slate);');
 
-      /* File cell dengan ikon & nama terpotong */
+      /* File cell — multi-file aware */
       var tdFile = _el('td');
-      if (s.file_url) {
-        var aFile = _el('a', {
-          href:s.file_url, target:'_blank',
-          className:'file-link'
+      var urls  = s.file_urls  || (s.file_url  ? [s.file_url]  : []);
+      var names = s.file_names || (s.file_nama ? [s.file_nama] : []);
+      if (urls.length) {
+        var fRow = _el('div', { style:'display:flex;flex-direction:column;gap:4px;' });
+        urls.forEach(function(u, fi) {
+          var nm = names[fi] || ('File '+(fi+1));
+          var a  = _el('a', { href:u, target:'_blank', className:'file-link' });
+          a.innerHTML = '<span>'+_fileIcon(nm)+'</span><span>'+_truncate(nm,18)+'</span>';
+          if (urls.length > 1) {
+            var idx2 = _el('span', { className:'file-ext' }); idx2.textContent=(fi+1)+'/'+urls.length;
+            a.appendChild(idx2);
+          }
+          fRow.appendChild(a);
         });
-        aFile.innerHTML = '<span>'+_fileIcon(s.file_nama)+'</span>'
-          + '<span>'+_truncate(s.file_nama || 'Buka', 22)+'</span>';
-        tdFile.appendChild(aFile);
+        tdFile.appendChild(fRow);
       } else { tdFile.textContent = '—'; }
 
       var tdWaktu = _elText('td', _fmtWaktuShort(s.waktu_kumpul), 'font-size:11px;color:var(--slate);white-space:nowrap;');
@@ -993,27 +1184,21 @@ function _renderDosenView() {
       nilaiEl.style.cssText = 'font-weight:700;font-size:15px;color:'+_nilaiColor(s.nilai)+';';
       tdNilai.appendChild(nilaiEl);
 
-      /* Aksi: Detail + Hapus — kirim tr untuk optimistic update */
       var tdAksi = _el('td'); tdAksi.style.textAlign='center';
       var aRow = _el('div', { style:'display:flex;gap:6px;justify-content:center;' });
-
       var btnDetail = _el('button', {
         className:'btn btn-ghost btn-xs',
         onclick:(function(sub, taskItem){ return function(){ bukaModalDetailSub(sub, taskItem); }; })(s, item)
       });
       btnDetail.textContent = '🔍 Detail';
-
       var btnHapusSub = _el('button', {
         className:'btn btn-coral btn-xs',
         onclick:(function(taskId, subId, cId, namaPengumpul, trEl){ return function(){
           hapusSubmission(taskId, subId, cId, namaPengumpul, trEl);
         }; })(t.task_id, s.sub_id, _state.courseId, s.pengumpul_nama, tr)
       });
-      btnHapusSub.textContent = '🗑️';
-      btnHapusSub.title = 'Hapus untuk re-submission';
-
-      aRow.appendChild(btnDetail);
-      aRow.appendChild(btnHapusSub);
+      btnHapusSub.textContent = '🗑️'; btnHapusSub.title = 'Hapus untuk re-submission';
+      aRow.appendChild(btnDetail); aRow.appendChild(btnHapusSub);
       tdAksi.appendChild(aRow);
 
       [tdNo,tdPeng,tdAng,tdFile,tdWaktu,tdNilai,tdAksi].forEach(function(td){ tr.appendChild(td); });
@@ -1031,8 +1216,7 @@ function _renderDosenView() {
 function bukaModalDetailSub(sub, taskItem) {
   var content = document.getElementById('modalDetailSubContent');
   content.innerHTML = '';
-
-  var isKelompok   = (taskItem.task.tipe === 'Kelompok');
+  var isKelompok     = (taskItem.task.tipe === 'Kelompok');
   var resolvedTaskId = taskItem.task.task_id;
 
   /* Pengumpul */
@@ -1058,16 +1242,24 @@ function bukaModalDetailSub(sub, taskItem) {
     content.appendChild(secAng);
   }
 
-  /* File — dengan ikon & link styled */
+  /* File — multi-file aware */
   var secFile = _el('div', { className:'dp-section' });
   _dpLbl(secFile, 'File Tugas');
-  if (sub.file_url) {
-    var fileA = _el('a', { href:sub.file_url, target:'_blank',
-      style:'display:flex;align-items:center;gap:10px;padding:11px 13px;background:rgba(92,200,240,0.07);border:1px solid rgba(92,200,240,0.2);border-radius:9px;text-decoration:none;' });
-    fileA.innerHTML = '<span style="font-size:22px;">'+_fileIcon(sub.file_nama)+'</span>'
-      + '<div><div style="font-size:12px;font-weight:600;color:var(--foam);">'+_truncate(sub.file_nama||'File Tugas',50)+'</div>'
-      + '<div style="font-size:10px;color:var(--slate);">Buka di tab baru ↗</div></div>';
-    secFile.appendChild(fileA);
+  var urls  = sub.file_urls  || (sub.file_url  ? [sub.file_url]  : []);
+  var names = sub.file_names || (sub.file_nama ? [sub.file_nama] : []);
+  if (urls.length) {
+    urls.forEach(function(url, fi) {
+      var nm    = names[fi] || ('File '+(fi+1));
+      var fileA = _el('a', { href:url, target:'_blank',
+        style:'display:flex;align-items:center;gap:10px;padding:11px 13px;background:rgba(92,200,240,0.07);border:1px solid rgba(92,200,240,0.2);border-radius:9px;text-decoration:none;margin-bottom:6px;' });
+      fileA.innerHTML = '<span style="font-size:22px;">'+_fileIcon(nm)+'</span>'
+        + '<div>'
+        + '<div style="font-size:12px;font-weight:600;color:var(--foam);">'
+        +   (urls.length > 1 ? '<span style="color:var(--amber);font-size:10px;">File '+(fi+1)+'/'+urls.length+' </span>' : '')
+        +   _truncate(nm,50)+'</div>'
+        + '<div style="font-size:10px;color:var(--slate);">Buka di tab baru ↗</div></div>';
+      secFile.appendChild(fileA);
+    });
   } else {
     secFile.appendChild(_elText('p','— Tidak ada file','font-size:12px;color:var(--slate);'));
   }
@@ -1105,12 +1297,9 @@ function bukaModalDetailSub(sub, taskItem) {
               _toast(r.message, 'success');
               var dispEl = document.getElementById('nilai-display-' + capturedSub.sub_id);
               if (dispEl) { dispEl.textContent = n; dispEl.style.color = _nilaiColor(parseFloat(n)); }
-              nilaiNum.textContent = n;
-              nilaiNum.style.color = _nilaiColor(parseFloat(n));
+              nilaiNum.textContent = n; nilaiNum.style.color = _nilaiColor(parseFloat(n));
               capturedInp.value = '';
-            } else {
-              _toast(r.message, 'error');
-            }
+            } else { _toast(r.message, 'error'); }
           })
           .withFailureHandler(function(e) {
             btnSave.textContent = '✓ Simpan'; btnSave.disabled = false;
@@ -1132,7 +1321,6 @@ function bukaModalDetailSub(sub, taskItem) {
 
   secNilai.appendChild(_elText('div','Dikumpulkan: '+_fmtWaktu(sub.waktu_kumpul),'font-size:11px;color:var(--slate);margin-top:10px;'));
   content.appendChild(secNilai);
-
   document.getElementById('modalDetailSub').classList.add('visible');
 }
 function tutupModalDetailSub() { document.getElementById('modalDetailSub').classList.remove('visible'); }
@@ -1141,14 +1329,11 @@ function _dpLbl(parent, label) {
 }
 
 /* ═══════════════════════════════════════
-   HAPUS SUBMISSION — Optimistic UI + restore
+   HAPUS SUBMISSION — Optimistic UI
    ═══════════════════════════════════════ */
 function hapusSubmission(taskId, subId, courseId, namaPengumpul, trEl) {
   if (!confirm('Hapus pengumpulan dari "'+namaPengumpul+'"?\n\nMahasiswa akan dapat mengumpulkan ulang.')) return;
-
-  /* Optimistic: langsung fade row */
   if (trEl) trEl.classList.add('row-deleting');
-
   google.script.run
     .withSuccessHandler(function(r) {
       if (r.success) {
@@ -1157,7 +1342,6 @@ function hapusSubmission(taskId, subId, courseId, namaPengumpul, trEl) {
         _clearCache(_cKeyDosen());
         _muatDosen(true);
       } else {
-        /* Batalkan fade jika backend menolak */
         if (trEl) trEl.classList.remove('row-deleting');
         _toast(r.message, 'error');
       }
@@ -1195,12 +1379,8 @@ function simpanEditDeadline() {
   google.script.run
     .withSuccessHandler(function(r) {
       btn.textContent = '💾 Simpan Deadline'; btn.disabled = false;
-      if (r.success) {
-        _toast(r.message,'success');
-        tutupModalEditDeadline();
-        _clearCache(_cKeyDosen());
-        _muatDosen(true);
-      } else { _toast(r.message,'error'); }
+      if (r.success) { _toast(r.message,'success'); tutupModalEditDeadline(); _clearCache(_cKeyDosen()); _muatDosen(true); }
+      else { _toast(r.message,'error'); }
     })
     .withFailureHandler(function(e) {
       btn.textContent = '💾 Simpan Deadline'; btn.disabled = false;
@@ -1215,7 +1395,8 @@ function simpanEditDeadline() {
 function bukaModalTambahTugas() {
   ['newTaskJudul','newTaskDeskripsi','newTaskDocsUrl','newTaskBobot','newTaskDeadline']
     .forEach(function(id){ document.getElementById(id).value=''; });
-  document.getElementById('newTaskTipe').value = 'Individu';
+  document.getElementById('newTaskTipe').value     = 'Individu';
+  document.getElementById('newTaskMaxFiles').value = '1';
   document.getElementById('modalTambahTugas').classList.add('visible');
 }
 function tutupModalTambahTugas() { document.getElementById('modalTambahTugas').classList.remove('visible'); }
@@ -1226,29 +1407,27 @@ function simpanTugas() {
   var tipe    = document.getElementById('newTaskTipe').value;
   var bobot   = document.getElementById('newTaskBobot').value;
   var dl      = document.getElementById('newTaskDeadline').value;
+  var maxF    = parseInt(document.getElementById('newTaskMaxFiles').value) || 1;
   if (!judul) { _toast('Judul tugas wajib diisi!','error'); return; }
   var btn = document.getElementById('btnSimpanTugas');
   btn.textContent = '⏳ Menyimpan…'; btn.disabled = true;
   google.script.run
     .withSuccessHandler(function(res) {
       btn.textContent = '💾 Simpan Tugas'; btn.disabled = false;
-      if (res.success) {
-        _toast(res.message,'success');
-        tutupModalTambahTugas();
-        _clearCache(_cKeyDosen());
-        _muatDosen(true);
-      } else { _toast(res.message,'error'); }
+      if (res.success) { _toast(res.message,'success'); tutupModalTambahTugas(); _clearCache(_cKeyDosen()); _muatDosen(true); }
+      else { _toast(res.message,'error'); }
     })
     .withFailureHandler(function(e){ btn.textContent='💾 Simpan Tugas'; btn.disabled=false; _toast('Gagal: '+e.message,'error'); })
     .aquaTaskSimpanTugas(_state.courseId, {
       judul:judul, deskripsi:deskrip, docs_url:docsUrl,
       tipe:tipe, bobot:parseFloat(bobot)||0,
-      deadline: dl ? dl+':00+08:00' : ''
+      deadline: dl ? dl+':00+08:00' : '',
+      max_files: maxF
     });
 }
 
 /* ═══════════════════════════════════════
-   MODAL SUBMIT NILAI — Batch + progress bar
+   MODAL SUBMIT NILAI — Batch + progress
    ═══════════════════════════════════════ */
 function bukaModalSubmitNilai() {
   var data = _state.dosenData;
@@ -1280,25 +1459,22 @@ function eksekusiSubmitNilaiKeLMS() {
   var subsWithNilai = taskItem.submissions.filter(function(s){ return s.nilai!==null && s.nilai!==undefined; });
   if (!subsWithNilai.length) { _toast('Belum ada pengumpulan yang diberi nilai.','error'); return; }
 
-  var btn       = document.getElementById('btnEksekusiSubmitNilai');
-  var fbEl      = document.getElementById('submitNilaiFeedback');
-  var bpWrap    = document.getElementById('batchProgressWrap');
-  var bpFill    = document.getElementById('batchProgressFill');
-  var bpText    = document.getElementById('batchProgressText');
-  var bpPct     = document.getElementById('batchProgressPct');
+  var btn    = document.getElementById('btnEksekusiSubmitNilai');
+  var fbEl   = document.getElementById('submitNilaiFeedback');
+  var bpWrap = document.getElementById('batchProgressWrap');
+  var bpFill = document.getElementById('batchProgressFill');
+  var bpText = document.getElementById('batchProgressText');
+  var bpPct  = document.getElementById('batchProgressPct');
 
   btn.textContent = '⏳ Mengirim…'; btn.disabled = true;
   fbEl.style.display  = 'none';
   bpWrap.style.display = 'block';
   bpFill.style.width   = '0%';
 
-  /* ── Panggil endpoint batch (satu GAS call, bukan loop) ── */
   var nilaiBatch = subsWithNilai.map(function(s){ return { subId:s.sub_id, nilai:s.nilai }; });
   var total      = nilaiBatch.length;
-
-  /* Animasi pseudo-progress selama menunggu batch selesai */
-  var pseudoPct = 0;
-  var ticker    = setInterval(function() {
+  var pseudoPct  = 0;
+  var ticker     = setInterval(function() {
     pseudoPct = Math.min(pseudoPct + 6, 85);
     bpFill.style.width = pseudoPct + '%';
     bpText.textContent = 'Memproses ' + total + ' nilai…';
@@ -1308,20 +1484,14 @@ function eksekusiSubmitNilaiKeLMS() {
   google.script.run
     .withSuccessHandler(function(r) {
       clearInterval(ticker);
-      bpFill.style.width = '100%';
-      bpText.textContent = 'Selesai';
-      bpPct.textContent  = '100%';
+      bpFill.style.width = '100%'; bpText.textContent = 'Selesai'; bpPct.textContent = '100%';
       setTimeout(function(){ bpWrap.style.display='none'; }, 700);
-
       btn.textContent = '📤 Submit Nilai'; btn.disabled = false;
       fbEl.style.display = 'block';
-
       if (r.success) {
         var gagalTxt = r.gagal > 0 ? ' · '+r.gagal+' gagal (cek koneksi).' : '';
         fbEl.style.cssText = 'display:block;background:rgba(52,201,138,0.07);border:1px solid rgba(52,201,138,0.3);color:var(--mint);padding:12px;border-radius:9px;font-size:12px;line-height:1.6;';
-        fbEl.innerHTML = '✅ <strong>'+r.berhasil+'</strong>/'+total+' nilai disinkronkan ke LMS'
-          + ' dengan label <em>"'+jenisNilai+'"</em>.'+gagalTxt;
-        /* Invalidate cache supaya data stale tidak ditampilkan */
+        fbEl.innerHTML = '✅ <strong>'+r.berhasil+'</strong>/'+total+' nilai disinkronkan ke LMS dengan label <em>"'+jenisNilai+'"</em>.'+gagalTxt;
         _clearCache(_cKeyDosen());
       } else {
         fbEl.style.cssText = 'display:block;background:rgba(242,109,81,0.08);border:1px solid rgba(242,109,81,0.3);color:var(--coral);padding:12px;border-radius:9px;font-size:12px;';
@@ -1346,8 +1516,7 @@ function exportCSV(taskId) {
       if (!res.success) { _toast('Gagal export: '+res.message,'error'); return; }
       var blob = new Blob([res.csv], { type:'text/csv;charset=utf-8;' });
       var a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'Nilai_'+res.judul.replace(/\s+/g,'_')+'.csv';
+      a.href = URL.createObjectURL(blob); a.download = 'Nilai_'+res.judul.replace(/\s+/g,'_')+'.csv';
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       _toast('CSV berhasil diunduh!','success');
     })
