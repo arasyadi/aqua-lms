@@ -191,6 +191,45 @@ function resetDeviceBindingBatch(nimArray) {
 }
 
 // ══════════════════════════════════════════════
+// RESET SEMESTER BARU — Wipe seluruh RTDB
+// Hanya menyisakan akun dengan role "Dosen"
+// ══════════════════════════════════════════════
+function resetSemesterBaru() {
+  try {
+    // 1. Ambil semua user, saring hanya yang role-nya "Dosen"
+    var users     = fbGet("aqualearn/users") || {};
+    var dosenOnly = {};
+    var jumlahDosen = 0;
+
+    Object.keys(users).forEach(function(uKey) {
+      if (users[uKey] && users[uKey].role === 'Dosen') {
+        dosenOnly[uKey] = users[uKey];
+        jumlahDosen++;
+      }
+    });
+
+    // 2. Hapus SELURUH node aqualearn (courses, enrollments, materials,
+    //    quiz, lesson_assign/submit, nilai, grade_config, jadwal,
+    //    device_binding, device_token_map, cbt_*, users — semuanya)
+    fbDelete("aqualearn");
+
+    // 3. Tulis ulang HANYA akun dosen yang tadi disaring
+    if (jumlahDosen > 0) {
+      fbPut("aqualearn/users", dosenOnly);
+    }
+
+    return {
+      success: true,
+      message: "Reset semester berhasil! Seluruh data mahasiswa, kelas, nilai, "
+              + "materi, kuis, dan presensi telah dihapus. "
+              + jumlahDosen + " akun dosen tetap dipertahankan."
+    };
+  } catch (e) {
+    return { success: false, message: "Gagal mereset database: " + e.toString() };
+  }
+}
+
+// ══════════════════════════════════════════════
 // DASHBOARD MAHASISWA — [FIX] Query per-kelas + Cache
 // Mencegah Exception: Kuota bandwidth Firebase terlampaui
 // ══════════════════════════════════════════════
@@ -344,6 +383,55 @@ function enrollStudentsBatch(courseId, userIds) {
     countBerhasil: berhasil,
     nimTidakAda:   tidakAda,
     nimSudahMasuk: sudahMasuk
+  };
+}
+
+function generatePasswordAcak() {
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // tanpa 0/O/1/I biar tidak rancu
+  var pass = '';
+  for (var i = 0; i < 6; i++) pass += chars.charAt(Math.floor(Math.random() * chars.length));
+  return pass;
+}
+
+function importMahasiswaExcelBatch(courseId, mhsArray) {
+  var cKey    = safeKey(courseId);
+  var users   = fbGet("aqualearn/users") || {};
+  var members = fbGet("aqualearn/enrollments/" + cKey) || {};
+
+  var userUpdates   = {};  // akun baru -> ditulis via 1x PATCH
+  var akunBaru       = []; // { nim, nama, password } -- WAJIB ditampilkan ke dosen
+  var mahasiswaLama  = [];
+  var sudahMasuk     = [];
+  var dilewati       = [];
+
+  mhsArray.forEach(function(row) {
+    var nim  = String(row.nim || "").trim();
+    var nama = String(row.nama || "").trim();
+    if (!nim) { dilewati.push(row); return; }
+
+    var uKey = safeKey(nim);
+    if (members[uKey]) { sudahMasuk.push(nim); return; }
+
+    if (!users[uKey]) {
+      var passBaru = generatePasswordAcak();
+      userUpdates[uKey] = { password: passBaru, nama_lengkap: nama || nim, role: "Mahasiswa" };
+      akunBaru.push({ nim: nim, nama: nama || nim, password: passBaru });
+    } else {
+      mahasiswaLama.push(nim);
+    }
+    members[uKey] = true;
+  });
+
+  if (Object.keys(userUpdates).length > 0) fbPatch("aqualearn/users", userUpdates);
+  if (mahasiswaLama.length + akunBaru.length > 0) fbPut("aqualearn/enrollments/" + cKey, members);
+
+  return {
+    success:       true,
+    message:       (mahasiswaLama.length + akunBaru.length) + " mahasiswa berhasil diproses.",
+    akunBaru:      akunBaru,
+    mahasiswaLama: mahasiswaLama,
+    nimSudahMasuk: sudahMasuk,
+    dilewati:      dilewati
   };
 }
 
@@ -852,7 +940,24 @@ function getStudentRankings(courseId) {
     }).length;
     var scoreLesson = doneLessons * 10;
 
-    rankings.push({ userId: uKey, nama: nama, skor: scoreMat + scoreQuiz + scoreLesson });
+    // Last Active — timestamp terbaru dari materi, kuis, atau lesson
+    var lastActive = null;
+    Object.keys(matTrack).forEach(function(k){
+      var t = matTrack[k];
+      if (t && (!lastActive || t > lastActive)) lastActive = t;
+    });
+    Object.keys(qTrack).forEach(function(k){
+      var t = qTrack[k];
+      if (t && (!lastActive || t > lastActive)) lastActive = t;
+    });
+    lessonIds.forEach(function(k){
+      var entry = lSubC[safeKey(k)] && lSubC[safeKey(k)][uKey];
+      if (entry && entry.timestamp && (!lastActive || entry.timestamp > lastActive)) {
+        lastActive = entry.timestamp;
+      }
+    });
+
+    rankings.push({ userId: uKey, nama: nama, skor: scoreMat + scoreQuiz + scoreLesson, lastActive: lastActive });
   });
 
   rankings.sort(function(a, b){ return b.skor - a.skor; });
@@ -1103,7 +1208,24 @@ function getPaketDataAnalitikKelas(courseId) {
     var doneLessons   = lessonIds.filter(function(k) { return lSubC[safeKey(k)] && lSubC[safeKey(k)][uKey]; }).length;
     var scoreLesson   = doneLessons * 10;
 
-    rankings.push({ userId: uKey, nama: nama, skor: scoreMat + scoreQuiz + scoreLesson });
+    // Last Active — timestamp terbaru dari materi, kuis, atau lesson
+    var lastActive = null;
+    Object.keys(matTrk).forEach(function(k){
+      var t = matTrk[k];
+      if (t && (!lastActive || t > lastActive)) lastActive = t;
+    });
+    Object.keys(qTrk).forEach(function(k){
+      var t = qTrk[k];
+      if (t && (!lastActive || t > lastActive)) lastActive = t;
+    });
+    lessonIds.forEach(function(k){
+      var entry = lSubC[safeKey(k)] && lSubC[safeKey(k)][uKey];
+      if (entry && entry.timestamp && (!lastActive || entry.timestamp > lastActive)) {
+        lastActive = entry.timestamp;
+      }
+    });
+
+    rankings.push({ userId: uKey, nama: nama, skor: scoreMat + scoreQuiz + scoreLesson, lastActive: lastActive });
   });
   rankings.sort(function(a, b) { return b.skor - a.skor; });
 
