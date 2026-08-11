@@ -414,6 +414,16 @@
     <h3 class="section-head">🐟 Kelas yang Anda Ampu</h3>
     <div id="loadingDosenCourses" style="color:#3a6a85;font-size:14px;">Memuat kelas…</div>
     <div id="dosenCourseList" class="grid gap-4" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr));"></div>
+    <!-- ZONA BERBAHAYA: RESET SEMESTER -->
+    <div class="glass rounded-2xl p-5 mt-8" style="border:2px dashed rgba(242,109,81,0.4);">
+      <h3 class="section-head" style="color:var(--coral);border-bottom-color:rgba(242,109,81,0.3);">⚠️ Zona Berbahaya</h3>
+      <p style="color:#8ab8cc;font-size:13px;margin-bottom:14px;line-height:1.6;">
+        Menghapus <b style="color:var(--coral);">SELURUH data mahasiswa</b> (NIM & password), kelas, nilai, materi, kuis, dan presensi
+        dari <b style="color:var(--coral);">SEMUA dosen</b> di sistem ini. Hanya akun Dosen yang akan dipertahankan.
+        Cocok digunakan saat memulai semester baru. Tindakan ini <b style="color:var(--coral);">TIDAK DAPAT DIBATALKAN</b>.
+      </p>
+      <button class="btn btn-coral" id="btnResetSemester" onclick="konfirmasiResetSemester()">🔄 Reset Semester Baru</button>
+    </div>
   </main>
   <footer>☕ Developed by: <strong>Andy Rasyadi, S.Pi., M.Si.</strong></footer>
 </div>
@@ -747,7 +757,7 @@
           <div id="loadingRanking" style="color:#3a6a85;font-size:13px;padding:6px 0;">Memuat data analitik…</div>
           <div class="tbl-wrap" id="rankingContainer" style="display:none;">
             <table>
-              <thead><tr><th style="width:80px;text-align:center;">Rank</th><th>Nama Mahasiswa</th><th style="width:110px;text-align:center;">Total Skor</th></tr></thead>
+              <thead><tr><th style="width:80px;text-align:center;">Rank</th><th>Nama Mahasiswa</th><th style="width:110px;text-align:center;">Total Skor</th><th style="width:140px;text-align:center;">Terakhir Aktif</th></tr></thead>
               <tbody id="rankingBody"></tbody>
             </table>
           </div>
@@ -1712,6 +1722,59 @@ function dapatkanDeviceToken() {
     }
   }
 
+  // ==========================================
+  // FITUR DOSEN: RESET SEMESTER BARU (WIPE DB)
+  // ==========================================
+  function konfirmasiResetSemester() {
+    showConfirm(
+      'Tindakan ini akan MENGHAPUS SELURUH DATA di sistem:\n\n'
+      + '• Semua kelas (dari SEMUA dosen)\n'
+      + '• Semua mahasiswa (NIM & password)\n'
+      + '• Semua nilai, materi, kuis, dan presensi\n\n'
+      + 'Hanya akun Dosen yang akan tersisa.\n\n'
+      + 'Tindakan ini TIDAK DAPAT DIBATALKAN.',
+      function () {
+        _mintaKonfirmasiTeksResetSemester();
+      },
+      { title: '⚠️ Reset Semester Baru', icon: '🚨', btnYes: 'Saya Mengerti, Lanjutkan', btnYesCls: 'btn-coral' }
+    );
+  }
+
+  function _mintaKonfirmasiTeksResetSemester() {
+    var teks = prompt('Konfirmasi akhir — ketik persis (huruf besar semua):\n\nRESET SEMESTER');
+    if (teks === null) return; // dibatalkan
+    if (teks.trim() !== 'RESET SEMESTER') {
+      alert('❌ Teks konfirmasi tidak sesuai. Reset dibatalkan.');
+      return;
+    }
+    _eksekusiResetSemester();
+  }
+
+  function _eksekusiResetSemester() {
+    var btn = document.getElementById('btnResetSemester');
+    btn.innerText = '⏳ Menghapus seluruh data...';
+    btn.disabled = true;
+
+    google.script.run
+      .withSuccessHandler(function (r) {
+        btn.innerText = '🔄 Reset Semester Baru';
+        btn.disabled = false;
+        if (r.success) {
+          alert('✅ ' + r.message);
+          // Paksa logout karena seluruh sesi & data lama sudah tidak relevan
+          logout();
+        } else {
+          alert('❌ ' + r.message);
+        }
+      })
+      .withFailureHandler(function (err) {
+        btn.innerText = '🔄 Reset Semester Baru';
+        btn.disabled = false;
+        alert('❌ Gagal terhubung ke server: ' + err.message);
+      })
+      .resetSemesterBaru();
+  }
+
   // ════════ MAHASISWA ════════
   function memuatDashboard() {
     document.getElementById('loadingCourses').style.display='block';
@@ -2595,10 +2658,11 @@ function _loadXLSX(callback) {
 
 // ══════════════════════════════════════════════
 //  IMPORT MAHASISWA DARI EXCEL SIMAK
-//  Baca NIM dari kolom B mulai baris 9 (B9:B)
+//  Baca NIM (kolom B) + Nama (kolom C) mulai baris 9
+//  Otomatis: NIM lama -> enroll | NIM baru -> buat akun + enroll
 // ══════════════════════════════════════════════
 
-var _nimDariExcel = []; // Menyimpan sementara NIM hasil baca Excel
+var _mhsDariExcel = []; // Menyimpan sementara [{ nim, nama }] hasil baca Excel
 
 function prosesImportExcelMhs(input) {
   if (!input.files || !input.files[0]) return;
@@ -2621,21 +2685,25 @@ function _bacaExcelMhs(file, input) {
       var sheet     = workbook.Sheets[sheetName];
       var rows      = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
 
-      _nimDariExcel = [];
+      _mhsDariExcel = [];
       for (var i = 8; i < rows.length; i++) {
-        var nim = rows[i][1]; // Kolom B
+        var nim  = rows[i][1]; // Kolom B
+        var nama = rows[i][2]; // Kolom C
         if (nim !== null && nim !== undefined && String(nim).trim() !== '') {
-          _nimDariExcel.push(String(nim).trim());
+          _mhsDariExcel.push({
+            nim:  String(nim).trim(),
+            nama: (nama !== null && nama !== undefined) ? String(nama).trim() : ''
+          });
         }
       }
 
-      if (_nimDariExcel.length === 0) {
+      if (_mhsDariExcel.length === 0) {
         alert('❌ Tidak ada NIM yang ditemukan di kolom B mulai baris 9.\nPastikan file adalah template SIMAK yang benar.');
         input.value = '';
         return;
       }
 
-      _tampilkanPreviewNim(_nimDariExcel);
+      _tampilkanPreviewNim(_mhsDariExcel);
 
     } catch(err) {
       alert('❌ Gagal membaca file Excel. Pastikan file tidak rusak dan berformat .xlsx');
@@ -2648,7 +2716,7 @@ function _bacaExcelMhs(file, input) {
   reader.readAsArrayBuffer(file);
 }
 
-function _tampilkanPreviewNim(nimList) {
+function _tampilkanPreviewNim(mhsList) {
   var container = document.getElementById('previewImportMhs');
   var listEl    = document.getElementById('previewNimList');
   var jumlahEl  = document.getElementById('previewJumlahNim');
@@ -2662,48 +2730,47 @@ function _tampilkanPreviewNim(nimList) {
     badges.forEach(function(b) { enrolledNims.push(b.innerText.trim()); });
   }
 
-  var nimBaru    = nimList.filter(function(n) { return enrolledNims.indexOf(n) === -1; });
-  var nimDuplikat = nimList.filter(function(n) { return enrolledNims.indexOf(n) !== -1; });
+  var mhsBaru     = mhsList.filter(function(m) { return enrolledNims.indexOf(m.nim) === -1; });
+  var mhsDuplikat = mhsList.filter(function(m) { return enrolledNims.indexOf(m.nim) !== -1; });
 
-  jumlahEl.innerText = nimBaru.length + ' NIM baru';
+  jumlahEl.innerText = mhsBaru.length + ' mahasiswa akan diproses';
 
-  if (nimDuplikat.length > 0) {
-    ketEl.innerText = '(' + nimDuplikat.length + ' NIM sudah terdaftar, dilewati otomatis)';
+  if (mhsDuplikat.length > 0) {
+    ketEl.innerText = '(' + mhsDuplikat.length + ' sudah terdaftar di kelas ini, dilewati otomatis)';
   } else {
-    ketEl.innerText = '— semua baru';
+    ketEl.innerText = '— semua baru untuk kelas ini';
   }
 
-  // Render badge NIM (fix: gunakan array + join)
+  // Render badge NIM
   var badgeRows = [];
-  nimList.forEach(function(nim) {
-    var isDuplikat = enrolledNims.indexOf(nim) !== -1;
-    // Bangun string badge dengan style dinamis
+  mhsList.forEach(function(m) {
+    var isDuplikat = enrolledNims.indexOf(m.nim) !== -1;
     var badgeStyle = isDuplikat
       ? 'background:rgba(92,200,240,0.08);color:#3a6a85;border:1px solid rgba(92,200,240,0.15);text-decoration:line-through;'
       : 'background:rgba(52,201,138,0.18);color:var(--mint);border:1px solid rgba(52,201,138,0.3);';
     badgeRows.push('<span style="'
       + 'display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;'
       + badgeStyle
-      + '">' + nim + '</span>');
+      + '">' + m.nim + '</span>');
   });
-  listEl.innerHTML = badgeRows.join('');  // satu kali assign, bukan += berulang
+  listEl.innerHTML = badgeRows.join('');
 
-  // Update tombol: kirim hanya NIM yang belum terdaftar
-  document.getElementById('btnKonfirmasiImportMhs').setAttribute('data-nim-baru', JSON.stringify(nimBaru));
+  // Update tombol: kirim { nim, nama } hanya yang belum terdaftar di kelas ini
+  document.getElementById('btnKonfirmasiImportMhs').setAttribute('data-mhs-baru', JSON.stringify(mhsBaru));
 
   container.style.display = 'block';
 }
 
 function konfirmasiImportMahasiswaExcel() {
   var btn     = document.getElementById('btnKonfirmasiImportMhs');
-  var nimBaru = JSON.parse(btn.getAttribute('data-nim-baru') || '[]');
+  var mhsBaru = JSON.parse(btn.getAttribute('data-mhs-baru') || '[]');
 
-  if (nimBaru.length === 0) {
-    alert('Semua NIM dari file ini sudah terdaftar di kelas.');
+  if (mhsBaru.length === 0) {
+    alert('Semua mahasiswa dari file ini sudah terdaftar di kelas.');
     return;
   }
 
-  btn.innerText = 'Mendaftarkan…';
+  btn.innerText = 'Memproses…';
   btn.disabled  = true;
 
   google.script.run
@@ -2713,19 +2780,19 @@ function konfirmasiImportMahasiswaExcel() {
 
       if (r.success) {
         document.getElementById('previewImportMhs').style.display = 'none';
-        _nimDariExcel = [];
+        _mhsDariExcel = [];
 
-        // Tampilkan ringkasan hasil
-        var info = '✅ ' + r.countBerhasil + ' mahasiswa berhasil didaftarkan.';
-        if (r.nimTidakAda && r.nimTidakAda.length > 0) {
-          info += '\n\n⚠️ ' + r.nimTidakAda.length + ' NIM tidak ada di database:\n'
-                + r.nimTidakAda.join(', ')
-                + '\n\nSilakan tambahkan akun mahasiswa tersebut terlebih dahulu melalui Google Sheets.';
-        }
+        var info = '✅ ' + r.message + '\n\n'
+          + '👥 Mahasiswa lama (langsung enroll): ' + r.mahasiswaLama.length + '\n'
+          + '🆕 Akun baru dibuat: ' + r.akunBaru.length;
         if (r.nimSudahMasuk && r.nimSudahMasuk.length > 0) {
-          info += '\n\nℹ️ ' + r.nimSudahMasuk.length + ' NIM sudah terdaftar sebelumnya (dilewati).';
+          info += '\n\nℹ️ ' + r.nimSudahMasuk.length + ' sudah terdaftar sebelumnya (dilewati).';
         }
         alert(info);
+
+        if (r.akunBaru && r.akunBaru.length > 0) {
+          _unduhKredensialMahasiswaBaru(r.akunBaru);
+        }
 
         bukaAnalitikKelas(activeCourseId, activeCourseName);
       } else {
@@ -2737,12 +2804,29 @@ function konfirmasiImportMahasiswaExcel() {
       btn.disabled  = false;
       alert('❌ Gagal: ' + err.message);
     })
-    .enrollStudentsBatch(activeCourseId, nimBaru);
+    .importMahasiswaExcelBatch(activeCourseId, mhsBaru);
+}
+
+// Ekspor NIM + Nama + Password akun baru ke Excel, supaya dosen
+// punya catatan kredensial untuk dibagikan ke mahasiswa baru.
+// Password TIDAK disimpan di tempat lain -- ini satu-satunya salinan.
+function _unduhKredensialMahasiswaBaru(akunBaru) {
+  _loadXLSX(function() {
+    var wsData = [['NIM', 'Nama Lengkap', 'Password']];
+    akunBaru.forEach(function(a) { wsData.push([a.nim, a.nama, a.password]); });
+
+    var wb = XLSX.utils.book_new();
+    var ws = XLSX.utils.aoa_to_sheet(wsData);
+    XLSX.utils.book_append_sheet(wb, ws, 'Akun Baru');
+
+    var safeCourseName = String(activeCourseName || 'Kelas').replace(/[\\/:*?"<>|]/g, '_');
+    XLSX.writeFile(wb, 'Kredensial_Mahasiswa_Baru_' + safeCourseName + '.xlsx');
+  });
 }
 
 function batalImportMhs() {
   document.getElementById('previewImportMhs').style.display = 'none';
-  _nimDariExcel = [];
+  _mhsDariExcel = [];
 }
   
   function keluarkanMahasiswa(userId,nama){
@@ -2793,36 +2877,57 @@ function batalImportMhs() {
     selectNilai.innerHTML = optsNilai.join('');
   }
 
-  function renderRankings(rankings) {
-    document.getElementById('loadingRanking').style.display = 'none';
-    document.getElementById('rankingContainer').style.display = 'block';
+function formatLastActive(iso) {
+  if (!iso) return '<span style="color:#8a9aa8;font-size:12px;">Belum ada aktivitas</span>';
 
-    globalRankings = rankings || [];
+  var then    = new Date(iso);
+  var diffMs  = new Date() - then;
+  var diffMin = Math.floor(diffMs / 60000);
+  var diffHr  = Math.floor(diffMin / 60);
+  var diffDay = Math.floor(diffHr / 24);
 
-    var btnExport = document.getElementById('btnExportAktivitas');
-    if (btnExport) {
-        btnExport.style.display = globalRankings.length > 0 ? 'inline-flex' : 'none';
-    }
+  var label;
+  if (diffMin < 1)       label = 'Baru saja';
+  else if (diffMin < 60) label = diffMin + ' menit lalu';
+  else if (diffHr < 24)  label = diffHr + ' jam lalu';
+  else if (diffDay < 7)  label = diffDay + ' hari lalu';
+  else label = then.toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric', timeZone:'Asia/Makassar' });
 
-    var tbody = document.getElementById('rankingBody');
-    if (!rankings || !rankings.length) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#3a6a85;">Belum ada data aktivitas</td></tr>';
-        return;
-    }
+  var color = diffDay > 14 ? 'var(--coral)' : (diffDay <= 1 ? 'var(--mint)' : '#3a6a85');
+  return '<span style="color:' + color + ';font-size:12px;">' + label + '</span>';
+}
 
-    var medals = ['🥇','🥈','🥉'];
-    var rows = [];
-    rankings.forEach(function(r, i) {
-        var cls  = i === 0 ? 'rank-gold' : i === 1 ? 'rank-silver' : i === 2 ? 'rank-bronze' : '';
-        var icon = i < 3 ? medals[i] : (i + 1);
-        rows.push('<tr class="' + cls + '">'
-            + '<td style="text-align:center;font-size:17px;"><b>' + icon + '</b></td>'
-            + '<td>' + r.nama + '</td>'
-            + '<td style="text-align:center;"><b>' + r.skor + ' Pts</b></td>'
-            + '</tr>');
-    });
-    tbody.innerHTML = rows.join('');
+function renderRankings(rankings) {
+  document.getElementById('loadingRanking').style.display = 'none';
+  document.getElementById('rankingContainer').style.display = 'block';
+
+  globalRankings = rankings || [];
+
+  var btnExport = document.getElementById('btnExportAktivitas');
+  if (btnExport) {
+      btnExport.style.display = globalRankings.length > 0 ? 'inline-flex' : 'none';
   }
+
+  var tbody = document.getElementById('rankingBody');
+  if (!rankings || !rankings.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#3a6a85;">Belum ada data aktivitas</td></tr>';
+      return;
+  }
+
+  var medals = ['🥇','🥈','🥉'];
+  var rows = [];
+  rankings.forEach(function(r, i) {
+      var cls  = i === 0 ? 'rank-gold' : i === 1 ? 'rank-silver' : i === 2 ? 'rank-bronze' : '';
+      var icon = i < 3 ? medals[i] : (i + 1);
+      rows.push('<tr class="' + cls + '">'
+          + '<td style="text-align:center;font-size:17px;"><b>' + icon + '</b></td>'
+          + '<td>' + r.nama + '</td>'
+          + '<td style="text-align:center;"><b>' + r.skor + ' Pts</b></td>'
+          + '<td style="text-align:center;">' + formatLastActive(r.lastActive) + '</td>'
+          + '</tr>');
+  });
+  tbody.innerHTML = rows.join('');
+}
 
   function renderInactive(inactiveStudents){
     document.getElementById('loadingInactive').style.display='none';
