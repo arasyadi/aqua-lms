@@ -385,6 +385,7 @@
     </div>
     <div class="ml-auto flex items-center gap-3">
       <span id="dosen-name-badge" class="badge badge-amber" style="font-size:12px;"></span>
+      <button class="btn btn-coral btn-sm" id="btnResetSemester" onclick="konfirmasiResetSemester()" title="Menghapus SELURUH data mahasiswa (NIM & password), kelas, nilai, materi, kuis, dan presensi dari SEMUA dosen. Hanya akun Dosen yang dipertahankan.">🔄 Reset Semester Baru</button>
       <button class="btn btn-coral btn-sm" onclick="logout()">Keluar</button>
     </div>
   </nav>
@@ -393,37 +394,35 @@
       <h2 id="welcomeTextDosen" style="font-family:'Lora',serif;font-size:22px;color:var(--foam);">Selamat Datang</h2>
       <p style="color:#5a8fa8;font-size:14px;margin-top:4px;">Kelola kelas dan pantau perkembangan mahasiswa Anda.</p>
     </div>
-    <div class="glass rounded-2xl p-5 mb-6" style="border:2px dashed rgba(92,200,240,0.25);">
-      <h3 class="section-head" style="margin-bottom:14px;">⚙️ Buat Kelas Baru</h3>
-      <div class="grid gap-3" style="grid-template-columns: 1fr 1fr 2fr;">
-        <div>
-          <label class="form-label">Kode Mata Kuliah</label>
-          <input type="text" id="newCourseId" class="form-input" placeholder="Contoh: BIO101">
+    <div class="accordion-item mb-6">
+      <button class="accordion-header open" onclick="toggleAccordion(this)">
+        <span>⚙️ Buat Kelas Baru</span>
+        <span class="arrow">▼</span>
+      </button>
+      <div class="accordion-body open">
+        <div class="grid gap-3" style="grid-template-columns: 1fr 1fr 2fr;">
+          <div>
+            <label class="form-label">Kode Mata Kuliah</label>
+            <input type="text" id="newCourseId" class="form-input" placeholder="Contoh: BIO101">
+          </div>
+          <div>
+            <label class="form-label">Kelas</label>
+            <input type="text" id="newCourseClass" class="form-input" placeholder="Contoh: A, B, dll">
+          </div>
+          <div>
+            <label class="form-label">Nama Mata Kuliah</label>
+            <input type="text" id="newCourseName" class="form-input" placeholder="Contoh: Biologi Laut">
+          </div>
         </div>
-        <div>
-          <label class="form-label">Kelas</label>
-          <input type="text" id="newCourseClass" class="form-input" placeholder="Contoh: A, B, dll">
-        </div>
-        <div>
-          <label class="form-label">Nama Mata Kuliah</label>
-          <input type="text" id="newCourseName" class="form-input" placeholder="Contoh: Biologi Laut">
-        </div>
+        <button class="btn btn-ocean mt-3" id="btnTambahKelas" onclick="tambahKelas()">+ Buat Kelas</button>
       </div>
-      <button class="btn btn-ocean mt-3" id="btnTambahKelas" onclick="tambahKelas()">+ Buat Kelas</button>
     </div>
-    <h3 class="section-head">🐟 Kelas yang Anda Ampu</h3>
+    <div class="flex items-center justify-between mb-4" style="border-bottom:1px solid var(--border);padding-bottom:10px;flex-wrap:wrap;gap:10px;">
+      <h3 style="font-family:'Lora',serif;font-size:16px;color:var(--foam);display:flex;align-items:center;gap:8px;margin:0;">🐟 Kelas yang Anda Ampu</h3>
+      <button class="btn btn-teal btn-sm" id="btnUnduhKredensial" onclick="unduhKredensialSemuaMahasiswa()">📥 Unduh Kredensial Mahasiswa</button>
+    </div>
     <div id="loadingDosenCourses" style="color:#3a6a85;font-size:14px;">Memuat kelas…</div>
     <div id="dosenCourseList" class="grid gap-4" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr));"></div>
-    <!-- ZONA BERBAHAYA: RESET SEMESTER -->
-    <div class="glass rounded-2xl p-5 mt-8" style="border:2px dashed rgba(242,109,81,0.4);">
-      <h3 class="section-head" style="color:var(--coral);border-bottom-color:rgba(242,109,81,0.3);">⚠️ Zona Berbahaya</h3>
-      <p style="color:#8ab8cc;font-size:13px;margin-bottom:14px;line-height:1.6;">
-        Menghapus <b style="color:var(--coral);">SELURUH data mahasiswa</b> (NIM & password), kelas, nilai, materi, kuis, dan presensi
-        dari <b style="color:var(--coral);">SEMUA dosen</b> di sistem ini. Hanya akun Dosen yang akan dipertahankan.
-        Cocok digunakan saat memulai semester baru. Tindakan ini <b style="color:var(--coral);">TIDAK DAPAT DIBATALKAN</b>.
-      </p>
-      <button class="btn btn-coral" id="btnResetSemester" onclick="konfirmasiResetSemester()">🔄 Reset Semester Baru</button>
-    </div>
   </main>
   <footer>☕ Developed by: <strong>Andy Rasyadi, S.Pi., M.Si.</strong></footer>
 </div>
@@ -1752,7 +1751,7 @@ function dapatkanDeviceToken() {
 
   function _eksekusiResetSemester() {
     var btn = document.getElementById('btnResetSemester');
-    btn.innerText = '⏳ Menghapus seluruh data...';
+    btn.innerText = '⏳ Menghapus...';
     btn.disabled = true;
 
     google.script.run
@@ -2788,11 +2787,10 @@ function konfirmasiImportMahasiswaExcel() {
         if (r.nimSudahMasuk && r.nimSudahMasuk.length > 0) {
           info += '\n\nℹ️ ' + r.nimSudahMasuk.length + ' sudah terdaftar sebelumnya (dilewati).';
         }
-        alert(info);
-
         if (r.akunBaru && r.akunBaru.length > 0) {
-          _unduhKredensialMahasiswaBaru(r.akunBaru);
+          info += '\n\n📥 Gunakan tombol "Unduh Kredensial Mahasiswa" di halaman utama Panel Dosen untuk mengunduh kredensial (NIM, Nama, Password) seluruh mahasiswa, termasuk akun baru ini.';
         }
+        alert(info);
 
         bukaAnalitikKelas(activeCourseId, activeCourseName);
       } else {
@@ -2805,23 +2803,6 @@ function konfirmasiImportMahasiswaExcel() {
       alert('❌ Gagal: ' + err.message);
     })
     .importMahasiswaExcelBatch(activeCourseId, mhsBaru);
-}
-
-// Ekspor NIM + Nama + Password akun baru ke Excel, supaya dosen
-// punya catatan kredensial untuk dibagikan ke mahasiswa baru.
-// Password TIDAK disimpan di tempat lain -- ini satu-satunya salinan.
-function _unduhKredensialMahasiswaBaru(akunBaru) {
-  _loadXLSX(function() {
-    var wsData = [['NIM', 'Nama Lengkap', 'Password']];
-    akunBaru.forEach(function(a) { wsData.push([a.nim, a.nama, a.password]); });
-
-    var wb = XLSX.utils.book_new();
-    var ws = XLSX.utils.aoa_to_sheet(wsData);
-    XLSX.utils.book_append_sheet(wb, ws, 'Akun Baru');
-
-    var safeCourseName = String(activeCourseName || 'Kelas').replace(/[\\/:*?"<>|]/g, '_');
-    XLSX.writeFile(wb, 'Kredensial_Mahasiswa_Baru_' + safeCourseName + '.xlsx');
-  });
 }
 
 function batalImportMhs() {
@@ -3814,6 +3795,59 @@ function _prosesExportAktivitas() {
     .replace(/\s+/g, '_');
 
   XLSX.writeFile(wb, 'NilaiAktivitas_' + safeNama + '.xlsx');
+}
+
+// ══════════════════════════════════════════════
+// UNDUH KREDENSIAL SEMUA MAHASISWA (SELURUH KELAS DOSEN)
+// Menggantikan unduhan otomatis per-import; dosen tarik kapan saja.
+// ══════════════════════════════════════════════
+function unduhKredensialSemuaMahasiswa() {
+  if (!currentUserInfo) { alert('❌ Sesi tidak ditemukan. Silakan login ulang.'); return; }
+
+  var btn = document.getElementById('btnUnduhKredensial');
+  var originalText = btn.innerText;
+  btn.innerText = '⏳ Memuat...';
+  btn.disabled  = true;
+
+  google.script.run
+    .withSuccessHandler(function(data) {
+      btn.innerText = originalText;
+      btn.disabled  = false;
+
+      if (!data || !data.length) {
+        alert('ℹ️ Belum ada mahasiswa terdaftar di kelas manapun yang Anda ampu.');
+        return;
+      }
+
+      _loadXLSX(function() {
+        var wsData = [['NIM', 'Nama Lengkap', 'Password', 'Kelas Diikuti']];
+        data.forEach(function(m) {
+          wsData.push([m.nim, m.nama, m.password, m.kelas]);
+        });
+
+        var wb = XLSX.utils.book_new();
+        var ws = XLSX.utils.aoa_to_sheet(wsData);
+        ws['!cols'] = [{ wch: 16 }, { wch: 32 }, { wch: 14 }, { wch: 40 }];
+        XLSX.utils.book_append_sheet(wb, ws, 'Kredensial Mahasiswa');
+
+        var tanggal = Utilities_formatTanggalSingkat(new Date());
+        XLSX.writeFile(wb, 'Kredensial_Mahasiswa_' + tanggal + '.xlsx');
+      });
+    })
+    .withFailureHandler(function(err) {
+      btn.innerText = originalText;
+      btn.disabled  = false;
+      alert('❌ Gagal mengambil data kredensial: ' + err.message);
+    })
+    .getKredensialSemuaMahasiswaDosen(currentUserInfo.userId);
+}
+
+// Helper kecil format tanggal YYYY-MM-DD tanpa bergantung timezone browser
+function Utilities_formatTanggalSingkat(d) {
+  var yyyy = d.getFullYear();
+  var mm   = String(d.getMonth() + 1).padStart(2, '0');
+  var dd   = String(d.getDate()).padStart(2, '0');
+  return yyyy + '-' + mm + '-' + dd;
 }
 
 function bukaAquaTask(courseId) {
