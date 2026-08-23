@@ -3,8 +3,8 @@
 // Pengganti database.gs — semua operasi kini ke Firebase
 // ============================================================
 
-var FB_URL = "FB URL";
-var FB_SECRET = "FB SECRET";
+var FB_URL = "Fb URL";
+var FB_SECRET = "FB S";
 
 // ══════════════════════════════════════════════
 // FIREBASE REST HELPERS — v4 (+ Auth Secret)
@@ -399,7 +399,7 @@ function importMahasiswaExcelBatch(courseId, mhsArray) {
   var members = fbGet("aqualearn/enrollments/" + cKey) || {};
 
   var userUpdates   = {};  // akun baru -> ditulis via 1x PATCH
-  var akunBaru       = []; // { nim, nama, password } -- WAJIB ditampilkan ke dosen
+  var akunBaru       = []; // { nim, nama, password } -- tetap dihitung untuk laporan hasil impor
   var mahasiswaLama  = [];
   var sudahMasuk     = [];
   var dilewati       = [];
@@ -433,6 +433,59 @@ function importMahasiswaExcelBatch(courseId, mhsArray) {
     nimSudahMasuk: sudahMasuk,
     dilewati:      dilewati
   };
+}
+
+// ══════════════════════════════════════════════
+// KREDENSIAL MAHASISWA — Kompilasi seluruh kelas dosen
+// Menggantikan unduhan otomatis per-batch import; dosen
+// menarik kredensial (NIM, Nama, Password) kapan saja dari
+// seluruh kelas yang ia ampu, langsung dari sumber data (users).
+// ══════════════════════════════════════════════
+function getKredensialSemuaMahasiswaDosen(dosenId) {
+  var courses = fbGet("aqualearn/courses") || {};
+  var users   = fbGet("aqualearn/users")   || {};
+
+  var courseIdsDosen = [];
+  Object.keys(courses).forEach(function(cKey) {
+    if (courses[cKey].dosen_id === dosenId) courseIdsDosen.push(cKey);
+  });
+
+  var mapMhs = {}; // uKey -> { nim, nama, password, kelas: [...] }
+
+  courseIdsDosen.forEach(function(cKey) {
+    var members   = fbGet("aqualearn/enrollments/" + cKey) || {};
+    var namaKelas = courses[cKey].course_name || cKey;
+
+    Object.keys(members).forEach(function(uKey) {
+      var u = users[uKey];
+      if (!u || u.role !== 'Mahasiswa') return;
+
+      if (!mapMhs[uKey]) {
+        mapMhs[uKey] = {
+          nim:      uKey,
+          nama:     u.nama_lengkap || uKey,
+          password: u.password || '',
+          kelas:    []
+        };
+      }
+      mapMhs[uKey].kelas.push(namaKelas);
+    });
+  });
+
+  var result = [];
+  Object.keys(mapMhs).forEach(function(uKey) {
+    var m = mapMhs[uKey];
+    result.push({
+      nim:      m.nim,
+      nama:     m.nama,
+      password: m.password,
+      kelas:    m.kelas.join(', ')
+    });
+  });
+
+  result.sort(function(a, b) { return String(a.nim).localeCompare(String(b.nim)); });
+
+  return result;
 }
 
 function unenrollStudent(courseId, userId) {
