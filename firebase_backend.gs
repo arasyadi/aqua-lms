@@ -3,8 +3,8 @@
 // Pengganti database.gs — semua operasi kini ke Firebase
 // ============================================================
 
-var FB_URL = "Fb URL";
-var FB_SECRET = "FB S";
+var FB_URL = "FB URL";
+var FB_SECRET = "FB SECRET";
 
 // ══════════════════════════════════════════════
 // FIREBASE REST HELPERS — v4 (+ Auth Secret)
