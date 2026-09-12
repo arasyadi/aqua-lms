@@ -1,5 +1,5 @@
 // ============================================================
-// AQUATASK — BACKEND GOOGLE APPS SCRIPT  (Revisi: Multi-File)
+// AQUATASK — BACKEND GOOGLE APPS SCRIPT  (Revisi: Multi-File + Folder Bersarang)
 // Sisipkan file ini di GAS project AquaLearn yang sama.
 // Semua path Firebase menggunakan prefix aqualearn/aquatask/
 //
@@ -10,6 +10,11 @@
 //   - aquaTaskGetDashboard: sertakan file_urls & file_names dalam respons
 //   - aquaTaskGetDataMahasiswa: idem
 //   - aquaTaskExportCSV   : join multi-file URL dengan " | "
+//   - aquaTaskUploadFile  : (BARU) simpan ke folder bersarang
+//                           "AquaLearn LMS/AquaTask_<courseId>"
+//                           alih-alih folder lepas di root Drive
+//   - (BARU) _getOrCreateSubfolder_, _getAquaTaskFolder_,
+//            migrateFlatFoldersToNested_
 // ============================================================
 
 // ============================================================
@@ -92,8 +97,91 @@ function aquaTaskUpdateDeadline(courseId, taskId, newDeadline) {
 }
 
 // ============================================================
+// (BARU) HELPER — Folder Drive bersarang untuk AquaTask
+//   Struktur: <My Drive>/AquaLearn LMS/AquaTask_<courseId>
+// ============================================================
+
+// ------------------------------------------------------------
+// Cari subfolder dengan nama tertentu di dalam parent folder;
+// buat baru kalau belum ada. Dibungkus LockService supaya tidak
+// muncul folder duplikat saat dua mahasiswa upload bersamaan
+// pada folder yang belum pernah dibuat sebelumnya.
+// ------------------------------------------------------------
+function _getOrCreateSubfolder_(parentFolder, name) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(15000); // tunggu maks 15 detik kalau ada proses lain sedang membuat folder yang sama
+  try {
+    var it = parentFolder.getFoldersByName(name);
+    if (it.hasNext()) return it.next();
+    return parentFolder.createFolder(name);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ------------------------------------------------------------
+// Ambil (atau buat) folder tujuan submission untuk satu course:
+//   <My Drive>/AquaLearn LMS/AquaTask_<courseId>
+//
+// ID folder root "AquaLearn LMS" di-cache di Script Properties
+// (key: AQUALEARN_ROOT_FOLDER_ID) supaya tidak perlu search
+// berulang tiap upload, dan supaya bisa di-override manual
+// (misal diarahkan ke folder/Shared Drive lain) langsung dari
+// Project Settings > Script Properties tanpa mengubah kode.
+// ------------------------------------------------------------
+function _getAquaTaskFolder_(courseId) {
+  var props  = PropertiesService.getScriptProperties();
+  var rootId = props.getProperty('AQUALEARN_ROOT_FOLDER_ID');
+  var rootFolder = null;
+
+  if (rootId) {
+    try { rootFolder = DriveApp.getFolderById(rootId); }
+    catch (e) { rootFolder = null; } // ID tersimpan tapi folder sudah tidak valid/terhapus
+  }
+
+  if (!rootFolder) {
+    rootFolder = _getOrCreateSubfolder_(DriveApp.getRootFolder(), 'AquaLearn LMS');
+    props.setProperty('AQUALEARN_ROOT_FOLDER_ID', rootFolder.getId());
+  }
+
+  var folderName = 'AquaTask_' + courseId;
+  return _getOrCreateSubfolder_(rootFolder, folderName);
+}
+
+// ------------------------------------------------------------
+// SEKALI JALAN (opsional) — Rapikan folder AquaTask_<courseId>
+// yang sudah terlanjur lepas di root Drive: pindahkan semuanya
+// ke dalam "AquaLearn LMS/".
+//
+// Cara jalankan: buka editor Apps Script > pilih fungsi ini di
+// dropdown toolbar > klik Run > cek hasil di Executions/Log.
+// Aman dijalankan berkali-kali (idempotent).
+// ------------------------------------------------------------
+function migrateFlatFoldersToNested_() {
+  var root          = DriveApp.getRootFolder();
+  var aquaLearnRoot = _getOrCreateSubfolder_(root, 'AquaLearn LMS');
+
+  var it       = root.getFolders();
+  var dipindah = [];
+
+  while (it.hasNext()) {
+    var f    = it.next();
+    var name = f.getName();
+    if (name.indexOf('AquaTask_') === 0) {
+      aquaLearnRoot.addFolder(f);   // tambahkan sebagai child baru
+      root.removeFolder(f);         // hapus referensi dari root (= "move")
+      dipindah.push(name);
+    }
+  }
+
+  Logger.log('Folder dipindahkan ke AquaLearn LMS/: ' + JSON.stringify(dipindah));
+  return dipindah;
+}
+
+// ============================================================
 // 4. MAHASISWA — Upload file ke Google Drive
-//    Tidak berubah; dipanggil satu kali per file dari frontend.
+//    BARU: folder tujuan bersarang "AquaLearn LMS/AquaTask_<courseId>"
+//    alih-alih folder lepas "AquaTask_<courseId>" di root Drive.
 // ============================================================
 function aquaTaskUploadFile(base64Data, fileName, mimeType, courseId) {
   if (!base64Data || !fileName) {
@@ -101,13 +189,12 @@ function aquaTaskUploadFile(base64Data, fileName, mimeType, courseId) {
   }
 
   try {
-    var decoded    = Utilities.base64Decode(base64Data);
-    var blob       = Utilities.newBlob(decoded, mimeType || 'application/octet-stream', fileName);
-    var folderName = 'AquaTask_' + (courseId || 'Umum');
-    var folders    = DriveApp.getFoldersByName(folderName);
-    var folder     = folders.hasNext()
-                   ? folders.next()
-                   : DriveApp.createFolder(folderName);
+    var decoded = Utilities.base64Decode(base64Data);
+    var blob    = Utilities.newBlob(decoded, mimeType || 'application/octet-stream', fileName);
+
+    // ── PERUBAHAN: folder bersarang, bukan folder lepas di root ──
+    var folder = _getAquaTaskFolder_(courseId || 'Umum');
+
     var file = folder.createFile(blob);
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 
