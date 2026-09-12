@@ -3,7 +3,7 @@
 // Pengganti database.gs — semua operasi kini ke Firebase
 // ============================================================
 
-var FB_URL = "FB URL";
+var FB_URL = "FB RTDB";
 var FB_SECRET = "FB SECRET";
 
 // ══════════════════════════════════════════════
@@ -304,6 +304,8 @@ function hapusMataKuliah(courseId, dosenId) {
   fbDelete("aqualearn/grade_config/" + key);
   fbDelete("aqualearn/jadwal/"       + key);
   fbDelete("aqualearn/lesson_submit/" + key);
+  fbDelete("aqualearn/manual_score/"     + key);
+  fbDelete("aqualearn/manual_score_log/" + key);
 
   // ── 2. Hapus materials HANYA milik kelas ini ──
   var allMaterials = fbGet("aqualearn/materials") || {};
@@ -965,6 +967,7 @@ function getStudentRankings(courseId) {
   var matTrackC  = fbGet("aqualearn/material_track/"  + cKey) || {};
   var quizTrackC = fbGet("aqualearn/quiz_track/"      + cKey) || {};
   var lSubC      = fbGet("aqualearn/lesson_submit/"   + cKey) || {};
+  var manualScoreC  = fbGet("aqualearn/manual_score/"    + cKey) || {};
 
   var matIds    = Object.keys(matAll).filter(function(k){ return matAll[k].course_id === courseId; });
   var quizIds   = Object.keys(quizAll).filter(function(k){ return quizAll[k].course_id === courseId; });
@@ -1010,7 +1013,9 @@ function getStudentRankings(courseId) {
       }
     });
 
-    rankings.push({ userId: uKey, nama: nama, skor: scoreMat + scoreQuiz + scoreLesson, lastActive: lastActive });
+    var scoreManual = parseFloat(manualScoreC[uKey]) || 0;
+
+    rankings.push({ userId: uKey, nama: nama, skor: scoreMat + scoreQuiz + scoreLesson + scoreManual, lastActive: lastActive });
   });
 
   rankings.sort(function(a, b){ return b.skor - a.skor; });
@@ -1021,6 +1026,37 @@ function getInactiveStudents(courseId) {
   return getStudentRankings(courseId)
     .filter(function(r){ return r.skor === 0; })
     .map(function(r){ return r.nama; });
+}
+
+
+// ══════════════════════════════════════════════
+// SKOR MANUAL (Keaktifan Kelas — ditambahkan Dosen)
+// ══════════════════════════════════════════════
+function tambahSkorManual(courseId, userId, poin, keterangan) {
+  var cKey = safeKey(courseId);
+  var uKey = safeKey(userId);
+
+  var pathTotal = "aqualearn/manual_score/" + cKey + "/" + uKey;
+  var existing  = fbGet(pathTotal) || 0;
+  var updated   = parseFloat(existing) + parseFloat(poin);
+
+  fbPut(pathTotal, updated);
+
+  // Log riwayat penambahan (audit trail, tidak wajib ditampilkan di UI)
+  var logId = "MS-" + new Date().getTime();
+  fbPut("aqualearn/manual_score_log/" + cKey + "/" + uKey + "/" + logId, {
+    poin:       parseFloat(poin),
+    keterangan: keterangan || "",
+    waktu:      new Date().toISOString()
+  });
+
+  invalidateCourseCache(courseId);
+  cacheRemove('student_courses_' + uKey);
+
+  return {
+    success: true,
+    message: "✅ Skor berhasil ditambahkan (" + (poin > 0 ? "+" : "") + poin + " poin)."
+  };
 }
 
 // ══════════════════════════════════════════════
@@ -1187,6 +1223,7 @@ function getPaketDataAnalitikKelas(courseId) {
   var lSubC     = fbGet('aqualearn/lesson_submit/'  + cKey)   || {};
   var nilaiCKey = fbGet('aqualearn/nilai/'          + cKey)   || {};
   var jadwalRaw = fbGet('aqualearn/jadwal/'         + cKey)   || {};
+  var manualScoreC  = fbGet('aqualearn/manual_score/'   + cKey)   || {};
 
   // ── 2. Format materi ──
   var materials = [];
@@ -1260,6 +1297,7 @@ function getPaketDataAnalitikKelas(courseId) {
     var scoreQuiz     = quizIds.filter(function(k) { return !!qTrk[safeKey(k)]; }).length * 10;
     var doneLessons   = lessonIds.filter(function(k) { return lSubC[safeKey(k)] && lSubC[safeKey(k)][uKey]; }).length;
     var scoreLesson   = doneLessons * 10;
+    var scoreManual   = parseFloat(manualScoreC[uKey]) || 0;
 
     // Last Active — timestamp terbaru dari materi, kuis, atau lesson
     var lastActive = null;
@@ -1278,7 +1316,7 @@ function getPaketDataAnalitikKelas(courseId) {
       }
     });
 
-    rankings.push({ userId: uKey, nama: nama, skor: scoreMat + scoreQuiz + scoreLesson, lastActive: lastActive });
+    rankings.push({ userId: uKey, nama: nama, skor: scoreMat + scoreQuiz + scoreLesson + scoreManual, lastActive: lastActive });
   });
   rankings.sort(function(a, b) { return b.skor - a.skor; });
 
@@ -1472,7 +1510,8 @@ function refreshAndGetCourseData(courseId) {
 }
 
 function getScriptUrl() {
-  return ScriptApp.getService().getUrl();
+  return PropertiesService.getScriptProperties().getProperty('AQUALEARN_PRODUCTION_URL')
+         || ScriptApp.getService().getUrl();
 }
 
 function logCbtViolations(quizId, userId, violations) {
@@ -1521,4 +1560,43 @@ function setupTriggerBackup() {
   .create();
   
   Logger.log("✅ Trigger backup mingguan aktif.");
+}
+
+function perbaikiUrlKuisLama() {
+  var URL_BENAR = PropertiesService.getScriptProperties().getProperty('AQUALEARN_PRODUCTION_URL');
+  if (!URL_BENAR) {
+    Logger.log("❌ AQUALEARN_PRODUCTION_URL belum diset atau kosong.");
+    return;
+  }
+  URL_BENAR = URL_BENAR.replace(/\/$/, ''); // buang trailing slash kalau ada
+
+  var allQuiz = fbGet("aqualearn/quiz") || {};
+  var updates = {};
+  var count   = 0;
+  var log     = [];
+
+  for (var docKey in allQuiz) {
+    var q = allQuiz[docKey];
+    if (!q.url_form) continue;
+
+    var idx = q.url_form.indexOf('?page=');
+    if (idx === -1) continue; // format tak dikenali, skip biar aman
+
+    var queryPart = q.url_form.substring(idx);
+    var urlBaru   = URL_BENAR + queryPart;
+
+    if (urlBaru !== q.url_form) {
+      updates[docKey + "/url_form"] = urlBaru;
+      count++;
+      log.push(docKey + ": " + q.url_form + " → " + urlBaru);
+    }
+  }
+
+  if (count === 0) {
+    Logger.log("Tidak ada url_form yang perlu diperbaiki.");
+    return;
+  }
+
+  fbPatch("aqualearn/quiz", updates);
+  Logger.log("✅ " + count + " link diperbaiki:\n" + log.join("\n"));
 }
