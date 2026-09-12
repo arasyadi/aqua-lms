@@ -743,6 +743,13 @@
         <span>🏆 Ranking Aktivitas Mahasiswa</span>
         <div style="display:flex;align-items:center;gap:10px;margin-left:auto;">
           <button
+            id="btnTambahSkor"
+            class="btn btn-ocean btn-sm"
+            style="font-size:12px;"
+            onclick="bukaModalTambahSkor(); event.stopPropagation();">
+            ➕ Tambah Skor
+          </button>
+          <button
             id="btnExportAktivitas"
             class="btn btn-teal btn-sm"
             style="display:none; font-size:12px;"
@@ -926,6 +933,45 @@
       * Nilai final bergantung pada hasil kompilasi Ketua Dosen Pengampu Mata Kuliah berdasarkan kompilasi seluruh dosen pengampu.
     </p>
     <button class="btn btn-dark btn-full mt-5" onclick="tutupModalNilaiAkhir()">Tutup</button>
+  </div>
+</div>
+
+<!-- ── MODAL TAMBAH SKOR MANUAL ── -->
+<div id="tambahSkorModalOverlay" class="modal-overlay" style="display:none;" onclick="if(event.target===this)tutupModalTambahSkor()">
+  <div class="modal-card" style="max-width:480px;">
+    <h3 class="modal-title">➕ Tambah Skor Keaktifan</h3>
+    <p style="font-size:13px;color:#5a8fa8;margin-bottom:14px;">
+      Beri poin tambahan untuk mahasiswa yang aktif bertanya/menjawab di kelas. Skor ini otomatis masuk ke Ranking Aktivitas & Export Nilai Keaktifan.
+    </p>
+
+    <div style="margin-bottom:12px;">
+      <label class="form-label">Cari Mahasiswa (NIM / Nama)</label>
+      <input type="text" id="cariMhsSkor" class="form-input" placeholder="Ketik NIM atau nama..." oninput="filterMhsTambahSkor()">
+    </div>
+
+    <div id="listMhsTambahSkor" class="check-list glass rounded-xl p-2 mb-3" style="border:1px solid var(--border); max-height:180px;">
+      <p style="color:#3a6a85;font-size:13px;padding:8px;">Memuat daftar mahasiswa…</p>
+    </div>
+
+    <div id="mhsTerpilihSkor" style="display:none; background:rgba(52,201,138,0.1); border:1px solid rgba(52,201,138,0.3); border-radius:10px; padding:10px 14px; margin-bottom:14px; font-size:13px; color:var(--mint);">
+      ✅ Dipilih: <b id="mhsTerpilihSkorLabel"></b>
+    </div>
+
+    <div class="grid gap-3" style="grid-template-columns:1fr 1fr; margin-bottom:16px;">
+      <div>
+        <label class="form-label">Poin</label>
+        <input type="number" id="poinTambahSkor" class="form-input" placeholder="Contoh: 5 atau -5">
+      </div>
+      <div>
+        <label class="form-label">Keterangan (Opsional)</label>
+        <input type="text" id="keteranganTambahSkor" class="form-input" placeholder="Contoh: Aktif diskusi Pertemuan 3">
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;">
+      <button id="btnSimpanTambahSkor" class="btn btn-ocean" style="flex:1;" onclick="simpanTambahSkor()">💾 Simpan Skor</button>
+      <button class="btn btn-dark" onclick="tutupModalTambahSkor()">Batal</button>
+    </div>
   </div>
 </div>
 
@@ -4093,6 +4139,100 @@ function _prosesExportAktivitas() {
     .replace(/\s+/g, '_');
 
   XLSX.writeFile(wb, 'NilaiAktivitas_' + safeNama + '.xlsx');
+}
+
+
+// ══════════════════════════════════════════════
+// TAMBAH SKOR MANUAL (Keaktifan Kelas)
+// ══════════════════════════════════════════════
+var _mhsTerpilihSkorId = null;
+
+function _escJs(str) {
+  return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+function bukaModalTambahSkor() {
+  if (!activeCourseId) { alert('Buka panel kelas terlebih dahulu.'); return; }
+  if (!globalRankings || !globalRankings.length) {
+    alert('Data mahasiswa belum termuat. Tunggu Ranking Aktivitas selesai dimuat, lalu coba lagi.');
+    return;
+  }
+
+  _mhsTerpilihSkorId = null;
+  document.getElementById('cariMhsSkor').value = '';
+  document.getElementById('poinTambahSkor').value = '';
+  document.getElementById('keteranganTambahSkor').value = '';
+  document.getElementById('mhsTerpilihSkor').style.display = 'none';
+
+  renderListMhsTambahSkor(globalRankings);
+  document.getElementById('tambahSkorModalOverlay').style.display = 'flex';
+}
+
+function renderListMhsTambahSkor(list) {
+  var container = document.getElementById('listMhsTambahSkor');
+  if (!list || !list.length) {
+    container.innerHTML = '<p style="color:#3a6a85;font-size:13px;padding:8px;">Mahasiswa tidak ditemukan.</p>';
+    return;
+  }
+  var sorted = list.slice().sort(function(a, b) { return String(a.nama).localeCompare(String(b.nama)); });
+  container.innerHTML = sorted.map(function(r) {
+    var isSelected = (_mhsTerpilihSkorId === r.userId);
+    return '<label class="check-item" style="cursor:pointer;' + (isSelected ? 'background:rgba(33,150,211,0.18);' : '') + '" '
+      + 'onclick="pilihMhsTambahSkor(\'' + _escJs(r.userId) + '\',\'' + _escJs(r.nama) + '\')">'
+      + '<b style="color:var(--foam);">' + r.userId + '</b> — ' + r.nama
+      + (isSelected ? ' <span style="margin-left:auto;color:var(--mint);">✓</span>' : '')
+      + '</label>';
+  }).join('');
+}
+
+function filterMhsTambahSkor() {
+  var q = document.getElementById('cariMhsSkor').value.toLowerCase().trim();
+  var filtered = globalRankings.filter(function(r) {
+    return String(r.userId).toLowerCase().indexOf(q) > -1 || String(r.nama).toLowerCase().indexOf(q) > -1;
+  });
+  renderListMhsTambahSkor(filtered);
+}
+
+function pilihMhsTambahSkor(userId, nama) {
+  _mhsTerpilihSkorId = userId;
+  document.getElementById('mhsTerpilihSkor').style.display = 'block';
+  document.getElementById('mhsTerpilihSkorLabel').innerText = userId + ' — ' + nama;
+  filterMhsTambahSkor(); // refresh highlight pada list
+}
+
+function simpanTambahSkor() {
+  if (!_mhsTerpilihSkorId) { alert('Pilih mahasiswa terlebih dahulu!'); return; }
+
+  var poin       = parseFloat(document.getElementById('poinTambahSkor').value);
+  var keterangan = document.getElementById('keteranganTambahSkor').value.trim();
+
+  if (isNaN(poin) || poin === 0) { alert('Isi poin dengan angka (boleh negatif untuk koreksi)!'); return; }
+
+  var btn = document.getElementById('btnSimpanTambahSkor');
+  btn.innerText = '⏳ Menyimpan...'; btn.disabled = true;
+
+  google.script.run
+    .withSuccessHandler(function(r) {
+      btn.innerText = '💾 Simpan Skor'; btn.disabled = false;
+      if (r.success) {
+        alert(r.message);
+        tutupModalTambahSkor();
+        document.getElementById('loadingRanking').style.display = 'block';
+        document.getElementById('rankingContainer').style.display = 'none';
+        google.script.run.withSuccessHandler(renderRankings).getStudentRankings(activeCourseId);
+      } else {
+        alert('❌ ' + r.message);
+      }
+    })
+    .withFailureHandler(function(err) {
+      btn.innerText = '💾 Simpan Skor'; btn.disabled = false;
+      alert('❌ Gagal: ' + err.message);
+    })
+    .tambahSkorManual(activeCourseId, _mhsTerpilihSkorId, poin, keterangan);
+}
+
+function tutupModalTambahSkor() {
+  document.getElementById('tambahSkorModalOverlay').style.display = 'none';
 }
 
 // ══════════════════════════════════════════════
