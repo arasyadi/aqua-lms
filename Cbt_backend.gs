@@ -116,6 +116,56 @@ function saveCbtQuestion(data) {
 }
 
 // ============================================================
+// 3b. Import massal soal CBT (CSV NotebookLM Exporter)
+//     Pakai fbPatch (1 request) — bukan fbPut per soal (lambat/timeout)
+// ============================================================
+function saveCbtQuestionsBulk(quizId, courseId, questionsArray) {
+  if (!quizId) {
+    return { success: false, saved: 0, total: 0, message: "quizId kosong." };
+  }
+  if (!questionsArray || !questionsArray.length) {
+    return { success: false, saved: 0, total: 0, message: "Tidak ada soal untuk diimpor." };
+  }
+
+  var baseTime  = new Date().getTime();
+  var bulkData  = {};
+  var savedCount = 0;
+
+  questionsArray.forEach(function(q, idx) {
+    var text = String(q.text || "").trim();
+    if (!text) return; // lewati baris kosong
+
+    var questionId = "Q-" + (baseTime + idx); // idx menjamin key unik dalam 1 batch
+    bulkData[questionId] = {
+      quiz_id:        quizId,
+      type:           "PG",
+      text:           text,
+      options:        q.options || [],
+      correct_answer: q.correctAnswer || "",
+      points:         parseFloat(q.points) || 0,
+      image_url:      "",
+      hint:           q.hint || "",
+      rationale:      q.rationale || "",
+      source:         "notebooklm_import"
+    };
+    savedCount++;
+  });
+
+  if (savedCount === 0) {
+    return { success: false, saved: 0, total: questionsArray.length, message: "Tidak ada soal valid untuk diimpor." };
+  }
+
+  fbPatch("aqualearn/cbt_questions/" + quizId, bulkData);
+
+  return {
+    success: true,
+    saved:   savedCount,
+    total:   questionsArray.length,
+    message: savedCount + " dari " + questionsArray.length + " soal berhasil diimpor ke " + quizId + "!"
+  };
+}
+
+// ============================================================
 // 4. Menyimpan deadline dan durasi
 // ============================================================
 function saveCbtSettings(quizId, deadlineStr, durationMinutes) {
@@ -449,14 +499,6 @@ function logCbtViolations(quizId, userId, violations) {
 }
 
 // ============================================================
-// 10. Kembalikan URL script (untuk redirect tutupAman)
-// ============================================================
-function getScriptUrl() {
-  return PropertiesService.getScriptProperties().getProperty('AQUALEARN_PRODUCTION_URL')
-         || ScriptApp.getService().getUrl();
-}
-
-// ============================================================
 // 11. Ambil kuis milik kelas + enrich dengan info deadline/durasi CBT
 // ============================================================
 function getCourseQuizzesWithCbtInfo(courseId) {
@@ -703,7 +745,7 @@ function cekDanKirimNotifTelegramCBT() {
 function setProductionUrl() {
   PropertiesService.getScriptProperties().setProperty(
     'AQUALEARN_PRODUCTION_URL',
-    'https://script.google.com/macros/s/AKfycbyRKpsBY1OmA4keRIlogKvgJFzrJVGlvAn0ZFnYG7XSJ_7phAO3jc9IRLpHbNFRv7k1/exec'
+    'https://script.google.com/macros/s/AKfycbz_prmw-NdU4pf1u4dRFCdiiv6mFo1wT264RaZaSKbw3Eor4gmbWxgY9z1tnFgsnGD2sw/exec'
   );
   Logger.log('✅ Production URL tersimpan.');
 }
