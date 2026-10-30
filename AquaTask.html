@@ -7,11 +7,9 @@
   <title>AquaTask — Pengumpulan Tugas</title>
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Lora:wght@600;700&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --deep:#060f1e;--navy:#0b1f3a;--ocean:#0d3d6b;--sea:#1565a8;--wave:#2196d3;
+    :root {--deep:#060f1e;--navy:#0b1f3a;--ocean:#0d3d6b;--sea:#1565a8;--wave:#2196d3;
       --foam:#5cc8f0;--coral:#f26d51;--amber:#e8a83a;--mint:#34c98a;
-      --glass:rgba(13,61,107,0.35);--border:rgba(92,200,240,0.18);--slate:#8ab8cc;
-    }
+      --glass:rgba(13,61,107,0.35);--border:rgba(92,200,240,0.18);--slate:#8ab8cc;}
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
     body{font-family:'Sora',sans-serif;background:var(--deep);
       background-image:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(11,31,58,0.9) 0%,transparent 75%),
@@ -116,6 +114,15 @@
     .instr-text{padding:16px 18px;font-size:13px;color:#c0dbe8;line-height:1.7;white-space:pre-wrap;}
     .instr-iframe-wrap{width:100%;height:600px;}
     .instr-iframe-wrap iframe{width:100%;height:100%;border:none;display:block;}
+
+    /* FILE TYPE PICKER (Dosen) */
+    .ft-grid{display:flex;flex-wrap:wrap;gap:6px;}
+    .ft-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:20px;
+      font-size:12px;font-weight:600;color:var(--slate);background:rgba(6,15,30,0.5);
+      border:1px solid rgba(92,200,240,0.2);cursor:pointer;transition:all .15s;user-select:none;}
+    .ft-chip:hover{border-color:var(--wave);}
+    .ft-chip input{accent-color:var(--wave);cursor:pointer;}
+    .ft-chip:has(input:checked){color:var(--foam);background:rgba(33,150,211,0.15);border-color:var(--wave);}
 
     /* ── FILE UPLOAD (Multi-file) ── */
     .file-drop{border:2px dashed rgba(92,200,240,0.35);border-radius:12px;padding:22px 20px;
@@ -269,6 +276,17 @@
     .toast-info    .toast-title,.toast-info    .toast-msg{color:var(--foam);}
     .toast-warn    .toast-title,.toast-warn    .toast-msg{color:var(--amber);}
 
+    /* TABS (Edit/Preview Tugas) */
+    .tab-bar{display:flex;gap:6px;margin-bottom:16px;border-bottom:1px solid var(--border);}
+    .tab-btn{font-family:'Sora',sans-serif;font-size:12px;font-weight:600;color:var(--slate);
+      background:none;border:none;border-bottom:2px solid transparent;padding:9px 14px;cursor:pointer;transition:color .15s,border-color .15s;}
+    .tab-btn:hover{color:var(--foam);}
+    .tab-btn.active{color:var(--foam);border-bottom-color:var(--wave);}
+    .tab-pane{display:none;}
+    .tab-pane.active{display:block;}
+    .info-box{padding:10px 13px;background:rgba(232,168,58,0.07);border:1px solid rgba(232,168,58,0.22);
+      border-radius:9px;font-size:11px;color:var(--amber);line-height:1.6;margin-bottom:16px;}
+
     /* UTILS */
     .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
     .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
@@ -341,7 +359,7 @@
         <div class="text-sm" id="fileDropHint">PDF, DOC, DOCX, PPT, PPTX, JPG, PNG, ZIP — maks 10 MB/file</div>
         <div id="maxFilesChip" class="max-files-chip" style="display:none;">📎 Maks <span id="maxFilesNum">1</span> file</div>
       </div>
-      <!-- Hidden file input — multiple controlled by JS -->
+      <!-- Hidden file input — multiple controlled by JS, accept controlled by JS -->
       <input type="file" id="fileInput" style="display:none;"
              accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png,.zip,.rar"
              onchange="handleFileSelect(this)">
@@ -405,6 +423,11 @@
       </div>
     </div>
     <div class="form-section">
+      <label class="form-label">Tipe File yang Diizinkan</label>
+      <div class="ft-grid" id="newTaskFileTypes"></div>
+      <p class="form-hint">Tidak ada yang dicentang = tipe default (PDF, DOC, DOCX, PPT, PPTX, JPG, PNG, ZIP, RAR).</p>
+    </div>
+    <div class="form-section">
       <label class="form-label">Deadline (Waktu WITA +08:00)</label>
       <input type="datetime-local" class="form-input" id="newTaskDeadline">
     </div>
@@ -431,6 +454,79 @@
     <div style="display:flex;gap:10px;">
       <button class="btn btn-ocean" style="flex:1;" id="btnSimpanEditDeadline" onclick="simpanEditDeadline()">💾 Simpan Deadline</button>
       <button class="btn btn-dark" onclick="tutupModalEditDeadline()">Batal</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: PREVIEW & EDIT TUGAS (Dosen) ══ -->
+<div class="modal-overlay" id="modalEditTugas">
+  <div class="modal-box modal-box-wide">
+    <div class="modal-header">
+      <h3 id="etTitle">📝 Tugas</h3>
+      <button class="modal-close" onclick="tutupModalEditTugas()">✕</button>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" id="etTabBtnPreview" onclick="etSwitchTab('preview')">👁️ Preview</button>
+      <button class="tab-btn" id="etTabBtnEdit" onclick="etSwitchTab('edit')">✏️ Edit
+        <span id="etDirtyDot" style="display:none;color:var(--amber);">●</span></button>
+    </div>
+
+    <!-- PREVIEW -->
+    <div class="tab-pane active" id="etPanePreview"></div>
+
+    <!-- EDIT -->
+    <div class="tab-pane" id="etPaneEdit" oninput="_etUpdateDirty()" onchange="_etUpdateDirty()">
+      <div class="info-box" id="etInfoBox" style="display:none;"></div>
+      <div class="form-section">
+        <label class="form-label">Judul Tugas</label>
+        <input type="text" class="form-input" id="etJudul">
+      </div>
+      <div class="form-section">
+        <label class="form-label">Deskripsi / Petunjuk</label>
+        <textarea class="form-input" id="etDeskripsi" rows="5"></textarea>
+      </div>
+      <div class="form-section">
+        <label class="form-label">🔗 Link Google Docs Instruksi (Opsional)</label>
+        <input type="url" class="form-input" id="etDocsUrl" placeholder="https://docs.google.com/document/d/...">
+        <p class="form-hint">Kosongkan untuk menghapus link. Docs harus sudah dipublish agar tampil.</p>
+      </div>
+      <div class="grid-3 mb-4">
+        <div>
+          <label class="form-label">Tipe Tugas</label>
+          <select class="form-input" id="etTipe">
+            <option value="Individu">📋 Individu</option>
+            <option value="Kelompok">👥 Kelompok</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Bobot (%)</label>
+          <input type="number" class="form-input" id="etBobot" min="0" max="100">
+        </div>
+        <div>
+          <label class="form-label">Maks File Upload</label>
+          <select class="form-input" id="etMaxFiles">
+            <option value="1">1 file</option><option value="2">2 file</option>
+            <option value="3">3 file</option><option value="5">5 file</option>
+            <option value="10">10 file</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-section">
+        <label class="form-label">Tipe File yang Diizinkan</label>
+        <div class="ft-grid" id="etFileTypes"></div>
+        <p class="form-hint">Hanya berlaku untuk pengumpulan berikutnya. Kosongkan semua untuk kembali ke default.</p>
+      </div>
+      <div class="form-section">
+        <label class="form-label">Deadline (Waktu WITA +08:00)</label>
+        <input type="datetime-local" class="form-input" id="etDeadline">
+        <p class="form-hint">Kosongkan untuk tanpa deadline.</p>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;align-items:center;margin-top:6px;">
+      <button class="btn btn-ocean" style="flex:1;" id="btnSimpanEditTugas" onclick="simpanEditTugas()">💾 Simpan Perubahan</button>
+      <button class="btn btn-dark" onclick="tutupModalEditTugas()">Tutup</button>
     </div>
   </div>
 </div>
@@ -492,10 +588,11 @@
    ═══════════════════════════════════════ */
 var _state = {
   role:null, courseId:null, userId:null, userName:null,
+  sessionId:null,
   tasks:[], mySubmissions:{}, mahasiswaList:[],
   dosenData:null, activeTaskId:null, selectedAnggota:[],
   /* Multi-file: array of File objects */
-  selectedFiles:[], activeMaxFiles:1
+  selectedFiles:[], activeMaxFiles:1, activeAllowed:null
 };
 var _editDeadlineCtx = { courseId:null, taskId:null };
 
@@ -517,38 +614,107 @@ function _cKeyMhs()   { return 'mhs_'  + _state.courseId + '_' + _state.userId; 
 function _cKeyDosen() { return 'dosen_'+ _state.courseId; }
 
 /* ═══════════════════════════════════════
-   INIT
+   INIT  — 🔒 SECURITY PATCH
    ═══════════════════════════════════════ */
 window.onload = function() {
   google.script.url.getLocation(function(loc) {
     var p = loc.parameter;
-    _state.courseId = p.courseId || null;
+    _state.courseId  = p.courseId  || null;
+    _state.sessionId = p.sessionId || null;
 
-    if (p.userId && p.userRole) {
-      _state.userId   = p.userId;
-      _state.userName = decodeURIComponent(p.userName || p.userId);
-      _state.role     = p.userRole;
-    } else {
-      var saved = localStorage.getItem('lms_session');
-      if (!saved) { _tampilError('Anda belum login. Buka AquaTask melalui tombol di panel kelas LMS.'); return; }
+    if (!_state.sessionId) {
       try {
-        var sess = JSON.parse(saved);
-        _state.userId = sess.userId; _state.userName = sess.name; _state.role = sess.role;
-      } catch(e) { _tampilError('Sesi tidak valid. Coba login ulang.'); return; }
+        var sess = JSON.parse(localStorage.getItem('lms_session') || '{}');
+        _state.sessionId = sess.sessionId || null;
+      } catch(e) {}
     }
 
-    if (!_state.userId || !_state.role || !_state.courseId) {
-      _tampilError('Parameter tidak lengkap. Buka AquaTask dari panel kelas LMS.'); return;
+    if (!_state.sessionId || !_state.courseId) {
+      _tampilError(
+        'Parameter keamanan tidak lengkap.<br><br>' +
+        '<b>Solusi:</b> kembali ke LMS, klik "Keluar", login ulang, lalu buka AquaTask dari panel kelas.'
+      );
+      return;
     }
 
-    document.getElementById('userBadge').textContent = '🎓 ' + _state.userName;
-    if (_state.role === 'Dosen') _muatDosen(); else _muatMahasiswa();
+    google.script.run
+      .withSuccessHandler(function(user) {
+        _state.userId   = user.userId;
+        _state.userName = user.name;
+        _state.role     = user.role;
+        document.getElementById('userBadge').textContent = '🎓 ' + _state.userName;
+        if (_state.role === 'Dosen') _muatDosen(); else _muatMahasiswa();
+      })
+      .withFailureHandler(function(err) {
+        _tampilError(
+          'Sesi tidak valid atau telah kedaluwarsa.<br><br>' +
+          '<b>Solusi:</b> logout dari LMS, lalu login ulang.<br><br>' +
+          '<small>Detail: ' + (err.message || 'Unknown error') + '</small>'
+        );
+      })
+      .validasiSesiPublik(_state.sessionId);
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-overlay.visible').forEach(function(m) {
+        m.classList.remove('visible');
+      });
+    }
   });
 };
 
 function _showLoadingMain() {
   document.getElementById('mainContainer').innerHTML =
     '<div class="loading-wrap"><div class="spinner"></div><br>Memuat data…</div>';
+}
+
+/* ═══════════════════════════════════════
+   FILE TYPE HELPERS (Dosen-controlled)
+   ═══════════════════════════════════════ */
+var _FILE_TYPES = [
+  {label:'PDF',      exts:['pdf']},
+  {label:'DOC',      exts:['doc']},
+  {label:'DOCX',     exts:['docx']},
+  {label:'XLS',      exts:['xls']},
+  {label:'XLSX',     exts:['xlsx']},
+  {label:'PPT',      exts:['ppt']},
+  {label:'PPTX',     exts:['pptx']},
+  {label:'CSV',      exts:['csv']},
+  {label:'TXT',      exts:['txt']},
+  {label:'JPG/JPEG', exts:['jpg','jpeg']},
+  {label:'PNG',      exts:['png']},
+  {label:'ZIP',      exts:['zip']},
+  {label:'RAR',      exts:['rar']}
+];
+var _DEFAULT_TYPES = ['pdf','doc','docx','ppt','pptx','jpg','jpeg','png','zip','rar'];
+
+function _getAllowedExts(task) {
+  var a = task && task.allowed_types;
+  return (a && a.length) ? a : _DEFAULT_TYPES;
+}
+
+function _renderFileTypeBox(containerId, selected) {
+  var box = document.getElementById(containerId);
+  box.innerHTML = '';
+  selected = selected || [];
+  _FILE_TYPES.forEach(function(ft) {
+    var lbl = _el('label', { className:'ft-chip' });
+    var cb  = _el('input', { type:'checkbox' });
+    cb.dataset.exts = ft.exts.join(',');
+    cb.checked = ft.exts.every(function(e){ return selected.indexOf(e) > -1; });
+    lbl.appendChild(cb);
+    lbl.appendChild(document.createTextNode(ft.label));
+    box.appendChild(lbl);
+  });
+}
+
+function _readFileTypeBox(containerId) {
+  var out = [];
+  document.querySelectorAll('#'+containerId+' input:checked').forEach(function(cb) {
+    cb.dataset.exts.split(',').forEach(function(e){ if (out.indexOf(e) < 0) out.push(e); });
+  });
+  return out;
 }
 
 /* ═══════════════════════════════════════
@@ -569,6 +735,15 @@ function handleDrop(e) {
 
 function _addFile(file) {
   var maxF = _state.activeMaxFiles || 1;
+
+  /* A5 — Validasi ekstensi terhadap konfigurasi tugas */
+  var ext = (file.name.split('.').pop() || '').toLowerCase();
+  var allowed = _state.activeAllowed || _DEFAULT_TYPES;
+  if (allowed.indexOf(ext) < 0) {
+    _toast('"'+file.name+'" ditolak. Tipe yang diizinkan: ' +
+      allowed.map(function(e){ return e.toUpperCase(); }).join(', '), 'error');
+    return;
+  }
 
   if (file.size > 10 * 1024 * 1024) {
     _toast('File "'+file.name+'" melebihi 10 MB!', 'error'); return;
@@ -607,7 +782,7 @@ function _renderFileQueue() {
     var item = _el('div', { className:'file-queue-item' });
     item.innerHTML =
       '<span class="fq-icon">'+_fileIcon(f.name)+'</span>'
-      +'<span class="fq-name">'+_truncate(f.name,36)+'</span>'
+      +'<span class="fq-name">'+_esc(_truncate(f.name,36))+'</span>'
       +'<span class="fq-size">'+_fmtSize(f.size)+'</span>'
       +'<span class="fq-status pending" id="fq-status-'+idx+'">⏳ Antri</span>';
     var rmBtn = _el('button', { className:'fq-remove' });
@@ -618,7 +793,6 @@ function _renderFileQueue() {
     qEl.appendChild(item);
   });
 
-  /* Update hint di drop zone */
   var remaining = maxF - _state.selectedFiles.length;
   document.getElementById('fileDropText').textContent =
     remaining > 0
@@ -633,12 +807,12 @@ function _setFileQueueStatus(idx, status, label) {
   el.textContent = label;
 }
 
-/* ikon berdasarkan ekstensi */
 function _fileIcon(nama) {
   if (!nama) return '📄';
   var ext = (nama.split('.').pop() || '').toLowerCase();
   return ({pdf:'📕',doc:'📘',docx:'📘',ppt:'📙',pptx:'📙',
-           jpg:'🖼️',jpeg:'🖼️',png:'🖼️',zip:'🗜️',rar:'🗜️'})[ext] || '📄';
+           jpg:'🖼️',jpeg:'🖼️',png:'🖼️',zip:'🗜️',rar:'🗜️',
+           xls:'📗',xlsx:'📗',csv:'📗',txt:'📄'})[ext] || '📄';
 }
 function _fmtSize(bytes) {
   if (!bytes) return '';
@@ -652,10 +826,8 @@ function _truncate(str, n) {
 
 /* ═══════════════════════════════════════
    MULTI-FILE LINK RENDER HELPER
-   Kompatibel dengan data lama (file_url) dan baru (file_urls[])
    ═══════════════════════════════════════ */
 function _buildFileLinkNodes(sub) {
-  /* Normalize ke arrays */
   var urls  = sub.file_urls  || (sub.file_url  ? [sub.file_url]  : []);
   var names = sub.file_names || (sub.file_nama ? [sub.file_nama] : []);
 
@@ -666,7 +838,7 @@ function _buildFileLinkNodes(sub) {
     var nm  = names[i] || ('File '+(i+1));
     var a   = _el('a', { href:url, target:'_blank', className:'file-link' });
     a.innerHTML = '<span>'+_fileIcon(nm)+'</span>'
-      + '<span>'+_truncate(nm, 22)+'</span>';
+      + '<span>'+_esc(_truncate(nm, 22))+'</span>';
     if (urls.length > 1) {
       var idx = _el('span', { className:'file-ext' });
       idx.textContent = (i+1)+'/'+urls.length;
@@ -702,7 +874,7 @@ function _muatMahasiswa(force) {
         _showStaleBadge(false);
       })
       .withFailureHandler(function() { _showStaleBadge(false); })
-      .aquaTaskGetDataMahasiswa(_state.courseId, _state.userId);
+      .aquaTaskGetDataMahasiswa(_state.sessionId, _state.courseId, _state.userId);
     return;
   }
 
@@ -714,7 +886,7 @@ function _muatMahasiswa(force) {
       _renderMahasiswaView();
     })
     .withFailureHandler(function(e) { _tampilError('Gagal memuat data: ' + e.message); })
-    .aquaTaskGetDataMahasiswa(_state.courseId, _state.userId);
+    .aquaTaskGetDataMahasiswa(_state.sessionId, _state.courseId, _state.userId);
 }
 
 /* ═══════════════════════════════════════
@@ -759,6 +931,9 @@ function _renderMahasiswaView() {
     /* Max files badge */
     var mf = parseInt(t.max_files) || 1;
     if (mf > 1) top.appendChild(_badge('badge-amber', '📎 Maks '+mf+' file'));
+    /* A9 — Badge tipe file yang diizinkan */
+    if (t.allowed_types && t.allowed_types.length)
+      top.appendChild(_badge('badge-foam', '📄 ' + t.allowed_types.map(function(e){ return e.toUpperCase(); }).join(', ')));
     var dlCls  = isLate ? 'dl-closed' : (dlMs && dlMs-now < 86400000 ? 'dl-warn' : 'dl-open');
     var dlChip = _el('span', { className:'dl-chip '+dlCls });
     dlChip.textContent = dlMs ? (isLate ? '🔒 Ditutup' : '⏰ '+_fmtDl(dlMs)) : '—';
@@ -799,7 +974,6 @@ function _renderMahasiswaView() {
       var fileTxt   = fileCount > 1 ? ' · '+fileCount+' file dikumpulkan' : '';
       info.innerHTML = '✅ Dikumpulkan '+_fmtWaktu(sub.waktu_kumpul)+nilaiTxt+fileTxt;
       card.appendChild(info);
-      /* File links (multi-file aware) */
       var fileNodes = _buildFileLinkNodes(sub);
       if (fileNodes) card.appendChild(fileNodes);
     } else if (isLate) {
@@ -821,6 +995,7 @@ function bukaModalSubmit(task) {
   _state.activeMaxFiles  = parseInt(task.max_files) || 1;
   _state.selectedAnggota = [_state.userId];
   _state.selectedFiles   = [];
+  _state.activeAllowed   = _getAllowedExts(task);   // A6
 
   /* Reset UI */
   var drop = document.getElementById('fileDrop');
@@ -846,21 +1021,23 @@ function bukaModalSubmit(task) {
     document.getElementById('maxFilesNum').textContent = maxF;
     maxLbl.textContent = '(maks '+maxF+' file)';
     fileInp.setAttribute('multiple', 'multiple');
-    document.getElementById('fileDropHint').textContent =
-      'PDF, DOC, DOCX, PPT, PPTX, JPG, PNG, ZIP — maks 10 MB/file · Pilih hingga '+maxF+' file';
   } else {
     maxChip.style.display = 'none';
     maxLbl.textContent = '(1 file)';
     fileInp.removeAttribute('multiple');
-    document.getElementById('fileDropHint').textContent =
-      'PDF, DOC, DOCX, PPT, PPTX, JPG, PNG, ZIP — maks 10 MB';
   }
+
+  /* A6 — accept = filter dialog Windows Explorer + hint dinamis */
+  fileInp.setAttribute('accept', _state.activeAllowed.map(function(e){ return '.'+e; }).join(','));
+  document.getElementById('fileDropHint').textContent =
+    _state.activeAllowed.map(function(e){ return e.toUpperCase(); }).join(', ')
+    + ' — maks 10 MB/file' + (maxF > 1 ? ' · Pilih hingga '+maxF+' file' : '');
 
   /* Task info */
   var infoEl = document.getElementById('submitTaskInfo');
   var lines  = [
-    '<strong style="color:var(--foam);">'+task.judul+'</strong>',
-    'Tipe: <strong>'+task.tipe+'</strong>',
+    '<strong style="color:var(--foam);">'+_esc(task.judul)+'</strong>',
+    'Tipe: <strong>'+_esc(task.tipe)+'</strong>',
     task.bobot    ? 'Bobot: <strong>'+task.bobot+'%</strong>'    : '',
     task.deadline ? 'Deadline: <strong>'+_fmtDl(new Date(task.deadline).getTime())+'</strong>' : '',
     maxF > 1      ? 'Maks file: <strong>'+maxF+'</strong>'       : ''
@@ -917,10 +1094,8 @@ function eksekusiSubmit() {
   bar.style.display = 'block'; fill.style.width = '0%'; fill.classList.remove('shimmer');
   stepLbl.style.display = 'block';
 
-  /* Sequential upload recursive */
   function _uploadNext(idx) {
     if (idx >= totalF) {
-      /* Semua file terupload — simpan submission */
       var pctBase = 80;
       fill.style.width = pctBase + '%';
       stepLbl.textContent = 'Menyimpan pengumpulan…';
@@ -943,13 +1118,13 @@ function eksekusiSubmit() {
           _toast('Gagal menyimpan: '+err.message,'error');
         })
         .aquaTaskSubmit(
+          _state.sessionId,
           _state.activeTaskId, _state.courseId, _state.userId,
           _state.selectedAnggota, uploadedUrls, uploadedNames
         );
       return;
     }
 
-    /* Update progress & status */
     var pct = Math.round((idx / totalF) * 75);
     fill.style.width = pct + '%';
     stepLbl.textContent = 'Mengupload file '+(idx+1)+' dari '+totalF+'…';
@@ -977,8 +1152,10 @@ function eksekusiSubmit() {
           _toast('Upload error: '+err.message,'error');
         })
         .aquaTaskUploadFile(
+          _state.sessionId,
           b64, file.name,
-          file.type || 'application/octet-stream', _state.courseId
+          file.type || 'application/octet-stream', _state.courseId,
+          _state.activeTaskId          // A7 — argumen baru
         );
     };
     reader.readAsDataURL(file);
@@ -1013,7 +1190,7 @@ function _muatDosen(force) {
         _showStaleBadge(false);
       })
       .withFailureHandler(function() { _showStaleBadge(false); })
-      .aquaTaskGetDashboard(_state.courseId);
+      .aquaTaskGetDashboard(_state.sessionId, _state.courseId);
     return;
   }
 
@@ -1025,7 +1202,7 @@ function _muatDosen(force) {
       _renderDosenView();
     })
     .withFailureHandler(function(e) { _tampilError('Gagal memuat dashboard: ' + e.message); })
-    .aquaTaskGetDashboard(_state.courseId);
+    .aquaTaskGetDashboard(_state.sessionId, _state.courseId);
 }
 
 function _showStaleBadge(show) {
@@ -1069,7 +1246,6 @@ function _renderDosenView() {
 
     var acc  = _el('div', { className:'accordion', style:'margin-top:14px;' });
 
-    /* Accordion head */
     var head = _el('button', { className:'accordion-head open', onclick:function(){ toggleAcc(this); } });
     var hLeft = _el('div', { style:'display:flex;align-items:center;gap:10px;flex-wrap:wrap;' });
     hLeft.appendChild(_elText('span', t.judul));
@@ -1093,6 +1269,15 @@ function _renderDosenView() {
     btnDL.textContent = '📅 Deadline';
     hRight.appendChild(btnDL);
 
+    var btnEditT = _el('button', {
+      className:'btn btn-ghost btn-sm', style:'font-size:11px;padding:4px 10px;',
+      onclick:(function(tid){ return function(e) {
+        e.stopPropagation(); bukaModalEditTugas(tid, 'preview');
+      }; })(t.task_id)
+    });
+    btnEditT.textContent = '📝 Preview / Edit';
+    hRight.appendChild(btnEditT);
+
     var statChip = _el('span', { style:'font-size:11px;color:var(--slate);white-space:nowrap;' });
     statChip.textContent = item.jumlah_masuk+' masuk · '+item.individu_sudah+'/'+item.total_mhs;
     hRight.appendChild(statChip);
@@ -1107,7 +1292,7 @@ function _renderDosenView() {
             _toast(r.message, r.success?'success':'error');
             if (r.success) { _clearCache(_cKeyDosen()); _muatDosen(true); }
           })
-          .aquaTaskHapusTugas(_state.courseId, tid);
+          .aquaTaskHapusTugas(_state.sessionId, _state.courseId, tid);
       }; })(t.task_id, t.judul)
     });
     btnDel.textContent = '🗑️';
@@ -1116,7 +1301,6 @@ function _renderDosenView() {
     head.appendChild(hRight);
     acc.appendChild(head);
 
-    /* Accordion body */
     var body = _el('div', { className:'accordion-body open' });
 
     var actRow = _el('div', { style:'display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;' });
@@ -1157,7 +1341,6 @@ function _renderDosenView() {
 
       var tdAng = _elText('td', s.anggota_kelompok.length+' orang', 'font-size:12px;color:var(--slate);');
 
-      /* File cell — multi-file aware */
       var tdFile = _el('td');
       var urls  = s.file_urls  || (s.file_url  ? [s.file_url]  : []);
       var names = s.file_names || (s.file_nama ? [s.file_nama] : []);
@@ -1166,7 +1349,7 @@ function _renderDosenView() {
         urls.forEach(function(u, fi) {
           var nm = names[fi] || ('File '+(fi+1));
           var a  = _el('a', { href:u, target:'_blank', className:'file-link' });
-          a.innerHTML = '<span>'+_fileIcon(nm)+'</span><span>'+_truncate(nm,18)+'</span>';
+          a.innerHTML = '<span>'+_fileIcon(nm)+'</span><span>'+_esc(_truncate(nm,18))+'</span>';
           if (urls.length > 1) {
             var idx2 = _el('span', { className:'file-ext' }); idx2.textContent=(fi+1)+'/'+urls.length;
             a.appendChild(idx2);
@@ -1219,7 +1402,6 @@ function bukaModalDetailSub(sub, taskItem) {
   var isKelompok     = (taskItem.task.tipe === 'Kelompok');
   var resolvedTaskId = taskItem.task.task_id;
 
-  /* Pengumpul */
   var secPeng = _el('div', { className:'dp-section' });
   _dpLbl(secPeng, 'Pengumpul Utama');
   var r0 = _el('div', { className:'dp-row' });
@@ -1228,7 +1410,6 @@ function bukaModalDetailSub(sub, taskItem) {
   secPeng.appendChild(r0);
   content.appendChild(secPeng);
 
-  /* Anggota */
   if (isKelompok) {
     var secAng = _el('div', { className:'dp-section' });
     _dpLbl(secAng, 'Anggota Kelompok ('+sub.anggota_kelompok.length+')');
@@ -1242,7 +1423,6 @@ function bukaModalDetailSub(sub, taskItem) {
     content.appendChild(secAng);
   }
 
-  /* File — multi-file aware */
   var secFile = _el('div', { className:'dp-section' });
   _dpLbl(secFile, 'File Tugas');
   var urls  = sub.file_urls  || (sub.file_url  ? [sub.file_url]  : []);
@@ -1256,7 +1436,7 @@ function bukaModalDetailSub(sub, taskItem) {
         + '<div>'
         + '<div style="font-size:12px;font-weight:600;color:var(--foam);">'
         +   (urls.length > 1 ? '<span style="color:var(--amber);font-size:10px;">File '+(fi+1)+'/'+urls.length+' </span>' : '')
-        +   _truncate(nm,50)+'</div>'
+        +   _esc(_truncate(nm,50))+'</div>'
         + '<div style="font-size:10px;color:var(--slate);">Buka di tab baru ↗</div></div>';
       secFile.appendChild(fileA);
     });
@@ -1265,7 +1445,6 @@ function bukaModalDetailSub(sub, taskItem) {
   }
   content.appendChild(secFile);
 
-  /* Nilai */
   var secNilai = _el('div', { className:'dp-section' });
   _dpLbl(secNilai, 'Nilai Saat Ini');
   var nilaiBox = _el('div', { style:'text-align:center;padding:14px;background:rgba(6,15,30,0.4);border-radius:10px;margin-bottom:10px;' });
@@ -1305,7 +1484,10 @@ function bukaModalDetailSub(sub, taskItem) {
             btnSave.textContent = '✓ Simpan'; btnSave.disabled = false;
             _toast('Gagal: ' + e.message, 'error');
           })
-          .aquaTaskSimpanNilai(capturedTaskId, _state.courseId, capturedSub.sub_id, parseFloat(n), '');
+          .aquaTaskSimpanNilai(
+            _state.sessionId,
+            capturedTaskId, _state.courseId, capturedSub.sub_id, parseFloat(n), ''
+          );
       };
     })(sub, nInp, resolvedTaskId)
   });
@@ -1350,7 +1532,7 @@ function hapusSubmission(taskId, subId, courseId, namaPengumpul, trEl) {
       if (trEl) trEl.classList.remove('row-deleting');
       _toast('Gagal: '+e.message, 'error');
     })
-    .aquaTaskHapusSubmission(taskId, subId, courseId);
+    .aquaTaskHapusSubmission(_state.sessionId, taskId, subId, courseId);
 }
 
 /* ═══════════════════════════════════════
@@ -1360,14 +1542,7 @@ function bukaModalEditDeadline(courseId, taskId, currentDeadline, judulTugas) {
   _editDeadlineCtx = { courseId:courseId, taskId:taskId };
   document.getElementById('editDeadlineTaskName').textContent = 'Tugas: '+judulTugas;
   var inp = document.getElementById('editDeadlineInput');
-  if (currentDeadline) {
-    var d   = new Date(currentDeadline);
-    var pad = function(n){ return String(n).padStart(2,'0'); };
-    var witaMs = d.getTime() + 8*3600000 - d.getTimezoneOffset()*60000;
-    var witaD  = new Date(witaMs);
-    inp.value = witaD.getUTCFullYear()+'-'+pad(witaD.getUTCMonth()+1)+'-'+pad(witaD.getUTCDate())
-              + 'T'+pad(witaD.getUTCHours())+':'+pad(witaD.getUTCMinutes());
-  } else { inp.value = ''; }
+  inp.value = _toWitaInput(currentDeadline);
   document.getElementById('modalEditDeadline').classList.add('visible');
 }
 function tutupModalEditDeadline() { document.getElementById('modalEditDeadline').classList.remove('visible'); }
@@ -1386,7 +1561,10 @@ function simpanEditDeadline() {
       btn.textContent = '💾 Simpan Deadline'; btn.disabled = false;
       _toast('Gagal: '+e.message,'error');
     })
-    .aquaTaskUpdateDeadline(_editDeadlineCtx.courseId, _editDeadlineCtx.taskId, deadline+':00+08:00');
+    .aquaTaskUpdateDeadline(
+      _state.sessionId,
+      _editDeadlineCtx.courseId, _editDeadlineCtx.taskId, deadline+':00+08:00'
+    );
 }
 
 /* ═══════════════════════════════════════
@@ -1397,6 +1575,7 @@ function bukaModalTambahTugas() {
     .forEach(function(id){ document.getElementById(id).value=''; });
   document.getElementById('newTaskTipe').value     = 'Individu';
   document.getElementById('newTaskMaxFiles').value = '1';
+  _renderFileTypeBox('newTaskFileTypes', []);   // A8
   document.getElementById('modalTambahTugas').classList.add('visible');
 }
 function tutupModalTambahTugas() { document.getElementById('modalTambahTugas').classList.remove('visible'); }
@@ -1418,11 +1597,12 @@ function simpanTugas() {
       else { _toast(res.message,'error'); }
     })
     .withFailureHandler(function(e){ btn.textContent='💾 Simpan Tugas'; btn.disabled=false; _toast('Gagal: '+e.message,'error'); })
-    .aquaTaskSimpanTugas(_state.courseId, {
+    .aquaTaskSimpanTugas(_state.sessionId, _state.courseId, {   // A8
       judul:judul, deskripsi:deskrip, docs_url:docsUrl,
       tipe:tipe, bobot:parseFloat(bobot)||0,
       deadline: dl ? dl+':00+08:00' : '',
-      max_files: maxF
+      max_files: maxF,
+      allowed_types: _readFileTypeBox('newTaskFileTypes')
     });
 }
 
@@ -1491,7 +1671,7 @@ function eksekusiSubmitNilaiKeLMS() {
       if (r.success) {
         var gagalTxt = r.gagal > 0 ? ' · '+r.gagal+' gagal (cek koneksi).' : '';
         fbEl.style.cssText = 'display:block;background:rgba(52,201,138,0.07);border:1px solid rgba(52,201,138,0.3);color:var(--mint);padding:12px;border-radius:9px;font-size:12px;line-height:1.6;';
-        fbEl.innerHTML = '✅ <strong>'+r.berhasil+'</strong>/'+total+' nilai disinkronkan ke LMS dengan label <em>"'+jenisNilai+'"</em>.'+gagalTxt;
+        fbEl.innerHTML = '✅ <strong>'+r.berhasil+'</strong>/'+total+' nilai disinkronkan ke LMS dengan label <em>"'+_esc(jenisNilai)+'"</em>.'+gagalTxt;
         _clearCache(_cKeyDosen());
       } else {
         fbEl.style.cssText = 'display:block;background:rgba(242,109,81,0.08);border:1px solid rgba(242,109,81,0.3);color:var(--coral);padding:12px;border-radius:9px;font-size:12px;';
@@ -1504,7 +1684,195 @@ function eksekusiSubmitNilaiKeLMS() {
       btn.textContent = '📤 Submit Nilai'; btn.disabled = false;
       _toast('Gagal mengirim nilai: '+e.message,'error');
     })
-    .aquaTaskSimpanNilaiBatch(taskId, _state.courseId, nilaiBatch, jenisNilai);
+    .aquaTaskSimpanNilaiBatch(
+      _state.sessionId,
+      taskId, _state.courseId, nilaiBatch, jenisNilai
+    );
+}
+
+/* ═══════════════════════════════════════
+   PREVIEW & EDIT TUGAS (Dosen)
+   ═══════════════════════════════════════ */
+var _editTaskCtx   = { taskId:null, snapshot:'' };
+var _GOOGLE_URL_RE = /^https:\/\/(docs|drive)\.google\.com\//;
+
+function _toWitaInput(iso) {
+  if (!iso) return '';
+  var ms = new Date(iso).getTime();
+  if (isNaN(ms)) return '';
+  var w = new Date(ms + 8*3600000), p = function(n){ return String(n).padStart(2,'0'); };
+  return w.getUTCFullYear()+'-'+p(w.getUTCMonth()+1)+'-'+p(w.getUTCDate())
+       + 'T'+p(w.getUTCHours())+':'+p(w.getUTCMinutes());
+}
+
+function _etEnsureOption(selId, val) {
+  var sel = document.getElementById(selId);
+  for (var i = 0; i < sel.options.length; i++) if (sel.options[i].value === val) return;
+  var o = document.createElement('option'); o.value = val; o.textContent = val + ' file'; sel.appendChild(o);
+}
+
+function _readEditForm() {
+  var dl = document.getElementById('etDeadline').value;
+  return {
+    judul:     document.getElementById('etJudul').value.trim(),
+    deskripsi: document.getElementById('etDeskripsi').value.trim(),
+    docs_url:  document.getElementById('etDocsUrl').value.trim(),
+    tipe:      document.getElementById('etTipe').value,
+    bobot:     parseFloat(document.getElementById('etBobot').value) || 0,
+    max_files: parseInt(document.getElementById('etMaxFiles').value) || 1,
+    allowed_types: _readFileTypeBox('etFileTypes'),   // A8
+    deadline:  dl ? dl + ':00+08:00' : ''
+  };
+}
+function _etIsDirty() { return JSON.stringify(_readEditForm()) !== _editTaskCtx.snapshot; }
+
+function _etUpdateDirty() {
+  var dirty = _etIsDirty();
+  document.getElementById('etDirtyDot').style.display = dirty ? 'inline' : 'none';
+  document.getElementById('btnSimpanEditTugas').disabled = !dirty;
+}
+
+function bukaModalEditTugas(taskId, tab) {
+  var item = ((_state.dosenData || {}).tasks || []).find(function(it){ return it.task.task_id === taskId; });
+  if (!item) { _toast('Tugas tidak ditemukan.', 'error'); return; }
+  var t = item.task;
+  _editTaskCtx.taskId = taskId;
+
+  document.getElementById('etTitle').textContent = '📝 ' + t.judul;
+  document.getElementById('etJudul').value     = t.judul     || '';
+  document.getElementById('etDeskripsi').value = t.deskripsi || '';
+  document.getElementById('etDocsUrl').value   = t.docs_url  || '';
+  document.getElementById('etTipe').value      = t.tipe === 'Kelompok' ? 'Kelompok' : 'Individu';
+  document.getElementById('etBobot').value     = t.bobot || '';
+  var mf = String(parseInt(t.max_files) || 1);
+  _etEnsureOption('etMaxFiles', mf);
+  document.getElementById('etMaxFiles').value  = mf;
+  document.getElementById('etDeadline').value  = _toWitaInput(t.deadline);
+
+  var info = document.getElementById('etInfoBox');
+  if (item.jumlah_masuk > 0) {
+    info.style.display = 'block';
+    info.textContent = '⚠️ Sudah ada ' + item.jumlah_masuk + ' pengumpulan. Perubahan tipe, maks file, tipe file, dan deadline '
+      + 'hanya berlaku untuk pengumpulan berikutnya; data yang sudah masuk tidak diubah. '
+      + 'Perubahan judul/bobot tidak otomatis mengubah label di rekap nilai LMS (ulangi "Submit Nilai ke LMS" bila perlu).';
+  } else { info.style.display = 'none'; }
+
+  /* A8 — render picker SEBELUM snapshot, agar tidak langsung dianggap dirty */
+  _renderFileTypeBox('etFileTypes', t.allowed_types || []);
+  _editTaskCtx.snapshot = JSON.stringify(_readEditForm());
+  _etUpdateDirty();
+  etSwitchTab(tab || 'preview');
+  document.getElementById('modalEditTugas').classList.add('visible');
+}
+
+function etSwitchTab(name) {
+  var isPrev = (name === 'preview');
+  document.getElementById('etTabBtnPreview').classList.toggle('active', isPrev);
+  document.getElementById('etTabBtnEdit').classList.toggle('active', !isPrev);
+  document.getElementById('etPanePreview').classList.toggle('active', isPrev);
+  document.getElementById('etPaneEdit').classList.toggle('active', !isPrev);
+  if (isPrev) {
+    var pane = document.getElementById('etPanePreview');
+    pane.innerHTML = '';
+    if (_etIsDirty()) {
+      var b = _el('div', { style:'margin-bottom:10px;' });
+      b.appendChild(_badge('badge-amber', '● Draft — perubahan belum disimpan'));
+      pane.appendChild(b);
+    }
+    pane.appendChild(_buildTaskPreview(_readEditForm()));
+  }
+}
+
+function tutupModalEditTugas(force) {
+  if (!force && _etIsDirty() && !confirm('Ada perubahan yang belum disimpan. Tutup tanpa menyimpan?')) return;
+  document.getElementById('modalEditTugas').classList.remove('visible');
+}
+
+function _buildTaskPreview(t) {
+  var now    = Date.now();
+  var dlMs   = t.deadline ? new Date(t.deadline).getTime() : null;
+  var isLate = dlMs && now > dlMs;
+  var card   = _el('div', { className:'task-card ' + (isLate ? 'late' : 'open'), style:'margin-bottom:0;' });
+
+  var top = _el('div', { style:'display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap;gap:8px;' });
+  top.appendChild(_badge(t.tipe === 'Kelompok' ? 'badge-purple' : 'badge-foam', (t.tipe === 'Kelompok' ? '👥 ' : '📋 ') + t.tipe));
+  if (t.max_files > 1) top.appendChild(_badge('badge-amber', '📎 Maks ' + t.max_files + ' file'));
+  if (t.allowed_types && t.allowed_types.length)
+    top.appendChild(_badge('badge-foam', '📄 ' + t.allowed_types.map(function(e){ return e.toUpperCase(); }).join(', ')));
+  var dlCls  = isLate ? 'dl-closed' : (dlMs && dlMs - now < 86400000 ? 'dl-warn' : 'dl-open');
+  var dlChip = _el('span', { className:'dl-chip ' + dlCls });
+  dlChip.textContent = dlMs ? (isLate ? '🔒 Ditutup' : '⏰ ' + _fmtDl(dlMs)) : 'Tanpa deadline';
+  top.appendChild(dlChip);
+  card.appendChild(top);
+
+  card.appendChild(_elText('h4', t.judul || '(Judul belum diisi)',
+    'font-family:Lora,serif;font-size:16px;color:#e2edf8;margin-bottom:6px;'));
+
+  var validDocs = t.docs_url && _GOOGLE_URL_RE.test(t.docs_url);
+  if (t.deskripsi || t.docs_url) {
+    var iw = _el('div', { className:'instr-wrap' });
+    var ih = _el('button', { className:'instr-head' });
+    ih.innerHTML = '<span>📄 Baca Instruksi Tugas (klik disini)</span><span class="arr">▼</span>';
+    var ib = _el('div', { className:'instr-body' });
+    var ifr = null;
+    if (t.deskripsi) ib.appendChild(_elText('div', t.deskripsi, null, 'instr-text'));
+    if (validDocs) {
+      var ifw = _el('div', { className:'instr-iframe-wrap' });
+      ifr = _el('iframe');
+      ifr.setAttribute('allowfullscreen', '');
+      ifw.appendChild(ifr); ib.appendChild(ifw);
+    } else if (t.docs_url) {
+      ib.appendChild(_elText('div', '⚠️ Link tidak valid (harus tautan Google Docs/Drive https).',
+        'padding:12px 18px;font-size:12px;color:var(--coral);'));
+    }
+    ih.addEventListener('click', function() {
+      ih.classList.toggle('open'); ib.classList.toggle('open');
+      if (ifr && !ifr.dataset.loaded) { ifr.src = _buildEmbedUrl(t.docs_url); ifr.dataset.loaded = '1'; }
+    });
+    iw.appendChild(ih); iw.appendChild(ib); card.appendChild(iw);
+  }
+
+  if (t.bobot) {
+    var bw = _el('div', { style:'margin-bottom:12px;' });
+    bw.appendChild(_badge('badge-amber', 'Bobot ' + t.bobot + '%'));
+    card.appendChild(bw);
+  }
+
+  var bs = _el('button', { className:'btn btn-ocean btn-sm' });
+  bs.textContent = '📤 Kumpulkan Tugas'; bs.disabled = true; bs.title = 'Contoh tampilan — tidak aktif di preview';
+  card.appendChild(bs);
+  return card;
+}
+
+function simpanEditTugas() {
+  var d = _readEditForm();
+  if (!d.judul) { etSwitchTab('edit'); _toast('Judul tugas wajib diisi!', 'error'); return; }
+  if (d.bobot < 0 || d.bobot > 100) { etSwitchTab('edit'); _toast('Bobot harus 0–100.', 'error'); return; }
+  if (d.docs_url && !_GOOGLE_URL_RE.test(d.docs_url)) {
+    etSwitchTab('edit'); _toast('Link instruksi harus tautan Google Docs/Drive (https).', 'error'); return;
+  }
+  if (d.deadline && new Date(d.deadline).getTime() < Date.now() &&
+      !confirm('Deadline yang Anda atur sudah lewat — tugas akan langsung tertutup untuk mahasiswa. Lanjutkan?')) return;
+
+  var btn = document.getElementById('btnSimpanEditTugas');
+  btn.textContent = '⏳ Menyimpan…'; btn.disabled = true;
+
+  google.script.run
+    .withSuccessHandler(function(r) {
+      btn.textContent = '💾 Simpan Perubahan';
+      if (r.success) {
+        _toast(r.message, 'success');
+        _editTaskCtx.snapshot = JSON.stringify(d);
+        tutupModalEditTugas(true);
+        _clearCache(_cKeyDosen());
+        _muatDosen(true);
+      } else { _toast(r.message, 'error'); _etUpdateDirty(); }
+    })
+    .withFailureHandler(function(e) {
+      btn.textContent = '💾 Simpan Perubahan'; _etUpdateDirty();
+      _toast('Gagal: ' + e.message, 'error');
+    })
+    .aquaTaskUpdateTugas(_state.sessionId, _state.courseId, _editTaskCtx.taskId, d);
 }
 
 /* ═══════════════════════════════════════
@@ -1521,7 +1889,7 @@ function exportCSV(taskId) {
       _toast('CSV berhasil diunduh!','success');
     })
     .withFailureHandler(function(e){ _toast('Gagal: '+e.message,'error'); })
-    .aquaTaskExportCSV(taskId, _state.courseId);
+    .aquaTaskExportCSV(_state.sessionId, taskId, _state.courseId);
 }
 
 /* ═══════════════════════════════════════
@@ -1549,6 +1917,7 @@ function toggleAcc(head) {
 /* ═══════════════════════════════════════
    DOM HELPERS
    ═══════════════════════════════════════ */
+function _esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function _el(tag, props) {
   var el = document.createElement(tag);
   if (props) Object.keys(props).forEach(function(k) {
@@ -1612,7 +1981,7 @@ function _toast(msg, type) {
   var el = document.createElement('div');
   el.className = 'toast '+c.cls;
   el.innerHTML = '<span style="font-size:15px;flex-shrink:0;">'+c.icon+'</span>'
-    +'<div><div class="toast-title">'+c.title+'</div><div class="toast-msg">'+msg+'</div></div>';
+    +'<div><div class="toast-title">'+c.title+'</div><div class="toast-msg">'+_esc(msg)+'</div></div>';
   container.appendChild(el);
   setTimeout(function(){ el.classList.add('hide'); setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); },350); }, 4500);
 }
@@ -1625,7 +1994,7 @@ function tutupAman() {
   google.script.run
     .withSuccessHandler(function(url){ window.location.href=url; })
     .withFailureHandler(function(){ window.history.back(); })
-    .getScriptUrl();
+    .getScriptUrl(_state.sessionId);
 }
 </script>
 </body>
