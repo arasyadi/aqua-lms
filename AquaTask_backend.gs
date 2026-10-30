@@ -179,30 +179,150 @@ function migrateFlatFoldersToNested_() {
 }
 
 // ============================================================
-// 4. MAHASISWA — Upload file ke Google Drive
-//    BARU: folder tujuan bersarang "AquaLearn LMS/AquaTask_<courseId>"
-//    alih-alih folder lepas "AquaTask_<courseId>" di root Drive.
+// [C1] HELPER — Penamaan otomatis file unggahan
+// Format: {NIM(s)}_{Nama}_{IND|KEL}_{Judul}[_{i}dari{n}].ext
 // ============================================================
-function aquaTaskUploadFile(base64Data, fileName, mimeType, courseId) {
+var AQUATASK_NAME_CORE_MAX_ = 200;
+var AQUATASK_NIM_SEP_       = ' ';   // pemisah antar-NIM (tugas kelompok)
+var AQUATASK_MAX_BYTES_     = 10 * 1024 * 1024;  // maks 10 MB per file
+
+// Daftar ekstensi default bila tugas tidak membatasi tipe file.
+var AQUATASK_DEFAULT_EXT_   = ['pdf','doc','docx','ppt','pptx',
+                               'jpg','jpeg','png','zip','rar'];
+
+// Baca node Firebase lewat helper fbGet() yang sudah ada di
+// firebase_backend.gs (nama "fbGet" sudah dipakai di sana).
+function fbGet_(path) {
+  return fbGet(path);
+}
+
+// Ambil ekstensi (huruf kecil) dari sebuah nama file.
+function _fileExt_(fileName) {
+  var s = String(fileName || '');
+  var i = s.lastIndexOf('.');
+  return (i > -1) ? s.substring(i + 1).toLowerCase() : '';
+}
+
+// Tipe file yang diizinkan untuk sebuah tugas (null = pakai default).
+function _getTaskAllowedExt_(task) {
+  var a = task && task.allowed_types;
+  return (a && a.length) ? a : AQUATASK_DEFAULT_EXT_;
+}
+
+// Validasi sesi mahasiswa/dosen; mengembalikan data sesi.
+// Catatan: validasi berbasis sessionId belum tersedia di backend repo ini,
+// jadi fungsi ini hanya memastikan sessionId diisi. Ganti isinya dengan
+// pemanggilan fungsi validasi sesi proyek Anda bila sudah ada.
+function _validasiSesi(sessionId) {
+  if (!sessionId) throw new Error('Sesi tidak valid. Silakan login ulang.');
+  return { userId: sessionId, sessionId: sessionId };
+}
+
+// Bersihkan: buang aksen, selain huruf/angka -> spasi, rapikan spasi.
+function _slugName_(s, maxLen) {
+  s = String(s || '');
+  if (s.normalize) s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  s = s.replace(/[^A-Za-z0-9]+/g, ' ').replace(/^ +| +$/g, '');
+  if (maxLen && s.length > maxLen) s = s.substring(0, maxLen).replace(/ +$/, '');
+  return s || 'X';
+}
+
+// "NI MADE AYU" / "ni made ayu" -> "Ni Made Ayu"
+function _titleCase_(s) {
+  return String(s || '').toLowerCase().replace(/(^| )([a-z])/g, function(m, sp, ch) {
+    return sp + ch.toUpperCase();
+  });
+}
+
+// Pengumpul utama di depan, anggota lain (yang terdaftar di kelas) terurut.
+function _resolveMembers_(courseId, userId, anggotaArr) {
+  var enr  = fbGet_('aqualearn/enrollments/' + safeKey(courseId)) || {};
+  var rest = [];
+  (Array.isArray(anggotaArr) ? anggotaArr : []).forEach(function(n) {
+    n = String(n || '');
+    if (n && n !== userId && enr[n] && rest.indexOf(n) < 0) rest.push(n);
+  });
+  rest.sort();
+  return [userId].concat(rest);
+}
+
+function _buildUploadName_(task, userId, nama, members, idx, total, ext) {
+  var isKel = (task.tipe === 'Kelompok');
+  var head  = isKel
+    ? members.map(function(n) { return _slugName_(n, 15); }).join(AQUATASK_NIM_SEP_)
+    : _slugName_(userId, 15);
+
+  var core = [head, _titleCase_(_slugName_(nama, 30)), isKel ? 'KEL' : 'IND', _slugName_(task.judul, 40)]
+    .join('_').substring(0, AQUATASK_NAME_CORE_MAX_).replace(/ +$/, '');
+
+  if (total > 1) core += '_' + idx + 'dari' + total;
+  return core + '.' + ext;
+}
+
+// ============================================================
+// 4. MAHASISWA — Upload file ke Google Drive
+//    [C2] File di-RENAME otomatis oleh server; nama dari klien diabaikan
+//         (hanya ekstensinya yang dipakai).
+//    Signature: (sessionId, base64Data, fileName, mimeType, courseId, taskId,
+//                anggotaArr, fileIdx, fileTotal)
+// ============================================================
+function aquaTaskUploadFile(sessionId, base64Data, fileName, mimeType, courseId, taskId,
+                            anggotaArr, fileIdx, fileTotal) {
+  // 1. VALIDASI SESI
+  var user = _validasiSesi(sessionId);
+
+  // 2. Validasi dasar
   if (!base64Data || !fileName) {
     return { success: false, message: 'Data file tidak lengkap.' };
   }
+  if (!courseId || !taskId) {
+    return { success: false, message: 'Parameter tugas tidak lengkap.' };
+  }
+
+  // 3. Validasi tipe file terhadap konfigurasi tugas
+  var task = fbGet_('aqualearn/aquatask/tasks/' + courseId + '/' + taskId);
+  if (!task) return { success: false, message: 'Tugas tidak ditemukan.' };
+
+  var ext     = _fileExt_(fileName);
+  var allowed = _getTaskAllowedExt_(task);
+  if (allowed.indexOf(ext) < 0) {
+    return {
+      success: false,
+      message: 'Tipe file ".' + ext + '" tidak diizinkan. Diizinkan: ' +
+               allowed.map(function(e){ return e.toUpperCase(); }).join(', ')
+    };
+  }
+
+  // 4. [C2] Susun nama baku
+  var maxF  = parseInt(task.max_files) || 1;
+  var total = parseInt(fileTotal) || 1;
+  if (total < 1) total = 1;
+  if (total > maxF) total = maxF;
+  var idx = parseInt(fileIdx) || 1;
+  if (idx < 1 || idx > total) idx = 1;
+
+  var userRec = fbGet_('aqualearn/users/' + user.userId) || {};
+  var nama    = userRec.nama_lengkap || user.userId;
+  var members = (task.tipe === 'Kelompok')
+    ? _resolveMembers_(courseId, user.userId, anggotaArr)
+    : [user.userId];
+
+  var finalName = _buildUploadName_(task, user.userId, nama, members, idx, total, ext);
 
   try {
     var decoded = Utilities.base64Decode(base64Data);
-    var blob    = Utilities.newBlob(decoded, mimeType || 'application/octet-stream', fileName);
+    if (decoded.length > AQUATASK_MAX_BYTES_) {
+      return { success: false, message: 'Ukuran file melebihi 10 MB.' };
+    }
 
-    // ── PERUBAHAN: folder bersarang, bukan folder lepas di root ──
-    var folder = _getAquaTaskFolder_(courseId || 'Umum');
-
-    var file = folder.createFile(blob);
+    var blob   = Utilities.newBlob(decoded, mimeType || 'application/octet-stream', finalName);
+    var folder = _getAquaTaskFolder_(courseId);
+    var file   = folder.createFile(blob);
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    file.setDescription('Nama asli: ' + fileName + ' | Diunggah oleh: ' + user.userId +
+                        ' | ' + new Date().toISOString());
 
-    return {
-      success:  true,
-      fileUrl:  file.getUrl(),
-      fileName: fileName
-    };
+    return { success: true, fileUrl: file.getUrl(), fileName: finalName, originalName: fileName };
   } catch(e) {
     return { success: false, message: 'Upload gagal: ' + e.toString() };
   }

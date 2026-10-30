@@ -365,6 +365,7 @@
              onchange="handleFileSelect(this)">
       <!-- File queue -->
       <div class="file-queue" id="fileQueue"></div>
+      <p class="form-hint" id="renameHint" style="margin-top:8px;"></p>
       <!-- Progress bar -->
       <div class="upload-progress" id="uploadProgress">
         <div class="upload-progress-fill" id="uploadProgressFill"></div>
@@ -592,7 +593,7 @@ var _state = {
   tasks:[], mySubmissions:{}, mahasiswaList:[],
   dosenData:null, activeTaskId:null, selectedAnggota:[],
   /* Multi-file: array of File objects */
-  selectedFiles:[], activeMaxFiles:1, activeAllowed:null
+  selectedFiles:[], activeMaxFiles:1, activeAllowed:null, activeTask:null
 };
 var _editDeadlineCtx = { courseId:null, taskId:null };
 
@@ -720,6 +721,42 @@ function _readFileTypeBox(containerId) {
 /* ═══════════════════════════════════════
    FILE HELPERS — MULTI-FILE
    ═══════════════════════════════════════ */
+var _NIM_SEP = ' ';   // harus sama dengan AQUATASK_NIM_SEP_ di backend
+
+function _slugName(s, maxLen) {
+  s = String(s || '');
+  if (s.normalize) s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  s = s.replace(/[^A-Za-z0-9]+/g, ' ').replace(/^ +| +$/g, '');
+  if (maxLen && s.length > maxLen) s = s.substring(0, maxLen).replace(/ +$/, '');
+  return s || 'X';
+}
+function _titleCase(s) {
+  return String(s || '').toLowerCase().replace(/(^| )([a-z])/g, function(m, sp, ch) {
+    return sp + ch.toUpperCase();
+  });
+}
+// PREVIEW saja — nama final ditentukan server (_buildUploadName_). Jaga logikanya tetap sama.
+function _previewNama(file, idx, total) {
+  var t = _state.activeTask;
+  if (!t) return file.name;
+  var ext   = (file.name.split('.').pop() || '').toLowerCase();
+  var isKel = (t.tipe === 'Kelompok');
+  var head;
+  if (isKel) {
+    var rest = _state.selectedAnggota.filter(function(n){ return n !== _state.userId; }).sort();
+    head = [_state.userId].concat(rest).map(function(n){ return _slugName(n, 15); }).join(_NIM_SEP);
+  } else {
+    head = _slugName(_state.userId, 15);
+  }
+  var core = [head, _titleCase(_slugName(_state.userName, 30)), isKel ? 'KEL' : 'IND', _slugName(t.judul, 40)]
+    .join('_').substring(0, 200).replace(/ +$/, '');
+  if (total > 1) core += '_' + (idx + 1) + 'dari' + total;
+  return core + '.' + ext;
+}
+function _lockAnggota(lock) {
+  document.querySelectorAll('#anggotaList input').forEach(function(cb){ cb.disabled = !!lock; });
+}
+
 function handleFileSelect(input) {
   if (!input.files || !input.files.length) return;
   for (var i = 0; i < input.files.length; i++) _addFile(input.files[i]);
@@ -770,19 +807,21 @@ function _renderFileQueue() {
   var qEl = document.getElementById('fileQueue');
   var drop = document.getElementById('fileDrop');
   var maxF = _state.activeMaxFiles || 1;
+  var total = _state.selectedFiles.length;
   qEl.innerHTML = '';
 
-  if (!_state.selectedFiles.length) {
+  if (!total) {
     drop.classList.remove('has-file');
     return;
   }
   drop.classList.add('has-file');
 
   _state.selectedFiles.forEach(function(f, idx) {
+    var finalName = _previewNama(f, idx, total);
     var item = _el('div', { className:'file-queue-item' });
     item.innerHTML =
       '<span class="fq-icon">'+_fileIcon(f.name)+'</span>'
-      +'<span class="fq-name">'+_esc(_truncate(f.name,36))+'</span>'
+      +'<span class="fq-name" id="fq-name-'+idx+'" title="'+_esc('Nama asli: '+f.name)+'">'+_esc(_truncate(finalName,44))+'</span>'
       +'<span class="fq-size">'+_fmtSize(f.size)+'</span>'
       +'<span class="fq-status pending" id="fq-status-'+idx+'">⏳ Antri</span>';
     var rmBtn = _el('button', { className:'fq-remove' });
@@ -793,7 +832,7 @@ function _renderFileQueue() {
     qEl.appendChild(item);
   });
 
-  var remaining = maxF - _state.selectedFiles.length;
+  var remaining = maxF - total;
   document.getElementById('fileDropText').textContent =
     remaining > 0
       ? (maxF > 1 ? '+ Tambah file ('+remaining+' slot tersisa)' : '✓ File terpilih')
@@ -997,6 +1036,11 @@ function bukaModalSubmit(task) {
   _state.selectedFiles   = [];
   _state.activeAllowed   = _getAllowedExts(task);   // A6
 
+  _state.activeTask = task;
+  document.getElementById('renameHint').textContent =
+    '🏷️ Nama file akan diganti otomatis oleh sistem (NIM_Nama_' +
+    (task.tipe === 'Kelompok' ? 'KEL' : 'IND') + '_Judul). Tidak perlu mengubah nama file sendiri.';
+
   /* Reset UI */
   var drop = document.getElementById('fileDrop');
   drop.classList.remove('has-file','drag');
@@ -1073,6 +1117,7 @@ function bukaModalSubmit(task) {
 }
 function _updateAnggotaCount() {
   document.getElementById('anggotaCount').textContent = '('+_state.selectedAnggota.length+' terpilih termasuk Anda)';
+  _renderFileQueue();
 }
 function tutupModalSubmit() { document.getElementById('modalSubmit').classList.remove('visible'); }
 
@@ -1093,6 +1138,7 @@ function eksekusiSubmit() {
   btn.textContent = '⏳ Mengupload…'; btn.disabled = true;
   bar.style.display = 'block'; fill.style.width = '0%'; fill.classList.remove('shimmer');
   stepLbl.style.display = 'block';
+  _lockAnggota(true);
 
   function _uploadNext(idx) {
     if (idx >= totalF) {
@@ -1106,6 +1152,7 @@ function eksekusiSubmit() {
           fill.style.width = '100%';
           setTimeout(function(){ bar.style.display='none'; fill.style.width='0%'; stepLbl.style.display='none'; }, 700);
           btn.textContent = '📤 Kumpulkan Sekarang'; btn.disabled = false;
+          _lockAnggota(false);
           if (res.success) {
             _toast(res.message,'success');
             tutupModalSubmit();
@@ -1142,6 +1189,8 @@ function eksekusiSubmit() {
             _toast('Upload gagal: '+upRes.message,'error'); return;
           }
           _setFileQueueStatus(idx, 'done', '✓ OK');
+          var nmEl = document.getElementById('fq-name-'+idx);
+          if (nmEl) nmEl.textContent = _truncate(upRes.fileName, 44);
           uploadedUrls.push(upRes.fileUrl);
           uploadedNames.push(upRes.fileName);
           _uploadNext(idx + 1);
@@ -1155,7 +1204,8 @@ function eksekusiSubmit() {
           _state.sessionId,
           b64, file.name,
           file.type || 'application/octet-stream', _state.courseId,
-          _state.activeTaskId          // A7 — argumen baru
+          _state.activeTaskId,
+          _state.selectedAnggota, idx + 1, totalF
         );
     };
     reader.readAsDataURL(file);
@@ -1169,6 +1219,7 @@ function _resetUploadUI(btn, bar, fill, stepLbl) {
   bar.style.display = 'none';
   if (stepLbl) { stepLbl.style.display = 'none'; stepLbl.textContent = ''; }
   btn.textContent = '📤 Kumpulkan Sekarang'; btn.disabled = false;
+  _lockAnggota(false);
 }
 
 /* ═══════════════════════════════════════
@@ -1349,6 +1400,7 @@ function _renderDosenView() {
         urls.forEach(function(u, fi) {
           var nm = names[fi] || ('File '+(fi+1));
           var a  = _el('a', { href:u, target:'_blank', className:'file-link' });
+          a.title = nm;
           a.innerHTML = '<span>'+_fileIcon(nm)+'</span><span>'+_esc(_truncate(nm,18))+'</span>';
           if (urls.length > 1) {
             var idx2 = _el('span', { className:'file-ext' }); idx2.textContent=(fi+1)+'/'+urls.length;
